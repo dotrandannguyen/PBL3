@@ -1,4 +1,4 @@
-import { ClientException } from './client.exception';
+import { ClientException } from './client.exception.js';
 import { StatusCodes } from 'http-status-codes';
 
 export class NotFoundException extends ClientException {
