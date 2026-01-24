@@ -1,0 +1,107 @@
+/* Import shared auth styles from LoginPage */
+@import "./LoginPage.css";
+
+/* Additional third orb for register page */
+.bg-orb-3 {
+    width: 250px;
+    height: 250px;
+    background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
+    top: 50%;
+    right: -80px;
+    animation: float 12s ease-in-out infinite;
+    opacity: 0.3;
+}
+
+/* Password toggle button */
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+}
+
+.password-toggle:hover {
+    color: var(--text-primary);
+}
+
+/* Password Strength Indicator */
+.password-strength {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.strength-bars {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+}
+
+.strength-bar {
+    height: 4px;
+    flex: 1;
+    border-radius: 2px;
+    background: var(--border-subtle);
+    transition: background-color 0.3s ease;
+}
+
+.strength-bar.active {
+    background: var(--accent-primary);
+}
+
+.strength-text {
+    font-size: 12px;
+    font-weight: 500;
+    min-width: 70px;
+    text-align: right;
+}
+
+/* Terms text */
+.terms-text {
+    margin-top: 24px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    text-align: center;
+    line-height: 1.6;
+}
+
+.terms-link {
+    color: var(--text-secondary);
+    text-decoration: underline;
+    text-decoration-color: var(--border-subtle);
+    transition: all 0.2s ease;
+}
+
+.terms-link:hover {
+    color: var(--accent-primary);
+    text-decoration-color: var(--accent-primary);
+}
+
+/* Checkbox style for future use */
+.checkbox-wrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent-primary);
+    cursor: pointer;
+}
+
+.checkbox-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}

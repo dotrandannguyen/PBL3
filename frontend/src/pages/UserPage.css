@@ -1,0 +1,486 @@
+.app-container {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    background-color: #191919;
+    color: #e0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+}
+
+/* ==================== SIDEBAR ==================== */
+.sidebar {
+    width: 240px;
+    background-color: #202020;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border-right: 1px solid #2d2d2d;
+    font-size: 14px;
+}
+
+/* User section */
+.sidebar-user {
+    display: flex;
+    align-items: center;
+    padding: 12px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #2d2d2d;
+}
+
+.sidebar-user:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.user-avatar {
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(135deg, #e57373 0%, #ef5350 100%);
+    color: white;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    margin-right: 8px;
+}
+
+.user-name {
+    flex: 1;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-chevron {
+    opacity: 0.5;
+}
+
+/* Navigation items */
+.sidebar-nav {
+    padding: 8px 0;
+    border-bottom: 1px solid #2d2d2d;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    color: #9a9a9a;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.nav-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+    color: #e0e0e0;
+}
+
+.nav-item.active {
+    background: rgba(255, 255, 255, 0.05);
+    color: #e0e0e0;
+}
+
+.nav-item.muted {
+    color: #5a5a5a;
+    font-size: 12px;
+    padding-left: 40px;
+}
+
+.nav-item.indent {
+    padding-left: 40px;
+}
+
+.page-icon {
+    font-size: 14px;
+}
+
+/* Sections */
+.sidebar-section {
+    padding: 8px 0;
+}
+
+.section-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6a6a6a;
+    padding: 8px 14px 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.section-add-btn {
+    background: none;
+    border: none;
+    color: #5a5a5a;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.1s, background 0.1s;
+}
+
+.sidebar-section:hover .section-add-btn {
+    opacity: 1;
+}
+
+.section-add-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #9a9a9a;
+}
+
+/* Bottom nav */
+.sidebar-bottom {
+    margin-top: auto;
+    padding: 8px 0;
+    border-top: 1px solid #2d2d2d;
+}
+
+/* Invite panel */
+.invite-panel {
+    margin: 8px;
+    padding: 12px;
+    background: #2d2d2d;
+    border-radius: 6px;
+}
+
+.invite-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #e0e0e0;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.invite-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #6a6a6a;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.invite-text {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: #6a6a6a;
+}
+
+/* ==================== MAIN CONTENT ==================== */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #191919;
+    overflow: hidden;
+}
+
+/* Top bar */
+.top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    border-bottom: 1px solid #2d2d2d;
+    font-size: 13px;
+}
+
+.breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #9a9a9a;
+}
+
+.breadcrumb-icon {
+    font-size: 14px;
+}
+
+.breadcrumb-private {
+    font-size: 12px;
+    color: #6a6a6a;
+}
+
+.top-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.edited-text {
+    color: #6a6a6a;
+    font-size: 12px;
+}
+
+.share-btn {
+    background: none;
+    border: none;
+    color: #e0e0e0;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.share-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    color: #9a9a9a;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+}
+
+.icon-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #e0e0e0;
+}
+
+/* Page content */
+.page-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 40px 0;
+}
+
+.page-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 60px;
+}
+
+/* Page header */
+.page-header {
+    margin-bottom: 32px;
+}
+
+.page-header svg {
+    margin-bottom: 12px;
+}
+
+.page-title {
+    font-size: 40px;
+    font-weight: 700;
+    color: #e0e0e0;
+    margin: 0;
+}
+
+/* Toolbar */
+.toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #2d2d2d;
+}
+
+.tab-group {
+    display: flex;
+    gap: 4px;
+}
+
+.tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: none;
+    border: 1px solid transparent;
+    color: #9a9a9a;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.1s;
+}
+
+.tab:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.tab.active {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: #3d3d3d;
+    color: #e0e0e0;
+}
+
+.toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.toolbar-btn {
+    background: none;
+    border: none;
+    color: #6a6a6a;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    display: flex;
+}
+
+.toolbar-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #9a9a9a;
+}
+
+.new-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: #2383e2;
+    border: none;
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.1s;
+}
+
+.new-btn:hover {
+    background: #1a6fb0;
+}
+
+/* Task list */
+.task-list {
+    background: transparent;
+}
+
+.task-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #2d2d2d;
+    gap: 12px;
+}
+
+.task-row:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.task-row:hover .task-delete {
+    opacity: 1;
+}
+
+.task-checkbox {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #4a4a4a;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    font-size: 11px;
+    color: white;
+}
+
+.task-checkbox:hover {
+    border-color: #2383e2;
+}
+
+.task-checkbox.checked {
+    background: #2383e2;
+    border-color: #2383e2;
+}
+
+.task-text {
+    flex: 1;
+    color: #e0e0e0;
+    font-size: 14px;
+    cursor: text;
+    padding: 4px 0;
+}
+
+.task-text.completed {
+    color: #6a6a6a;
+}
+
+.task-edit-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #e0e0e0;
+    font-size: 14px;
+    outline: none;
+    padding: 4px 0;
+}
+
+.task-date {
+    color: #6a6a6a;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.task-delete {
+    background: none;
+    border: none;
+    color: #6a6a6a;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.1s;
+    display: flex;
+}
+
+.task-delete:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+/* New task row */
+.new-task-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+    gap: 12px;
+    color: #6a6a6a;
+}
+
+.new-task-icon {
+    flex-shrink: 0;
+}
+
+.new-task-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #e0e0e0;
+    font-size: 14px;
+    outline: none;
+}
+
+.new-task-input::placeholder {
+    color: #4a4a4a;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 200px;
+    }
+
+    .page-container {
+        padding: 0 24px;
+    }
+}
