@@ -15,38 +15,283 @@ datasource db {
 
 }
 
-enum UserStatusEnum {
-    active
-    locked
+// --- ENUMS ---
+
+enum IntegrationProvider {
+  GOOGLE
+  GITHUB
+
+  @@map("integration_provider")
 }
-model users {
-  id        String         @id @default(uuid())
-  email     String         @unique
-  name      String?
-  bio       String?
-  address   String?
-  avatar    String?
-  verify    Boolean        @default(false)
-  status    UserStatusEnum @default(active)
 
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  deletedAt DateTime?
+enum IntegrationStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  ERROR
 
-  account   accounts?
+  @@map("integration_status")
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  ARCHIVED
+
+  @@map("task_status")
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+
+  @@map("task_priority")
+}
+
+enum TaskSource {
+  MANUAL
+  GMAIL
+  GITHUB
+
+  @@map("task_source")
+}
+
+enum ActivityType {
+  CREATED
+  UPDATED_STATUS
+  COMMENTED
+  AUTO_SYNCED
+
+  @@map("activity_type")
+}
+
+enum SyncResource {
+  GMAIL_INBOX
+  GITHUB_ISSUES
+  GITHUB_PULL_REQUESTS
+
+  @@map("sync_resource")
+}
+
+enum NotifType {
+  EMAIL_REMINDER
+  SYSTEM_ALERT
+
+  @@map("notif_type")
+}
+
+enum NotifStatus {
+  PENDING
+  SENT
+  FAILED
+
+  @@map("notif_status")
+}
+
+// --- MODELS ---
+
+/// Người dùng hệ thống
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  fullName     String?   @map("full_name")
+  avatarUrl    String?   @map("avatar_url")
+  
+  // Trạng thái & Soft Delete
+  isActive     Boolean   @default(true) @map("is_active") /// Khóa user nếu cần
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at") /// Soft delete: Không xóa vật lý để giữ integrity
+
+  // Relations
+  integrations   Integration[]
+  tasks          Task[]
+  tags           Tag[]
+  taskActivities TaskActivity[]
+  syncLogs       SyncLog[]
+  notifications  Notification[]
+  auditLogs      AuditLog[]
 
   @@map("users")
 }
-model accounts {
-  id        String   @id @default(uuid())
-  userId    String   @unique @map("user_id")
-  password  String
 
-  user      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Integration {
+  id                    Int                 @id @default(autoincrement())
+  userId                Int                 @map("user_id")
+  provider              IntegrationProvider
+  providerUserId        String              @map("provider_user_id") /// ID định danh bên 3rd party
+  
+  // Security Update: Encrypted Tokens
+  accessTokenEncrypted  String              @map("access_token_encrypted") @db.Text /// Mã hóa bằng AES-256
+  refreshTokenEncrypted String?             @map("refresh_token_encrypted") @db.Text /// Mã hóa bằng AES-256
+  expiresAt             DateTime?           @map("expires_at") /// Thời điểm access token hết hạn
+  
+  profileData           Json?               @map("profile_data")
+  status                IntegrationStatus   @default(ACTIVE)
+  
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @default(now()) @updatedAt @map("updated_at")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // Relations
+  user     User      @relation(fields: [userId], references: [id])
+  syncLogs SyncLog[]
 
-  @@map("accounts")
+  // Indexes / Constraints
+  @@unique([userId, provider]) // Mỗi user chỉ link 1 acc mỗi loại
+  @@unique([provider, providerUserId]) // 1 acc Google không thể link cho 2 user hệ thống
+  @@map("integrations")
 }
 
+model Task {
+  id             Int          @id @default(autoincrement())
+  userId         Int          @map("user_id")
+  
+  title          String
+  description    String?      @db.Text
+  status         TaskStatus   @default(PENDING)
+  priority       TaskPriority @default(MEDIUM)
+  
+  // Deadline & Analytics
+  dueDate        DateTime?    @map("due_date")
+  reminderAt     DateTime?    @map("reminder_at")
+  completedAt    DateTime?    @map("completed_at") /// Dùng để đo hiệu suất làm việc
+  
+  // Traceability (Nguồn gốc)
+  sourceType     TaskSource   @default(MANUAL) @map("source_type")
+  sourceId       String?      @map("source_id") /// MessageID hoặc IssueNumber
+  sourceLink     String?      @map("source_link")
+  sourceMetadata Json?        @map("source_metadata") /// Snapshot dữ liệu gốc
+  
+  // System Fields
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at")
+  deletedAt      DateTime?    @map("deleted_at") /// Soft delete task
+
+  // Relations
+  user          User           @relation(fields: [userId], references: [id])
+  taskTags      TaskTag[]
+  activities    TaskActivity[]
+  notifications Notification[]
+
+  // Indexes
+  @@index([userId])
+  @@index([status])
+  @@index([userId, dueDate]) // Query task sắp hết hạn
+  @@map("tasks")
+}
+
+model Tag {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  name      String
+  colorHex  String?  @default("#808080") @map("color_hex")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id])
+  taskTags TaskTag[]
+
+  // Indexes
+  @@unique([userId, name])
+  @@map("tags")
+}
+
+// Bảng trung gian Many-to-Many giữa Task và Tag
+model TaskTag {
+  taskId Int @map("task_id")
+  tagId  Int @map("tag_id")
+
+  // Relations
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, tagId])
+  @@map("task_tags")
+}
+
+model TaskActivity {
+  id        Int          @id @default(autoincrement())
+  taskId    Int          @map("task_id")
+  userId    Int?         @map("user_id") /// Null nếu là System tự làm
+  
+  type      ActivityType
+  oldValue  Json?        @map("old_value")
+  newValue  Json?        @map("new_value")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  // Relations
+  task Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("task_activities")
+}
+
+model SyncLog {
+  id            Int          @id @default(autoincrement())
+  userId        Int          @map("user_id")
+  integrationId Int          @map("integration_id")
+  
+  resourceType  SyncResource @map("resource_type")
+  lastSyncedAt  DateTime     @map("last_synced_at")
+  
+  // Optimization: Cursor-based sync
+  nextPageToken String?      @map("next_page_token") /// Cursor cho lần fetch tiếp theo
+  syncCursor    String?      @map("sync_cursor") /// HistoryId (Gmail) hoặc UpdatedSince (GitHub)
+  
+  status        String       // SUCCESS, FAILED
+  itemsProcessed Int         @default(0) @map("items_processed")
+  errorMessage  String?      @map("error_message") @db.Text
+  
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  // Relations
+  user        User        @relation(fields: [userId], references: [id])
+  integration Integration @relation(fields: [integrationId], references: [id])
+
+  @@map("sync_logs")
+}
+
+model Notification {
+  id          Int         @id @default(autoincrement())
+  userId      Int         @map("user_id")
+  taskId      Int?        @map("task_id")
+  
+  type        NotifType
+  title       String?
+  content     String?     @db.Text
+  
+  scheduledAt DateTime    @map("scheduled_at")
+  sentAt      DateTime?   @map("sent_at")
+  status      NotifStatus @default(PENDING)
+  retryCount  Int         @default(0) @map("retry_count")
+  
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  user User  @relation(fields: [userId], references: [id])
+  task Task? @relation(fields: [taskId], references: [id])
+
+  // Indexes
+  @@index([status, scheduledAt]) // Worker sẽ quét index này
+  @@map("notifications")
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int?     @map("user_id") // Có thể null nếu action failed trước khi có user
+  action      String   // LOGIN, LINK_GMAIL, DELETE_TASK
+  entityTable String?  @map("entity_table")
+  entityId    Int?     @map("entity_id")
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
