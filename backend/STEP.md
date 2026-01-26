@@ -31,19 +31,19 @@ Mục tiêu: Có một server chạy được, kết nối DB thành công và c
 🔐 Giai đoạn 2: Xác thực & Người dùng (Auth & Users)
 Mục tiêu: Quản lý người dùng, bảo mật password và phiên đăng nhập.
 
-[ ] User Module:
+[x] User Module:
 
 [ ] Repository: CRUD bảng users.
 
 [ ] Authentication Logic:
 
-[ ] Cài đặt bcrypt (hash password) và jsonwebtoken (JWT).
+[x] Cài đặt bcrypt (hash password) và jsonwebtoken (JWT).
 
-[ ] API POST /auth/register: Validate Zod, check email trùng, hash pass, tạo user.
+[x] API POST /auth/register: Validate Zod, check email trùng, hash pass, tạo user.
 
-[ ] API POST /auth/login: Verify pass, tạo Access Token & Refresh Token.
+[x] API POST /auth/login: Verify pass, tạo Access Token & Refresh Token.
 
-[ ] API POST /auth/refresh: Cấp lại Access Token mới từ Refresh Token.
+[] API POST /auth/refresh: Cấp lại Access Token mới từ Refresh Token.
 
 [ ] Middleware AuthGuard: Kiểm tra JWT trong Header cho các route bảo mật.
 

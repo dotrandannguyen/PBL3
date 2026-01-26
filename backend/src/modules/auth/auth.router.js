@@ -1,15 +1,16 @@
-import { Router } from 'express';
-import authController from './auth.controller.js';
-import { LoginSchema, RegisterSchema } from './dto/requests/auth.request.js';
+import express from 'express';
+import { authController } from './auth.controller.js';
+
+import { registerSchema, loginSchema } from './dto/requests/auth.request.js';
 import { validateRequestMiddleware } from '../../common/middleware/index.js';
 
-const authRouter = Router();
+const router = express.Router();
 
-authRouter.post(
+router.post(
 	'/register',
-	validateRequestMiddleware(RegisterSchema),
+	validateRequestMiddleware(registerSchema),
 	authController.register,
 );
-authRouter.post('/login', validateRequestMiddleware(LoginSchema), authController.login);
+router.post('/login', validateRequestMiddleware(loginSchema), authController.login);
 
-export default authRouter;
+export default router;

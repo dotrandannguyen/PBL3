@@ -1,26 +1,22 @@
 import { HttpResponse } from '../../common/dtos/index.js';
-import authService from './auth.service.js';
-import { AuthResponse } from './dto/responses/auth.response.js';
+import { authService } from './auth.service.js';
 
-class AuthController {
-	async register(req, res, next) {
+export const authController = {
+	register: async (req, res, next) => {
 		try {
-			const user = await authService.register(req.body);
-			const data = new AuthResponse(user);
+			const data = await authService.register(req.body);
 			return new HttpResponse(res).created(data);
 		} catch (error) {
 			next(error);
 		}
-	}
-	async login(req, res, next) {
+	},
+
+	login: async (req, res, next) => {
 		try {
-			const { user, token } = await authService.login(req.body);
-			const data = new AuthResponse(user, token);
+			const data = await authService.login(req.body);
 			return new HttpResponse(res).success(data);
 		} catch (error) {
 			next(error);
 		}
-	}
-}
-
-export default new AuthController();
+	},
+};

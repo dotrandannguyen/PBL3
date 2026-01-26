@@ -1,63 +1,78 @@
-import { ClientException, UnauthorizedException } from '../../common/exceptions/index.js';
-import authRepository from './auth.repository.js';
-import { StatusCodes } from 'http-status-codes';
 import bcrypt from 'bcrypt';
-import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import { authRepository } from './auth.repository.js';
+import {
+	ClientException,
+	ForbiddenException,
+	UnauthorizedException,
+} from '../../common/exceptions/index.js';
 
-dotenv.config();
+const SALT_ROUNDS = 10;
+const JWT_SECRET = process.env.JWT_SECRET || 'secret-pbl3';
+const ACCESS_TOKEN_EXPIRES = '1d';
+const REFRESH_TOKEN_EXPIRES = '7d';
 
-class AuthService {
-	async register(data) {
-		const existUser = await authRepository.findUserByEmail(data.email);
-
+export const authService = {
+	register: async (dto) => {
+		// 1. Check email
+		const existUser = await authRepository.findUserByEmail(dto.email);
 		if (existUser) {
-			throw new ClientException(StatusCodes.CONFLICT, 'Email đã tồn tại');
+			throw new ClientException(409, 'Email đã tồn tại.');
 		}
-		console.log(data.password);
-		const saltRounds = 10;
-		const salt = bcrypt.genSaltSync(saltRounds);
-		const hashedPassword = await bcrypt.hash(data.password, salt);
-		console.log(hashedPassword);
 
+		// 2. Hash password
+		const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
+
+		// 3. Create User
 		const newUser = await authRepository.createUser({
-			email: data.email,
-			name: data.name,
-			password: hashedPassword,
+			email: dto.email,
+			passwordHash,
+			fullName: dto.name,
+			avatarUrl: null,
 		});
-		return newUser;
-	}
-	async login(data) {
-		const user = await authRepository.findUserByEmail(data.email);
 
-		if (!user) {
-			throw new UnauthorizedException('Email và password không đúng');
+		return {
+			id: newUser.id,
+			email: newUser.email,
+			fullName: newUser.fullName,
+		};
+	},
+
+	login: async (dto) => {
+		const user = await authRepository.findUserByEmail(dto.email);
+
+		// Check user tồn tại & có password (tránh trường hợp user chỉ đăng ký bằng Google mà ko có pass)
+		if (!user || !user.passwordHash) {
+			throw new UnauthorizedException('Email hoặc mật khẩu không đúng.');
 		}
-		if (!user.account) {
-			throw new UnauthorizedException('Tài khoản của bạn không đúng');
+
+		const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
+		if (!isMatch) {
+			throw new UnauthorizedException('Email hoặc mật khẩu không đúng.');
 		}
 
-		const isMatchPassword = await bcrypt.compare(
-			data.password,
-			user.account.password,
-		);
-
-		if (!isMatchPassword) {
-			throw new UnauthorizedException('Email và password không đúng');
+		if (!user.isActive) {
+			throw new ForbiddenException('Tài khoản đã bị khóa.');
 		}
-		const token = await this.generateToken(user.id);
-		return { user, token };
-	}
 
-	async generateToken(userId) {
-		return await jwt.sign(
-			{
-				id: userId,
+		// Generate Tokens
+		const payload = { sub: user.id, email: user.email };
+		const accessToken = jwt.sign(payload, JWT_SECRET, {
+			expiresIn: ACCESS_TOKEN_EXPIRES,
+		});
+		const refreshToken = jwt.sign(payload, JWT_SECRET, {
+			expiresIn: REFRESH_TOKEN_EXPIRES,
+		});
+
+		return {
+			user: {
+				id: user.id,
+				email: user.email,
+				fullName: user.fullName,
+				avatarUrl: user.avatarUrl,
 			},
-			process.env.JWT_SECRET,
-			{ expiresIn: process.env.JWT_EXPIRES },
-		);
-	}
-}
-
-export default new AuthService();
+			accessToken,
+			refreshToken,
+		};
+	},
+};

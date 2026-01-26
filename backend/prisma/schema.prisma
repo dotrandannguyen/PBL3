@@ -14,6 +14,9 @@ datasource db {
   
 
 }
+generator dbml {
+  provider = "prisma-dbml-generator"
+}
 
 // --- ENUMS ---
 
@@ -95,19 +98,18 @@ enum NotifStatus {
 
 /// Người dùng hệ thống
 model User {
-  id           Int       @id @default(autoincrement())
+  id           String    @id @default(uuid()) // Đổi Int -> String, dùng hàm uuid()
   email        String    @unique
-  passwordHash String    @map("password_hash")
+  passwordHash String?   @map("password_hash")
   fullName     String?   @map("full_name")
   avatarUrl    String?   @map("avatar_url")
   
-  // Trạng thái & Soft Delete
-  isActive     Boolean   @default(true) @map("is_active") /// Khóa user nếu cần
+  isActive     Boolean   @default(true) @map("is_active")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
-  deletedAt    DateTime? @map("deleted_at") /// Soft delete: Không xóa vật lý để giữ integrity
+  deletedAt    DateTime? @map("deleted_at")
 
-  // Relations
+  // Relations (Không thay đổi tên, chỉ thay đổi kiểu dữ liệu bên dưới)
   integrations   Integration[]
   tasks          Task[]
   tags           Tag[]
@@ -120,15 +122,14 @@ model User {
 }
 
 model Integration {
-  id                    Int                 @id @default(autoincrement())
-  userId                Int                 @map("user_id")
+  id                    String              @id @default(uuid())
+  userId                String              @map("user_id") // Int -> String
   provider              IntegrationProvider
-  providerUserId        String              @map("provider_user_id") /// ID định danh bên 3rd party
+  providerUserId        String              @map("provider_user_id")
   
-  // Security Update: Encrypted Tokens
-  accessTokenEncrypted  String              @map("access_token_encrypted") @db.Text /// Mã hóa bằng AES-256
-  refreshTokenEncrypted String?             @map("refresh_token_encrypted") @db.Text /// Mã hóa bằng AES-256
-  expiresAt             DateTime?           @map("expires_at") /// Thời điểm access token hết hạn
+  accessTokenEncrypted  String              @map("access_token_encrypted") @db.Text
+  refreshTokenEncrypted String?             @map("refresh_token_encrypted") @db.Text
+  expiresAt             DateTime?           @map("expires_at")
   
   profileData           Json?               @map("profile_data")
   status                IntegrationStatus   @default(ACTIVE)
@@ -136,76 +137,65 @@ model Integration {
   createdAt             DateTime            @default(now()) @map("created_at")
   updatedAt             DateTime            @default(now()) @updatedAt @map("updated_at")
 
-  // Relations
   user     User      @relation(fields: [userId], references: [id])
   syncLogs SyncLog[]
 
-  // Indexes / Constraints
-  @@unique([userId, provider]) // Mỗi user chỉ link 1 acc mỗi loại
-  @@unique([provider, providerUserId]) // 1 acc Google không thể link cho 2 user hệ thống
+  @@unique([userId, provider])
+  @@unique([provider, providerUserId])
   @@map("integrations")
 }
 
 model Task {
-  id             Int          @id @default(autoincrement())
-  userId         Int          @map("user_id")
+  id             String       @id @default(uuid())
+  userId         String       @map("user_id") // Int -> String
   
   title          String
   description    String?      @db.Text
   status         TaskStatus   @default(PENDING)
   priority       TaskPriority @default(MEDIUM)
   
-  // Deadline & Analytics
   dueDate        DateTime?    @map("due_date")
   reminderAt     DateTime?    @map("reminder_at")
-  completedAt    DateTime?    @map("completed_at") /// Dùng để đo hiệu suất làm việc
+  completedAt    DateTime?    @map("completed_at")
   
-  // Traceability (Nguồn gốc)
   sourceType     TaskSource   @default(MANUAL) @map("source_type")
-  sourceId       String?      @map("source_id") /// MessageID hoặc IssueNumber
+  sourceId       String?      @map("source_id")
   sourceLink     String?      @map("source_link")
-  sourceMetadata Json?        @map("source_metadata") /// Snapshot dữ liệu gốc
+  sourceMetadata Json?        @map("source_metadata")
   
-  // System Fields
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at")
-  deletedAt      DateTime?    @map("deleted_at") /// Soft delete task
+  deletedAt      DateTime?    @map("deleted_at")
 
-  // Relations
   user          User           @relation(fields: [userId], references: [id])
   taskTags      TaskTag[]
   activities    TaskActivity[]
   notifications Notification[]
 
-  // Indexes
   @@index([userId])
   @@index([status])
-  @@index([userId, dueDate]) // Query task sắp hết hạn
+  @@index([userId, dueDate])
   @@map("tasks")
 }
 
 model Tag {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id") // Int -> String
   name      String
   colorHex  String?  @default("#808080") @map("color_hex")
   createdAt DateTime @default(now()) @map("created_at")
 
-  // Relations
   user     User      @relation(fields: [userId], references: [id])
   taskTags TaskTag[]
 
-  // Indexes
   @@unique([userId, name])
   @@map("tags")
 }
 
-// Bảng trung gian Many-to-Many giữa Task và Tag
 model TaskTag {
-  taskId Int @map("task_id")
-  tagId  Int @map("tag_id")
+  taskId String @map("task_id") // Int -> String
+  tagId  String @map("tag_id")  // Int -> String
 
-  // Relations
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
@@ -214,16 +204,15 @@ model TaskTag {
 }
 
 model TaskActivity {
-  id        Int          @id @default(autoincrement())
-  taskId    Int          @map("task_id")
-  userId    Int?         @map("user_id") /// Null nếu là System tự làm
+  id        String       @id @default(uuid())
+  taskId    String       @map("task_id") // Int -> String
+  userId    String?      @map("user_id") // Int -> String
   
   type      ActivityType
   oldValue  Json?        @map("old_value")
   newValue  Json?        @map("new_value")
   createdAt DateTime     @default(now()) @map("created_at")
 
-  // Relations
   task Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user User? @relation(fields: [userId], references: [id])
 
@@ -231,24 +220,22 @@ model TaskActivity {
 }
 
 model SyncLog {
-  id            Int          @id @default(autoincrement())
-  userId        Int          @map("user_id")
-  integrationId Int          @map("integration_id")
+  id            String       @id @default(uuid())
+  userId        String       @map("user_id") // Int -> String
+  integrationId String       @map("integration_id") // Int -> String
   
   resourceType  SyncResource @map("resource_type")
   lastSyncedAt  DateTime     @map("last_synced_at")
   
-  // Optimization: Cursor-based sync
-  nextPageToken String?      @map("next_page_token") /// Cursor cho lần fetch tiếp theo
-  syncCursor    String?      @map("sync_cursor") /// HistoryId (Gmail) hoặc UpdatedSince (GitHub)
+  nextPageToken String?      @map("next_page_token")
+  syncCursor    String?      @map("sync_cursor")
   
-  status        String       // SUCCESS, FAILED
+  status        String
   itemsProcessed Int         @default(0) @map("items_processed")
   errorMessage  String?      @map("error_message") @db.Text
   
   createdAt     DateTime     @default(now()) @map("created_at")
 
-  // Relations
   user        User        @relation(fields: [userId], references: [id])
   integration Integration @relation(fields: [integrationId], references: [id])
 
@@ -256,9 +243,9 @@ model SyncLog {
 }
 
 model Notification {
-  id          Int         @id @default(autoincrement())
-  userId      Int         @map("user_id")
-  taskId      Int?        @map("task_id")
+  id          String      @id @default(uuid())
+  userId      String      @map("user_id") // Int -> String
+  taskId      String?     @map("task_id") // Int -> String
   
   type        NotifType
   title       String?
@@ -271,26 +258,23 @@ model Notification {
   
   createdAt   DateTime    @default(now()) @map("created_at")
 
-  // Relations
   user User  @relation(fields: [userId], references: [id])
   task Task? @relation(fields: [taskId], references: [id])
 
-  // Indexes
-  @@index([status, scheduledAt]) // Worker sẽ quét index này
+  @@index([status, scheduledAt])
   @@map("notifications")
 }
 
 model AuditLog {
-  id          Int      @id @default(autoincrement())
-  userId      Int?     @map("user_id") // Có thể null nếu action failed trước khi có user
-  action      String   // LOGIN, LINK_GMAIL, DELETE_TASK
+  id          String   @id @default(uuid())
+  userId      String?  @map("user_id") // Int -> String
+  action      String
   entityTable String?  @map("entity_table")
-  entityId    Int?     @map("entity_id")
+  entityId    String?  @map("entity_id") // Quan trọng: entity_id cũng phải đổi sang String để lưu UUID
   ipAddress   String?  @map("ip_address")
   userAgent   String?  @map("user_agent")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  // Relations
   user User? @relation(fields: [userId], references: [id])
 
   @@map("audit_logs")

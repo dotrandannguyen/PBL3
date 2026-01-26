@@ -1,0 +1,229 @@
+//// ------------------------------------------------------
+//// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+//// ------------------------------------------------------
+
+Table users {
+  id String [pk]
+  email String [unique, not null]
+  passwordHash String
+  fullName String
+  avatarUrl String
+  isActive Boolean [not null, default: true]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  deletedAt DateTime
+  integrations integrations [not null]
+  tasks tasks [not null]
+  tags tags [not null]
+  taskActivities task_activities [not null]
+  syncLogs sync_logs [not null]
+  notifications notifications [not null]
+  auditLogs audit_logs [not null]
+
+  Note: 'Người dùng hệ thống'
+}
+
+Table integrations {
+  id String [pk]
+  userId String [not null]
+  provider IntegrationProvider [not null]
+  providerUserId String [not null]
+  accessTokenEncrypted String [not null]
+  refreshTokenEncrypted String
+  expiresAt DateTime
+  profileData Json
+  status IntegrationStatus [not null, default: 'ACTIVE']
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  user users [not null]
+  syncLogs sync_logs [not null]
+
+  indexes {
+    (userId, provider) [unique]
+    (provider, providerUserId) [unique]
+  }
+}
+
+Table tasks {
+  id String [pk]
+  userId String [not null]
+  title String [not null]
+  description String
+  status TaskStatus [not null, default: 'PENDING']
+  priority TaskPriority [not null, default: 'MEDIUM']
+  dueDate DateTime
+  reminderAt DateTime
+  completedAt DateTime
+  sourceType TaskSource [not null, default: 'MANUAL']
+  sourceId String
+  sourceLink String
+  sourceMetadata Json
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  deletedAt DateTime
+  user users [not null]
+  taskTags task_tags [not null]
+  activities task_activities [not null]
+  notifications notifications [not null]
+}
+
+Table tags {
+  id String [pk]
+  userId String [not null]
+  name String [not null]
+  colorHex String [default: '#808080']
+  createdAt DateTime [default: `now()`, not null]
+  user users [not null]
+  taskTags task_tags [not null]
+
+  indexes {
+    (userId, name) [unique]
+  }
+}
+
+Table task_tags {
+  taskId String [not null]
+  tagId String [not null]
+  task tasks [not null]
+  tag tags [not null]
+
+  indexes {
+    (taskId, tagId) [pk]
+  }
+}
+
+Table task_activities {
+  id String [pk]
+  taskId String [not null]
+  userId String
+  type ActivityType [not null]
+  oldValue Json
+  newValue Json
+  createdAt DateTime [default: `now()`, not null]
+  task tasks [not null]
+  user users
+}
+
+Table sync_logs {
+  id String [pk]
+  userId String [not null]
+  integrationId String [not null]
+  resourceType SyncResource [not null]
+  lastSyncedAt DateTime [not null]
+  nextPageToken String
+  syncCursor String
+  status String [not null]
+  itemsProcessed Int [not null, default: 0]
+  errorMessage String
+  createdAt DateTime [default: `now()`, not null]
+  user users [not null]
+  integration integrations [not null]
+}
+
+Table notifications {
+  id String [pk]
+  userId String [not null]
+  taskId String
+  type NotifType [not null]
+  title String
+  content String
+  scheduledAt DateTime [not null]
+  sentAt DateTime
+  status NotifStatus [not null, default: 'PENDING']
+  retryCount Int [not null, default: 0]
+  createdAt DateTime [default: `now()`, not null]
+  user users [not null]
+  task tasks
+}
+
+Table audit_logs {
+  id String [pk]
+  userId String
+  action String [not null]
+  entityTable String
+  entityId String
+  ipAddress String
+  userAgent String
+  createdAt DateTime [default: `now()`, not null]
+  user users
+}
+
+Enum IntegrationProvider {
+  GOOGLE
+  GITHUB
+}
+
+Enum IntegrationStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  ERROR
+}
+
+Enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  ARCHIVED
+}
+
+Enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+Enum TaskSource {
+  MANUAL
+  GMAIL
+  GITHUB
+}
+
+Enum ActivityType {
+  CREATED
+  UPDATED_STATUS
+  COMMENTED
+  AUTO_SYNCED
+}
+
+Enum SyncResource {
+  GMAIL_INBOX
+  GITHUB_ISSUES
+  GITHUB_PULL_REQUESTS
+}
+
+Enum NotifType {
+  EMAIL_REMINDER
+  SYSTEM_ALERT
+}
+
+Enum NotifStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+Ref: integrations.userId > users.id
+
+Ref: tasks.userId > users.id
+
+Ref: tags.userId > users.id
+
+Ref: task_tags.taskId > tasks.id [delete: Cascade]
+
+Ref: task_tags.tagId > tags.id [delete: Cascade]
+
+Ref: task_activities.taskId > tasks.id [delete: Cascade]
+
+Ref: task_activities.userId > users.id
+
+Ref: sync_logs.userId > users.id
+
+Ref: sync_logs.integrationId > integrations.id
+
+Ref: notifications.userId > users.id
+
+Ref: notifications.taskId > tasks.id
+
+Ref: audit_logs.userId > users.id
