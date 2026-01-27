@@ -1,11 +1,11 @@
-import { HttpResponse } from '../../common/dtos/index.js';
 import { authService } from './auth.service.js';
+import { HttpResponse } from '../../common/dtos/httpResponse.dto.js';
 
 export const authController = {
 	register: async (req, res, next) => {
 		try {
-			const data = await authService.register(req.body);
-			return new HttpResponse(res).created(data);
+			const result = await authService.register(req.body);
+			return new HttpResponse(res).created(result);
 		} catch (error) {
 			next(error);
 		}
@@ -13,8 +13,8 @@ export const authController = {
 
 	login: async (req, res, next) => {
 		try {
-			const data = await authService.login(req.body);
-			return new HttpResponse(res).success(data);
+			const result = await authService.login(req.body);
+			return new HttpResponse(res).success(result);
 		} catch (error) {
 			next(error);
 		}

@@ -1,16 +1,17 @@
 import express from 'express';
 import { authController } from './auth.controller.js';
-
-import { registerSchema, loginSchema } from './dto/requests/auth.request.js';
 import { validateRequestMiddleware } from '../../common/middleware/index.js';
+import { registerSchema } from './dto/requests/register.request.js';
+import { loginSchema } from './dto/requests/login.request.js';
 
-const router = express.Router();
+const authRouter = express.Router();
 
-router.post(
+authRouter.post(
 	'/register',
 	validateRequestMiddleware(registerSchema),
 	authController.register,
 );
-router.post('/login', validateRequestMiddleware(loginSchema), authController.login);
 
-export default router;
+authRouter.post('/login', validateRequestMiddleware(loginSchema), authController.login);
+
+export default authRouter;
