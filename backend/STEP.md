@@ -45,7 +45,7 @@ Mục tiêu: Quản lý người dùng, bảo mật password và phiên đăng n
 
 [] API POST /auth/refresh: Cấp lại Access Token mới từ Refresh Token.
 
-[ ] Middleware AuthGuard: Kiểm tra JWT trong Header cho các route bảo mật.
+[] Middleware AuthGuard: Kiểm tra JWT trong Header cho các route bảo mật.
 
 [ ] Profile Management:
 

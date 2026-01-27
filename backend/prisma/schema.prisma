@@ -110,7 +110,8 @@ model User {
   deletedAt    DateTime? @map("deleted_at")
 
   // Relations (Không thay đổi tên, chỉ thay đổi kiểu dữ liệu bên dưới)
-  integrations   Integration[]
+  accounts      Account[] //MỚI: Các phương thức đăng nhập (Google, GitHub login)
+  integrations   Integration[] //CŨ: Các kết nối để lấy dữ liệu (Gmail Sync)
   tasks          Task[]
   tags           Tag[]
   taskActivities TaskActivity[]
@@ -119,6 +120,28 @@ model User {
   auditLogs      AuditLog[]
 
   @@map("users")
+}
+
+// Trả lời câu hỏi: User này được login bằng Google ID nào?
+model Account {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  type              String   // "oauth" (Google/Github) hoặc "credentials" (Local)
+  provider          String   // "google", "github"
+  providerAccountId String   @map("provider_account_id") // ID của user bên Google/GitHub
+  
+  // Các field này chỉ để lưu tạm session login nếu cần, KHÔNG DÙNG ĐỂ SYNC DATA
+  refreshToken      String?  @db.Text @map("refresh_token")
+  accessToken       String?  @db.Text @map("access_token")
+  expiresAt         Int?     @map("expires_at")
+  
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId]) // 1 tài khoản Google chỉ thuộc về 1 User
+  @@map("accounts")
 }
 
 model Integration {

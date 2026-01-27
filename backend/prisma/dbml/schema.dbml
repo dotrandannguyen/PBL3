@@ -12,6 +12,7 @@ Table users {
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [default: `now()`, not null]
   deletedAt DateTime
+  accounts accounts [not null]
   integrations integrations [not null]
   tasks tasks [not null]
   tags tags [not null]
@@ -21,6 +22,24 @@ Table users {
   auditLogs audit_logs [not null]
 
   Note: 'Người dùng hệ thống'
+}
+
+Table accounts {
+  id String [pk]
+  userId String [not null]
+  type String [not null]
+  provider String [not null]
+  providerAccountId String [not null]
+  refreshToken String
+  accessToken String
+  expiresAt Int
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  user users [not null]
+
+  indexes {
+    (provider, providerAccountId) [unique]
+  }
 }
 
 Table integrations {
@@ -203,6 +222,8 @@ Enum NotifStatus {
   SENT
   FAILED
 }
+
+Ref: accounts.userId > users.id [delete: Cascade]
 
 Ref: integrations.userId > users.id
 
