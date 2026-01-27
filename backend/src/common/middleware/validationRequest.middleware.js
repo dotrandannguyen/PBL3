@@ -17,6 +17,17 @@ export const validateRequestMiddleware = (schema) => {
 					zodSchema.forEach((s) => s.parse(value));
 				} else {
 					req[key] = zodSchema.parse(value);
+					if (key === 'query' || key === 'params') {
+						// Với query và params, ta không thể gán đè (req.query = parsedValue)
+						// Ta phải giữ nguyên object reference và cập nhật nội dung bên trong
+
+						// 1. Xóa các key thừa không có trong schema (nếu muốn strict)
+						// Hoặc đơn giản là ghi đè giá trị đã validate vào
+						Object.assign(req[key], parsedValue);
+					} else {
+						// Với body, ta vẫn có thể gán đè bình thường
+						req[key] = parsedValue;
+					}
 				}
 			}
 
