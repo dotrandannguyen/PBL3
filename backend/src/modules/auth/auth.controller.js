@@ -2,6 +2,7 @@ import { authService } from './auth.service.js';
 import { HttpResponse } from '../../common/dtos/httpResponse.dto.js';
 import { googleService } from './google.service.js';
 import { ClientException } from '../../common/exceptions/index.js';
+import { githubServie } from './github.service.js';
 
 export const authController = {
 	register: async (req, res, next) => {
@@ -40,6 +41,33 @@ export const authController = {
 			const data = await googleService.handleCallback(code);
 			new HttpResponse(res).success({
 				message: 'Google login & integration successful',
+				data,
+			});
+		} catch (error) {
+			next(error);
+		}
+	},
+
+	getGithubUrl: async (req, res) => {
+		const url = githubServie.getAuthUrl();
+		new HttpResponse(res).success({ url });
+	},
+	githubCallback: async (req, res, next) => {
+		try {
+			const query = req.query || {};
+			const { code, error } = query;
+
+			if (error) {
+				throw new ClientException(400, 'User denied GitHub access');
+			}
+			if (!code) {
+				throw new ClientException(400, 'Authorization code missing');
+			}
+
+			const data = await githubServie.handleCallback(code);
+
+			new HttpResponse(res).success({
+				message: 'GitHub login & integration successful',
 				data,
 			});
 		} catch (error) {

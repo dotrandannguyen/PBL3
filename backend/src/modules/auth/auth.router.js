@@ -23,4 +23,7 @@ authRouter.get(
 	authController.googleCallback,
 );
 
+authRouter.get('/github/url', authController.getGithubUrl);
+authRouter.get('/github/callback', authController.githubCallback);
+
 export default authRouter;

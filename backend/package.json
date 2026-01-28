@@ -16,6 +16,7 @@
 		"@prisma/adapter-pg": "^7.2.0",
 		"@prisma/client": "^7.2.0",
 		"@tailwindcss/vite": "^4.1.18",
+		"axios": "^1.13.3",
 		"bcrypt": "^6.0.0",
 		"cors": "^2.8.5",
 		"dotenv": "^17.2.3",
