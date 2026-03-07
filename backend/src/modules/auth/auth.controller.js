@@ -4,6 +4,8 @@ import { googleService } from './google.service.js';
 import { ClientException } from '../../common/exceptions/index.js';
 import { githubServie } from './github.service.js';
 
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
 export const authController = {
 	register: async (req, res, next) => {
 		try {
@@ -27,24 +29,22 @@ export const authController = {
 		new HttpResponse(res).success({ url });
 	},
 
-	googleCallback: async (req, res, next) => {
+	googleCallback: async (req, res) => {
 		try {
-			// user bấm "cancel" bên gg
-			const query = req.query || {};
+			const { code, error } = req.query || {};
 
-			const { code, error } = query;
-
-			// Nếu user bấm "Cancel" bên Google
 			if (error) {
-				throw new ClientException(400, 'User denied access');
+				return res.redirect(`${FRONTEND_URL}/login?error=google_denied`);
 			}
 			const data = await googleService.handleCallback(code);
-			new HttpResponse(res).success({
-				message: 'Google login & integration successful',
-				data,
+			const params = new URLSearchParams({
+				accessToken: data.accessToken,
+				refreshToken: data.refreshToken,
+				user: JSON.stringify(data.user),
 			});
-		} catch (error) {
-			next(error);
+			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
+		} catch {
+			return res.redirect(`${FRONTEND_URL}/login?error=google_failed`);
 		}
 	},
 
@@ -52,26 +52,26 @@ export const authController = {
 		const url = githubServie.getAuthUrl();
 		new HttpResponse(res).success({ url });
 	},
-	githubCallback: async (req, res, next) => {
+	githubCallback: async (req, res) => {
 		try {
-			const query = req.query || {};
-			const { code, error } = query;
+			const { code, error } = req.query || {};
 
 			if (error) {
-				throw new ClientException(400, 'User denied GitHub access');
+				return res.redirect(`${FRONTEND_URL}/login?error=github_denied`);
 			}
 			if (!code) {
-				throw new ClientException(400, 'Authorization code missing');
+				return res.redirect(`${FRONTEND_URL}/login?error=github_no_code`);
 			}
 
 			const data = await githubServie.handleCallback(code);
-
-			new HttpResponse(res).success({
-				message: 'GitHub login & integration successful',
-				data,
+			const params = new URLSearchParams({
+				accessToken: data.accessToken,
+				refreshToken: data.refreshToken,
+				user: JSON.stringify(data.user),
 			});
-		} catch (error) {
-			next(error);
+			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
+		} catch {
+			return res.redirect(`${FRONTEND_URL}/login?error=github_failed`);
 		}
 	},
 };
