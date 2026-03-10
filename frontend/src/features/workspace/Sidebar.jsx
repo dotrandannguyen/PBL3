@@ -437,6 +437,8 @@ const Sidebar = ({
               onClick={() => {
                 if (item.label === "Notion Mail") {
                   window.location.href = "/mail";
+                } else if (item.label === "Notion Calendar") {
+                  window.location.href = "/calendar";
                 }
               }}
             />
@@ -451,7 +453,7 @@ const Sidebar = ({
         </nav>
 
         {/* Invite Members Panel */}
-        <InvitePanel onClose={() => {}} />
+        <InvitePanel onClose={() => { }} />
       </aside>
 
       {/* Sliding Inbox Panel */}

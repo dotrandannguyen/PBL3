@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { FileText, BookOpen, Rocket, CheckSquare } from 'lucide-react';
-import AppLayout from '../layouts/AppLayout';
-import Sidebar from '../features/workspace/Sidebar';
-import TopBar from '../features/workspace/TopBar';
-import TaskList from '../features/workspace/TaskList';
+import AppLayout from '../../layouts/AppLayout';
+import Sidebar from './Sidebar';
+import TopBar from './TopBar';
+import TaskList from './TaskList';
 
 // Sidebar pages data
 const SIDEBAR_PAGES = [
