@@ -2,7 +2,7 @@ import { authService } from './auth.service.js';
 import { HttpResponse } from '../../common/dtos/httpResponse.dto.js';
 import { googleService } from './google.service.js';
 import { ClientException } from '../../common/exceptions/index.js';
-import { githubServie } from './github.service.js';
+import { githubService } from './github.service.js';
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
@@ -36,7 +36,7 @@ export const authController = {
 			if (error) {
 				return res.redirect(`${FRONTEND_URL}/login?error=google_denied`);
 			}
-			const data = await googleService.handleCallback(code);
+			const data = await githubService.handleCallback(code);
 			const params = new URLSearchParams({
 				accessToken: data.accessToken,
 				refreshToken: data.refreshToken,
@@ -49,7 +49,7 @@ export const authController = {
 	},
 
 	getGithubUrl: async (req, res) => {
-		const url = githubServie.getAuthUrl();
+		const url = githubService.getAuthUrl();
 		new HttpResponse(res).success({ url });
 	},
 	githubCallback: async (req, res) => {
