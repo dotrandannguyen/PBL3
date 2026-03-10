@@ -21,7 +21,7 @@ Table users {
   notifications notifications [not null]
   auditLogs audit_logs [not null]
 
-  Note: 'Người dùng hệ thống'`
+  Note: 'Người dùng hệ thống'
 }
 
 Table accounts {

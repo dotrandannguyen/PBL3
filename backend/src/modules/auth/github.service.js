@@ -9,7 +9,7 @@ const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
 const GITHUB_USER_URL = 'https://api.github.com/user';
 const GITHUB_EMAIL_URL = 'https://api.github.com/user/emails';
 
-export const githubServie = {
+export const githubService = {
 	//doc lay link
 	// https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps
 	getAuthUrl: () => {
