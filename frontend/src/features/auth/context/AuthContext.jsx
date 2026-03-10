@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginUser, registerUser } from "./auth.api";
+import { loginUser, registerUser } from "../api/auth.api";
 
 export const AuthContext = createContext(null);
 

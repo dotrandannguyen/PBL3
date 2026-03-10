@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
-import SocialButtons from "../../components/ui/SocialButtons";
-import useAuth from "../../hooks/useAuth";
+import SocialButtons from "../../../components/ui/SocialButtons";
+import useAuth from "../../../hooks/useAuth";
 
 const LoginForm = () => {
   const { login } = useAuth();

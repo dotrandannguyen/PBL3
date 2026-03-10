@@ -2,7 +2,7 @@ import React from "react";
 import {
   getGoogleAuthUrl,
   getGithubAuthUrl,
-} from "../../features/auth/auth.api";
+} from "../../features/auth/api/auth.api";
 
 // Google 'G' Logo SVG
 export const GoogleIcon = () => (
