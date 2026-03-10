@@ -22,7 +22,7 @@ import {
   User,
 } from "lucide-react";
 import "./Sidebar.css";
-import useAuth from "../../hooks/useAuth";
+import useAuth from "../../../hooks/useAuth";
 
 // ============================================
 // CONSTANTS - Data-Driven UI

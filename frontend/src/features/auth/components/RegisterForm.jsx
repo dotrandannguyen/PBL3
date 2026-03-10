@@ -9,8 +9,8 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import SocialButtons from "../../components/ui/SocialButtons";
-import useAuth from "../../hooks/useAuth";
+import SocialButtons from "../../../components/ui/SocialButtons";
+import useAuth from "../../../hooks/useAuth";
 
 const RegisterForm = () => {
   const { register } = useAuth();

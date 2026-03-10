@@ -1,8 +1,8 @@
 import React from 'react';
 import { Mail, Github, Chrome, FileText, BookOpen, Clock, MoreHorizontal, PlayCircle, Book } from 'lucide-react';
-import AppLayout from '../../layouts/AppLayout';
-import Sidebar from '../workspace/Sidebar';
-import TopBar from '../workspace/TopBar';
+import AppLayout from '../../../layouts/AppLayout';
+import Sidebar from '../../workspace/components/Sidebar';
+import TopBar from '../../workspace/components/TopBar';
 import './MailReceiver.css';
 
 // Mock Data

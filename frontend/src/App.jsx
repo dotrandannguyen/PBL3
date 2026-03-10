@@ -5,15 +5,15 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import WorkspacePage from "./features/workspace/WorkspacePage";
-import LoginPage from "./features/auth/LoginPage";
-import RegisterPage from "./features/auth/RegisterPage";
-import MailReceiverPage from "./features/NotificationReceiver/MailReceiverPage";
-import CalendarPage from "./features/GoogleCalendar/CalendarPage";
-import OAuthCallbackPage from "./features/auth/OAuthCallbackPage";
-import { AuthProvider } from "./features/auth/AuthContext";
+import WorkspacePage from "./features/workspace/pages/WorkspacePage";
+import LoginPage from "./features/auth/pages/LoginPage";
+import RegisterPage from "./features/auth/pages/RegisterPage";
+import MailReceiverPage from "./features/NotificationReceiver/pages/MailReceiverPage";
+import CalendarPage from "./features/GoogleCalendar/pages/CalendarPage";
+import OAuthCallbackPage from "./features/auth/pages/OAuthCallbackPage";
+import { AuthProvider } from "./features/auth/context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { healthCheck } from "./features/auth/auth.api";
+import { healthCheck } from "./features/auth/api/auth.api";
 
 // AuthProvider uses useNavigate so it must live inside <Router>
 function AppRoutes() {

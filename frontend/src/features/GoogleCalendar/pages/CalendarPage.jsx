@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Calendar, FileText, BookOpen, Rocket, CheckSquare } from 'lucide-react';
-import AppLayout from '../../layouts/AppLayout';
-import Sidebar from '../workspace/Sidebar';
-import CalendarHeader from './CalendarHeader';
-import CalendarGrid from './CalendarGrid';
-import CalendarSidebar from './CalendarSidebar';
-import EventModal from './EventModal';
+import AppLayout from '../../../layouts/AppLayout';
+import Sidebar from '../../workspace/components/Sidebar';
+import CalendarHeader from '../components/CalendarHeader';
+import CalendarGrid from '../components/CalendarGrid';
+import CalendarSidebar from '../components/CalendarSidebar';
+import EventModal from '../components/EventModal';
 
 // Mock Events Data
 const MOCK_EVENTS = [
