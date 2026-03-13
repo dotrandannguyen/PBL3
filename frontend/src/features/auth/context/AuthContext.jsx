@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
   const register = useCallback(
     async (formData) => {
       await registerUser(formData);
-      navigate("/login", { replace: true });
+      navigate("/auth/login", { replace: true });
     },
     [navigate],
   );
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("user");
     setAccessToken(null);
     setUser(null);
-    navigate("/login", { replace: true });
+    navigate("/auth/login", { replace: true });
   }, [navigate]);
 
   return (

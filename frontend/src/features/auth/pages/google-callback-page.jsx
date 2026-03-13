@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import useAuth from "../../../hooks/useAuth";
+import useAuth from "@/hooks/useAuth";
 
-const OAuthCallbackPage = () => {
+export function GoogleCallbackPage() {
   const [searchParams] = useSearchParams();
   const { loginWithOAuth } = useAuth();
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ const OAuthCallbackPage = () => {
     const error = searchParams.get("error");
 
     if (error || !accessToken || !refreshToken || !userRaw) {
-      navigate("/login?error=oauth_failed", { replace: true });
+      navigate("/auth/login?error=oauth_failed", { replace: true });
       return;
     }
 
@@ -27,7 +27,7 @@ const OAuthCallbackPage = () => {
       const user = JSON.parse(userRaw);
       loginWithOAuth({ accessToken, refreshToken, user });
     } catch {
-      navigate("/login?error=oauth_failed", { replace: true });
+      navigate("/auth/login?error=oauth_failed", { replace: true });
     }
   }, [searchParams, loginWithOAuth, navigate]);
 
@@ -57,6 +57,4 @@ const OAuthCallbackPage = () => {
       </div>
     </div>
   );
-};
-
-export default OAuthCallbackPage;
+}

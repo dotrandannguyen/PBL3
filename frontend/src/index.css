@@ -27,6 +27,13 @@
   --spacing-sidebar: 240px;
   --spacing-topbar: 45px;
 
+  /* Custom Sizes for Mail Receiver Cards */
+  --width-50: 200px;
+  --width-70: 280px;
+  --height-30: 120px;
+  --height-35: 140px;
+  --height-50: 200px;
+
   /* Animation */
   --animate-float: float 8s ease-in-out infinite;
   --animate-spin-slow: spin 1s linear infinite;
