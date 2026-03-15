@@ -24,6 +24,15 @@ export const authController = {
 			next(error);
 		}
 	},
+
+	refresh: async (req, res, next) => {
+		try {
+			const result = await authService.refreshToken(req.body);
+			return new HttpResponse(res).success(result);
+		} catch (error) {
+			next(error);
+		}
+	},
 	getGoogleUrl: async (req, res) => {
 		const url = googleService.getAuthUrl();
 		new HttpResponse(res).success({ url });
@@ -36,7 +45,7 @@ export const authController = {
 			if (error) {
 				return res.redirect(`${FRONTEND_URL}/login?error=google_denied`);
 			}
-			const data = await githubService.handleCallback(code);
+			const data = await googleService.handleCallback(code);
 			const params = new URLSearchParams({
 				accessToken: data.accessToken,
 				refreshToken: data.refreshToken,
@@ -63,7 +72,7 @@ export const authController = {
 				return res.redirect(`${FRONTEND_URL}/login?error=github_no_code`);
 			}
 
-			const data = await githubServie.handleCallback(code);
+			const data = await githubService.handleCallback(code);
 			const params = new URLSearchParams({
 				accessToken: data.accessToken,
 				refreshToken: data.refreshToken,
