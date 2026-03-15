@@ -1,6 +1,6 @@
 import React from "react";
 import TopBar from "../components/TopBar";
-import TaskList from "../components/TaskList";
+import TaskList from "../../tasks/pages/TaskList";
 import { useWorkspace } from "../context/WorkspaceContext";
 
 /**

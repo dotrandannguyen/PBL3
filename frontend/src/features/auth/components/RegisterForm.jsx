@@ -238,7 +238,7 @@ const RegisterForm = () => {
         <p className="m-0">
           Already have an account?{" "}
           <Link
-            to="/login"
+            to="/auth/login"
             className="text-accent-primary font-medium no-underline transition-all duration-200 hover:text-white hover:drop-shadow-[0_0_8px_rgba(35,131,226,0.8)]"
           >
             Log in

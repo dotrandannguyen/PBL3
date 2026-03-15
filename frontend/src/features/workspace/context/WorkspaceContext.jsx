@@ -27,20 +27,6 @@ const INITIAL_PAGES = [
     type: "private",
     active: true,
   },
-  {
-    id: "todolist1",
-    icon: <FileText size={14} />,
-    label: "Todo List",
-    type: "private",
-    indent: true,
-  },
-  {
-    id: "todolist2",
-    icon: <FileText size={14} />,
-    label: "To Do List",
-    type: "private",
-    indent: true,
-  },
 ];
 
 const WorkspaceContext = createContext(null);
