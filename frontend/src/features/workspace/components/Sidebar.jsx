@@ -62,7 +62,10 @@ const Sidebar = ({
             <PageItem
               key={page.id}
               page={page}
-              onClick={onPageClick}
+              onClick={(pageId) => {
+                navigate(`/app`);
+                onPageClick(pageId);
+              }}
               isActive={page.id === activePage}
               onDelete={onDeletePage}
               onRename={onRenamePage}

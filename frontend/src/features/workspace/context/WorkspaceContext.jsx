@@ -8,18 +8,18 @@ import { FileText, BookOpen, Rocket, CheckSquare } from "lucide-react";
  */
 
 const INITIAL_PAGES = [
-  {
-    id: "welcome1",
-    icon: <Rocket size={14} />,
-    label: "Getting Started",
-    type: "private",
-  },
-  {
-    id: "welcome2",
-    icon: <BookOpen size={14} />,
-    label: "Quick Guide",
-    type: "private",
-  },
+  // {
+  //   id: "welcome1",
+  //   icon: <Rocket size={14} />,
+  //   label: "Getting Started",
+  //   type: "private",
+  // },
+  // {
+  //   id: "welcome2",
+  //   icon: <BookOpen size={14} />,
+  //   label: "Quick Guide",
+  //   type: "private",
+  // },
   {
     id: "todo",
     icon: <CheckSquare size={14} />,
