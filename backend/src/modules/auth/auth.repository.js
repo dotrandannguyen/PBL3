@@ -27,4 +27,12 @@ export const authRepository = {
 			},
 		});
 	},
+
+	// Update refreshTokenHash
+	updateRefreshTokenHash: async (userId, refreshTokenHash) => {
+		return await prisma.user.update({
+			where: { id: userId },
+			data: { refreshTokenHash },
+		});
+	},
 };

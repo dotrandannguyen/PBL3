@@ -6,6 +6,7 @@ Table users {
   id String [pk]
   email String [unique, not null]
   passwordHash String
+  refreshTokenHash String
   fullName String
   avatarUrl String
   isActive Boolean [not null, default: true]
