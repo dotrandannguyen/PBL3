@@ -6,6 +6,7 @@ export class AuthResponseDto {
 			fullName: user.fullName,
 			avatarUrl: user.avatarUrl,
 			isActive: user.isActive,
+			role: user.role,
 		};
 		this.accessToken = tokens.accessToken;
 		this.refreshToken = tokens.refreshToken;

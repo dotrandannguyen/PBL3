@@ -37,6 +37,7 @@ export const authGuard = async (req, res, next) => {
 				id: true,
 				email: true,
 				isActive: true,
+				role: true,
 				// Không lấy password hay field nhạy cảm
 			},
 		});

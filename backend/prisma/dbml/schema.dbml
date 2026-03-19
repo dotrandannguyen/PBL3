@@ -5,6 +5,7 @@
 Table users {
   id String [pk]
   email String [unique, not null]
+  role UserRole [not null, default: 'USER']
   passwordHash String
   refreshTokenHash String
   fullName String
@@ -222,6 +223,11 @@ Enum NotifStatus {
   PENDING
   SENT
   FAILED
+}
+
+Enum UserRole {
+  USER
+  ADMIN
 }
 
 Ref: accounts.userId > users.id [delete: Cascade]

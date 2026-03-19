@@ -10,6 +10,16 @@ class UserController {
 			next(error);
 		}
 	}
+	async deleteUser(req,res,next){
+		try {
+			const userId = req.params.id;
+			const result = await usersService.deleteUserService(userId);
+			return new HttpResponse(res).success(result);
+
+		}catch (err){
+			next(err);
+		}
+	}
 }
 
 export default new UserController();
