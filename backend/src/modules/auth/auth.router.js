@@ -1,6 +1,11 @@
 import express from 'express';
 import { authController } from './auth.controller.js';
-import { validateRequestMiddleware, loginLimiter, refreshLimiter } from '../../common/middleware/index.js';
+import {
+	validateRequestMiddleware,
+	loginLimiter,
+	refreshLimiter,
+	authGuard,
+} from '../../common/middleware/index.js';
 import { registerSchema } from './dto/requests/register.request.js';
 import { loginSchema } from './dto/requests/login.request.js';
 import { googleCallbackSchema } from './dto/requests/google-login.request.js';
@@ -14,8 +19,13 @@ authRouter.post(
 	authController.register,
 );
 
-authRouter.post('/login', loginLimiter, validateRequestMiddleware(loginSchema), authController.login);
-
+authRouter.post(
+	'/login',
+	loginLimiter,
+	validateRequestMiddleware(loginSchema),
+	authController.login,
+);
+authRouter.post('/logout',authGuard,authController.logout);
 authRouter.post(
 	'/refresh',
 	refreshLimiter,

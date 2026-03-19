@@ -24,6 +24,15 @@ export const authController = {
 			next(error);
 		}
 	},
+	logout: async (req, res, next) => {
+		try{
+			const userId = req.user.id;
+			const result = await authService.logout(userId);
+			return new HttpResponse(res).success(result);
+		}catch(error){
+			next(error);
+		}
+	},
 
 	refresh: async (req, res, next) => {
 		try {
