@@ -79,6 +79,13 @@ export const authService = {
 
 		return new AuthResponseDto(user, tokens);
 	},
+	logout: async(userId) => {
+		if (!userId) {
+			throw new UnauthorizedException('User not found');
+		}
+		await authRepository.updateRefreshTokenHash(userId, null);
+		return { message: 'Logged out successfully' };
+	},
 
 	refreshToken: async (dto) => {
 		try {
