@@ -60,6 +60,7 @@ export const authController = {
 				refreshToken: data.refreshToken,
 				user: JSON.stringify(data.user),
 			});
+			console.log('Google callback data:', data.accessToken);
 			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
 		} catch {
 			return res.redirect(`${FRONTEND_URL}/login?error=google_failed`);
@@ -87,6 +88,7 @@ export const authController = {
 				refreshToken: data.refreshToken,
 				user: JSON.stringify(data.user),
 			});
+			console.log('GitHub callback data:', data.accessToken);
 			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
 		} catch {
 			return res.redirect(`${FRONTEND_URL}/login?error=github_failed`);
