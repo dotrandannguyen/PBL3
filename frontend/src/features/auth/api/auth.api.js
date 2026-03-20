@@ -1,4 +1,4 @@
-import apiClient from "../../../utils/apiClient";
+import apiClient from "../../../shared/api/apiClient";
 
 /** Sample connectivity test — GET /health */
 export const healthCheck = () => apiClient.get("/health");

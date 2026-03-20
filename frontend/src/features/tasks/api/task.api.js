@@ -10,7 +10,7 @@
  * Docs: "Axios API abstraction pattern", "REST API wrapper"
  */
 
-import apiClient from "../../../utils/apiClient";
+import apiClient from "../../../shared/api/apiClient";
 
 /**
  * GET /v1/api/tasks

@@ -2,7 +2,7 @@ import React from "react";
 import { ChevronDown, LogOut, User } from "lucide-react";
 import { UserAvatar } from "../../../../components/shared";
 import useUserMenu from "./useUserMenu";
-import useAuth from "../../../../hooks/useAuth";
+import useAuth from "../../../auth/hooks/useAuth";
 
 const UserMenu = () => {
   const { user, logout } = useAuth();
