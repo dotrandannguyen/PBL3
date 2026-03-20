@@ -70,7 +70,7 @@ export const taskService = {
 	 * Tạo task mới
 	 *
 	 * @param {String} userId
-	 * @param {Object} dto - { title, completed? }
+	 * @param {Object} dto - { title, completed?, dueDate? }
 	 */
 	createTask: async (userId, dto) => {
 		// Map API format → DB format
@@ -78,6 +78,21 @@ export const taskService = {
 			title: dto.title,
 			status: dto.completed === true ? 'DONE' : 'PENDING',
 		};
+
+		// Add dueDate if provided
+		if (dto.dueDate) {
+			taskData.dueDate = new Date(dto.dueDate);
+		}
+
+		// Add description if provided
+		if (dto.description) {
+			taskData.description = dto.description;
+		}
+
+		// Add priority if provided
+		if (dto.priority) {
+			taskData.priority = dto.priority;
+		}
 
 		// Nếu task được tạo với completed=true, set completedAt
 		if (dto.completed === true) {
@@ -90,11 +105,11 @@ export const taskService = {
 	},
 
 	/**
-	 * Cập nhật task (title hoặc completed)
+	 * Cập nhật task (title, completed, dueDate, etc.)
 	 *
 	 * @param {String} userId
 	 * @param {String} taskId
-	 * @param {Object} dto - { title?, completed? }
+	 * @param {Object} dto - { title?, completed?, dueDate?, description?, priority? }
 	 */
 	updateTask: async (userId, taskId, dto) => {
 		// Check task tồn tại
@@ -108,6 +123,21 @@ export const taskService = {
 		// Update title nếu có
 		if (dto.title !== undefined) {
 			updateData.title = dto.title;
+		}
+
+		// Update dueDate nếu có
+		if (dto.dueDate !== undefined) {
+			updateData.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
+		}
+
+		// Update description nếu có
+		if (dto.description !== undefined) {
+			updateData.description = dto.description;
+		}
+
+		// Update priority nếu có
+		if (dto.priority !== undefined) {
+			updateData.priority = dto.priority;
 		}
 
 		// Update completed status
@@ -160,6 +190,11 @@ function mapTaskToResponse(task) {
 		id: task.id,
 		title: task.title,
 		completed: task.status === 'DONE', // Map status → completed
+		status: task.status,
+		dueDate: task.dueDate, // Include due date
+		description: task.description,
+		priority: task.priority,
+		completedAt: task.completedAt,
 		createdAt: task.createdAt,
 		updatedAt: task.updatedAt,
 	};
