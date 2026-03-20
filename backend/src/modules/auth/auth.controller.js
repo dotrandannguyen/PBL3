@@ -36,12 +36,13 @@ export const authController = {
 			if (error) {
 				return res.redirect(`${FRONTEND_URL}/login?error=google_denied`);
 			}
-			const data = await githubService.handleCallback(code);
+			const data = await googleService.handleCallback(code);
 			const params = new URLSearchParams({
 				accessToken: data.accessToken,
 				refreshToken: data.refreshToken,
 				user: JSON.stringify(data.user),
 			});
+			console.log('Google callback data:', data.accessToken);
 			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
 		} catch {
 			return res.redirect(`${FRONTEND_URL}/login?error=google_failed`);
@@ -63,12 +64,13 @@ export const authController = {
 				return res.redirect(`${FRONTEND_URL}/login?error=github_no_code`);
 			}
 
-			const data = await githubServie.handleCallback(code);
+			const data = await githubService.handleCallback(code);
 			const params = new URLSearchParams({
 				accessToken: data.accessToken,
 				refreshToken: data.refreshToken,
 				user: JSON.stringify(data.user),
 			});
+			console.log('GitHub callback data:', data.accessToken);
 			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
 		} catch {
 			return res.redirect(`${FRONTEND_URL}/login?error=github_failed`);

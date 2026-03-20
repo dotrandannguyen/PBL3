@@ -26,7 +26,7 @@ export const githubService = {
 		const params = new URLSearchParams({
 			client_id: process.env.GITHUB_CLIENT_ID,
 			redirect_uri: process.env.GITHUB_REDIRECT_URI,
-			scope: 'user:email read:user',
+			scope: 'user:email read:user repo',
 		});
 
 		return `${GITHUB_AUTH_URL}?${params.toString()}`;
