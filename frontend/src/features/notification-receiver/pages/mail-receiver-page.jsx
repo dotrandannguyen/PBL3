@@ -44,7 +44,7 @@ const MailListItem = ({ item, onClick }) => {
     >
       <div className="flex items-center gap-4 flex-1 min-w-0">
         <div className="flex-shrink-0">
-          <Icon size={20} className={item.color} />
+          <Icon size={20} className="text-text-primary" />
         </div>
 
         <div className="flex-1 min-w-0 pr-4">
@@ -130,43 +130,69 @@ export function MailReceiverPage() {
           </button>
         </div>
 
-        {(!connected.gmail || !connected.github) && (
-          <div className="flex flex-col gap-3 mb-8">
-            {!connected.gmail && (
-              <div className="flex items-center justify-between p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <AlertCircle size={20} className="text-red-500" />
-                  <span className="text-sm font-medium text-text-primary">
-                    Tài khoản chưa được liên kết với Google để nhận Email.
-                  </span>
-                </div>
-                <button
-                  onClick={handleConnectGoogle}
-                  className="px-4 py-2 text-sm font-semibold bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
-                >
-                  Kết nối Google
-                </button>
-              </div>
-            )}
-
-            {!connected.github && (
-              <div className="flex items-center justify-between p-4 bg-gray-500/10 border border-gray-500/20 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Github size={20} className="text-gray-400" />
-                  <span className="text-sm font-medium text-text-primary">
-                    Tài khoản chưa được liên kết với GitHub để nhận Issues.
-                  </span>
-                </div>
-                <button
-                  onClick={handleConnectGithub}
-                  className="px-4 py-2 text-sm font-semibold bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors"
-                >
-                  Kết nối GitHub
-                </button>
-              </div>
-            )}
+        {!connected.gmail && !connected.github && (
+          <div className="flex items-center justify-between p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mb-8">
+            <div className="flex items-center gap-3">
+              <AlertCircle size={20} className="text-yellow-500" />
+              <span className="text-sm font-medium text-text-primary">
+                Hãy kết nối Gmail hoặc GitHub để bắt đầu nhận tin nhắn.
+              </span>
+            </div>
+            <div className="flex gap-2 flex-shrink-0">
+              <button
+                onClick={handleConnectGoogle}
+                className="px-4 py-2 text-sm font-semibold bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
+              >
+                Kết nối Google
+              </button>
+              <button
+                onClick={handleConnectGithub}
+                className="px-4 py-2 text-sm font-semibold bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors"
+              >
+                Kết nối GitHub
+              </button>
+            </div>
           </div>
         )}
+
+        {(connected.gmail || connected.github) &&
+          (!connected.gmail || !connected.github) && (
+            <div className="flex flex-col gap-3 mb-8">
+              {!connected.gmail && (
+                <div className="flex items-center justify-between p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle size={20} className="text-red-500" />
+                    <span className="text-sm font-medium text-text-primary">
+                      Tài khoản chưa được liên kết với Google để nhận Email.
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleConnectGoogle}
+                    className="px-4 py-2 text-sm font-semibold bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
+                  >
+                    Kết nối Google
+                  </button>
+                </div>
+              )}
+
+              {!connected.github && (
+                <div className="flex items-center justify-between p-4 bg-gray-500/10 border border-gray-500/20 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Github size={20} className="text-gray-400" />
+                    <span className="text-sm font-medium text-text-primary">
+                      Tài khoản chưa được liên kết với GitHub để nhận Issues.
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleConnectGithub}
+                    className="px-4 py-2 text-sm font-semibold bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors"
+                  >
+                    Kết nối GitHub
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
         <div className="flex items-center border-b border-border-subtle mb-6">
           <button

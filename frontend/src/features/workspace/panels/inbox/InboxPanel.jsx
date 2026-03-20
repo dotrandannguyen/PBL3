@@ -25,7 +25,7 @@ const formatTimeAgo = (dateStr) => {
 
 const InboxPanel = ({ isOpen, onClose }) => {
   const [filter, setFilter] = useState("all");
-  const { data, loading, refetch } = useIntegrations();
+  const { data, loading, refetch, connected } = useIntegrations();
 
   const filteredData = data.filter((item) => {
     if (filter === "all") return true;
@@ -108,6 +108,13 @@ const InboxPanel = ({ isOpen, onClose }) => {
                 size={24}
                 className="animate-spin text-text-tertiary"
               />
+            </div>
+          ) : !connected.gmail && !connected.github ? (
+            <div className="flex flex-col items-center justify-center py-10 text-text-tertiary opacity-70">
+              <Inbox size={32} className="mb-2" />
+              <p className="text-sm">
+                Hãy kết nối Gmail hoặc GitHub để xem tin nhắn
+              </p>
             </div>
           ) : filteredData.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-text-tertiary opacity-70">
