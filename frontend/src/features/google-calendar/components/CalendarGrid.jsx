@@ -44,7 +44,7 @@ const getEventsForDate = (date, events) => {
     return events.filter(e => e.date === dateStr);
 };
 
-const CalendarGrid = ({ currentDate, events, onDateClick, onEventClick }) => {
+const CalendarGrid = ({ currentDate, events, onDateClick, onEventClick, onAddEvent }) => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const today = new Date();
@@ -85,6 +85,7 @@ const CalendarGrid = ({ currentDate, events, onDateClick, onEventClick }) => {
                             events={dayEvents}
                             onClick={onDateClick}
                             onEventClick={onEventClick}
+                            onAddEvent={onAddEvent}
                         />
                     );
                 })}

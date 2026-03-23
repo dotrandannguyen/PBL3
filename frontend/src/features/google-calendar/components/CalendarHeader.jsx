@@ -6,7 +6,7 @@ const MONTHS = [
     'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const CalendarHeader = ({ currentDate, onPrev, onNext, onToday, onAddEvent }) => {
+const CalendarHeader = ({ currentDate, onPrev, onNext, onToday }) => {
     const month = MONTHS[currentDate.getMonth()];
     const year = currentDate.getFullYear();
 
@@ -48,17 +48,6 @@ const CalendarHeader = ({ currentDate, onPrev, onNext, onToday, onAddEvent }) =>
                 </h2>
             </div>
 
-            {/* Right: Add Event */}
-            <button
-                type="button"
-                onClick={onAddEvent}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md
-                           bg-accent-primary text-white border-none cursor-pointer
-                           hover:bg-accent-hover transition-colors duration-150"
-            >
-                <Plus size={16} />
-                Add Event
-            </button>
         </header>
     );
 };

@@ -98,7 +98,10 @@ export function CalendarPage() {
     setShowModal(true);
   };
 
-  const handleAddEvent = () => {
+  const handleAddEvent = (date) => {
+    if (date instanceof Date) {
+      setSelectedDate(date);
+    }
     setEditingEvent(null);
     setShowModal(true);
   };
@@ -126,13 +129,13 @@ export function CalendarPage() {
             onPrev={handlePrevMonth}
             onNext={handleNextMonth}
             onToday={handleToday}
-            onAddEvent={handleAddEvent}
           />
           <CalendarGrid
             currentDate={currentDate}
             events={events}
             onDateClick={handleDateClick}
             onEventClick={handleEventClick}
+            onAddEvent={handleAddEvent}
           />
         </div>
 

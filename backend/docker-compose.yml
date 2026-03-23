@@ -20,7 +20,10 @@ services:
     restart: always
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
+      # Override DATABASE_URL to use Docker internal hostname 'postgres'
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/mydb
     depends_on:
       - postgres
