@@ -18,7 +18,41 @@ export const taskService = {
 	 * @param {Object} query - { page, limit, completed, search }
 	 * @returns {Object} { data: [], pagination: {} }
 	 */
-	
+	getTasks: async (userId, query) => {
+		// Parse pagination params
+		const page = parseInt(query.page) || 1;
+		const limit = parseInt(query.limit) || 10;
+		const skip = (page - 1) * limit;
+
+		// Parse filter params
+		const filters = {
+			completed: query.completed, // 'true' | 'false' | undefined
+			search: query.search || undefined,
+		};
+
+		// Fetch data từ repository
+		const [tasks, totalItems] = await Promise.all([
+			taskRepository.findMany(userId, filters, { skip, limit }),
+			taskRepository.countTasks(userId, filters),
+		]);
+
+		// Map database format → API format
+		const mappedTasks = tasks.map((task) => mapTaskToResponse(task));
+
+		// Calculate pagination metadata
+		const totalPages = Math.ceil(totalItems / limit);
+
+		return {
+			data: mappedTasks,
+			pagination: {
+				page,
+				limit,
+				totalItems,
+				totalPages,
+			},
+		};
+	},
+
 	/**
 	 * Lấy chi tiết 1 task
 	 */
