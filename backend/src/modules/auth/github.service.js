@@ -27,6 +27,7 @@ export const githubService = {
 			client_id: process.env.GITHUB_CLIENT_ID,
 			redirect_uri: process.env.GITHUB_REDIRECT_URI,
 			scope: 'user:email read:user repo',
+			prompt: 'consent', // Luôn yêu cầu người dùng xác nhận, tránh trường hợp tự động đăng nhập nếu đã từng cấp quyền
 		});
 
 		return `${GITHUB_AUTH_URL}?${params.toString()}`;
