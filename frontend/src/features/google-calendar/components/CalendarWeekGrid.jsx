@@ -141,10 +141,12 @@ const CalendarWeekGrid = ({ currentDate, events = [], onDateClick, onEventClick,
                                     {/* Selection Box Overlay */}
                                     {selectionStart && selectionCurrent && selectionStart.dateKey === dateKey && selectionCurrent.dateKey === dateKey && (
                                         <div 
-                                            className="absolute w-full pointer-events-none z-20 px-1"
+                                            className="absolute pointer-events-none z-20"
                                             style={{
                                                 top: `${Math.min(selectionStart.hour, selectionCurrent.hour) * 60}px`,
                                                 height: `${(Math.abs(selectionCurrent.hour - selectionStart.hour) + 1) * 60}px`,
+                                                left: '2px',
+                                                right: '8px'
                                             }}
                                         >
                                             <div className="w-full h-full bg-accent-primary/20 border-2 border-accent-primary rounded-[4px]" />
@@ -152,7 +154,7 @@ const CalendarWeekGrid = ({ currentDate, events = [], onDateClick, onEventClick,
                                     )}
 
                                     {/* Render Events */}
-                                    <div className="absolute inset-x-0 top-0 bottom-0 pointer-events-none z-10 px-1">
+                                    <div className="absolute inset-0 pointer-events-none z-10">
                                         {dayEvents.map(event => {
                                             if (!event.time) return null; // All day events need a different handling or top bar
                                             
@@ -171,10 +173,12 @@ const CalendarWeekGrid = ({ currentDate, events = [], onDateClick, onEventClick,
                                             return (
                                                 <div 
                                                     key={event.id}
-                                                    className="absolute w-full pointer-events-auto shadow-sm"
+                                                    className="absolute pointer-events-auto shadow-sm"
                                                     style={{ 
                                                         top: `${topPos}px`, 
                                                         height: `${durationMins}px`,
+                                                        left: '2px',
+                                                        right: '8px',
                                                         paddingTop: '2px',
                                                         paddingBottom: '2px'
                                                     }}
