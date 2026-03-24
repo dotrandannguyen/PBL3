@@ -16,7 +16,13 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate }) 
     const [title, setTitle] = useState('');
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
+    const [endTime, setEndTime] = useState('');
+    const [isAllDay, setIsAllDay] = useState(false);
+    const [description, setDescription] = useState('');
     const [color, setColor] = useState(EVENT_COLORS[0].value);
+    const [type, setType] = useState('event');
+    const [reminder, setReminder] = useState('30_min');
+    const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
     useEffect(() => {
         if (event) {
@@ -24,7 +30,12 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate }) 
             setTitle(event.title || '');
             setDate(event.date || '');
             setTime(event.time || '');
+            setEndTime(event.endTime || '');
+            setIsAllDay(event.isAllDay || false);
+            setDescription(event.description || '');
             setColor(event.color || EVENT_COLORS[0].value);
+            setType(event.type || 'event');
+            setReminder(event.reminder || '30_min');
         } else if (selectedDate) {
             // New event mode
             setTitle('');
@@ -33,7 +44,12 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate }) 
             const d = String(selectedDate.getDate()).padStart(2, '0');
             setDate(`${y}-${m}-${d}`);
             setTime('');
+            setEndTime('');
+            setIsAllDay(false);
+            setDescription('');
             setColor(EVENT_COLORS[0].value);
+            setType('event');
+            setReminder('30_min');
         }
     }, [event, selectedDate, isOpen]);
 
@@ -47,8 +63,13 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate }) 
             id: event?.id || Date.now(),
             title: title.trim(),
             date,
-            time: time || null,
+            time: isAllDay ? null : (time || null),
+            endTime: isAllDay ? null : (endTime || null),
+            isAllDay,
+            description: description.trim(),
             color,
+            type,
+            reminder,
         });
         onClose();
     };
@@ -100,8 +121,26 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate }) 
                             />
                             {/* Type toggle (Event / Task) */}
                             <div className="flex gap-2 mt-3 mb-1">
-                                <span className="px-3 py-1.5 bg-[#e8f0fe] text-[#1967d2] dark:bg-[#e8f0fe]/20 dark:text-blue-300 rounded-md text-sm font-medium cursor-default">Sự kiện</span>
-                                <span className="px-3 py-1.5 hover:bg-bg-hover text-text-secondary rounded-md text-sm font-medium cursor-pointer transition">Việc cần làm</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setType('event')}
+                                    className={`px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer border-none transition-colors
+                                        ${type === 'event' 
+                                            ? 'bg-[#e8f0fe] text-[#1967d2] dark:bg-[#e8f0fe]/20 dark:text-blue-300' 
+                                            : 'bg-transparent text-text-secondary hover:bg-bg-hover'}`}
+                                >
+                                    Sự kiện
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setType('task')}
+                                    className={`px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer border-none transition-colors
+                                        ${type === 'task' 
+                                            ? 'bg-[#e8f0fe] text-[#1967d2] dark:bg-[#e8f0fe]/20 dark:text-blue-300' 
+                                            : 'bg-transparent text-text-secondary hover:bg-bg-hover'}`}
+                                >
+                                    Việc cần làm
+                                </button>
                             </div>
                         </div>
 
@@ -112,22 +151,46 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate }) 
                                     <Clock size={20} />
                                 </div>
                                 <div className="flex-1 w-full">
-                                    <div className="flex items-center gap-1">
-                                        <input
-                                            type="date"
-                                            value={date}
-                                            onChange={(e) => setDate(e.target.value)}
-                                            className="bg-transparent text-text-primary text-[15px] focus:outline-none hover:bg-bg-hover px-2 py-1.5 rounded cursor-pointer transition-colors"
-                                        />
-                                        <input
-                                            type="time"
-                                            value={time}
-                                            onChange={(e) => setTime(e.target.value)}
-                                            className="bg-transparent text-text-primary text-[15px] focus:outline-none hover:bg-bg-hover px-2 py-1.5 rounded cursor-pointer transition-colors min-w-[90px]"
-                                        />
-                                    </div>
-                                    <div className="text-[13px] text-text-tertiary mt-0.5 px-2 cursor-pointer hover:bg-bg-hover w-max rounded">
-                                        Không lặp lại
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <input
+                                                type="date"
+                                                value={date}
+                                                onChange={(e) => setDate(e.target.value)}
+                                                className="bg-transparent text-text-primary text-[15px] focus:outline-none hover:bg-bg-hover px-2 py-1.5 rounded cursor-pointer transition-colors"
+                                            />
+                                            {!isAllDay && (
+                                                <>
+                                                    <input
+                                                        type="time"
+                                                        value={time}
+                                                        onChange={(e) => setTime(e.target.value)}
+                                                        className="bg-transparent text-text-primary text-[15px] focus:outline-none hover:bg-bg-hover px-2 py-1.5 rounded cursor-pointer transition-colors min-w-[90px]"
+                                                    />
+                                                    <span className="text-text-secondary">-</span>
+                                                    <input
+                                                        type="time"
+                                                        value={endTime}
+                                                        onChange={(e) => setEndTime(e.target.value)}
+                                                        className="bg-transparent text-text-primary text-[15px] focus:outline-none hover:bg-bg-hover px-2 py-1.5 rounded cursor-pointer transition-colors min-w-[90px]"
+                                                    />
+                                                </>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <label className="flex items-center gap-2 cursor-pointer hover:bg-bg-hover px-2 py-1 rounded w-max transition-colors">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={isAllDay} 
+                                                    onChange={(e) => setIsAllDay(e.target.checked)}
+                                                    className="w-4 h-4 rounded border-border-subtle text-accent-primary focus:ring-accent-primary cursor-pointer accent-accent-primary"
+                                                />
+                                                <span className="text-[14px] text-text-primary">Cả ngày</span>
+                                            </label>
+                                            <div className="text-[13px] text-text-tertiary px-2 cursor-pointer hover:bg-bg-hover w-max rounded">
+                                                Không lặp lại
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -143,12 +206,18 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate }) 
                             </div>
 
                             {/* Row: Description */}
-                            <div className="flex items-center gap-4">
-                                <div className="text-text-secondary shrink-0">
+                            <div className="flex items-start gap-4">
+                                <div className="text-text-secondary shrink-0 mt-2">
                                     <AlignLeft size={20} />
                                 </div>
                                 <div className="flex-1 w-full">
-                                    <input type="text" placeholder="Thêm mô tả hoặc tệp đính kèm trên Google Drive" className="w-full bg-transparent text-text-primary text-[15px] focus:outline-none hover:bg-bg-hover px-2 py-1.5 rounded transition-colors placeholder:text-text-secondary leading-tight" />
+                                    <textarea 
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        placeholder="Thêm mô tả hoặc tệp đính kèm" 
+                                        rows={3}
+                                        className="w-full bg-bg-hover/30 text-text-primary text-[15px] focus:outline-none focus:bg-bg-hover px-3 py-2 rounded-md transition-colors placeholder:text-text-secondary resize-none" 
+                                    />
                                 </div>
                             </div>
 
@@ -181,8 +250,18 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate }) 
                                 <div className="text-text-secondary shrink-0">
                                     <Bell size={20} />
                                 </div>
-                                <div className="flex-1">
-                                    <span className="text-[15px] text-text-primary hover:bg-bg-hover px-2 py-1.5 rounded cursor-pointer transition-colors">Ngày hôm trước lúc 5PM</span>
+                                <div className="flex-1 w-full relative">
+                                    <select
+                                        value={reminder}
+                                        onChange={(e) => setReminder(e.target.value)}
+                                        className="w-full bg-transparent text-[15px] text-text-primary focus:outline-none hover:bg-bg-hover px-1 py-1.5 -ml-1 rounded cursor-pointer transition-colors border-none"
+                                    >
+                                        <option value="none" className="bg-bg-main">Không nhắc</option>
+                                        <option value="10_min" className="bg-bg-main">10 phút trước</option>
+                                        <option value="30_min" className="bg-bg-main">30 phút trước</option>
+                                        <option value="1_hour" className="bg-bg-main">1 giờ trước</option>
+                                        <option value="1_day" className="bg-bg-main">Ngày hôm trước lúc 5PM</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -194,7 +273,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate }) 
                             {isEditing && onDelete ? (
                                 <button
                                     type="button"
-                                    onClick={() => { onDelete(event.id); onClose(); }}
+                                    onClick={() => setShowConfirmDelete(true)}
                                     className="text-[14px] text-red-500 hover:bg-red-500/10 px-3 py-1.5 rounded font-medium transition cursor-pointer border-none bg-transparent"
                                 >
                                     Xoá
@@ -224,6 +303,36 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate }) 
                     </div>
                 </form>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            {showConfirmDelete && (
+                <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center animate-[fadeIn_150ms_ease]">
+                    <div className="bg-bg-main rounded-xl shadow-xl p-6 w-full max-w-sm border border-border-subtle animate-[scaleIn_150ms_ease]">
+                        <h3 className="text-lg font-semibold text-text-primary mb-2">Xoá sự kiện</h3>
+                        <p className="text-sm text-text-secondary mb-6">Bạn có chắc chắn muốn xoá sự kiện này không?</p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowConfirmDelete(false)}
+                                className="px-4 py-2 text-sm font-medium rounded-md text-text-secondary bg-transparent hover:bg-bg-hover transition-colors border-none cursor-pointer"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    onDelete(event.id);
+                                    setShowConfirmDelete(false);
+                                    onClose();
+                                }}
+                                className="px-4 py-2 text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 transition-colors border-none cursor-pointer shadow-sm"
+                            >
+                                Xoá
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { DndContext, useSensor, useSensors, PointerSensor, pointerWithin } from '@dnd-kit/core';
 import CalendarHeader from "../components/CalendarHeader";
 import CalendarGrid from "../components/CalendarGrid";
 import CalendarSidebar from "../components/CalendarSidebar";
@@ -98,6 +99,28 @@ export function CalendarPage() {
     setShowModal(true);
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // minimum drag distance before initiating drag
+      },
+    })
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    
+    const activeEvent = active.data.current?.event;
+    const newDateStr = over.data.current?.date; 
+    
+    if (activeEvent && newDateStr && activeEvent.date !== newDateStr) {
+      setEvents(prev => prev.map(e => 
+          e.id === activeEvent.id ? { ...e, date: newDateStr } : e
+      ));
+    }
+  };
+
   const handleAddEvent = (date) => {
     if (date instanceof Date) {
       setSelectedDate(date);
@@ -130,13 +153,15 @@ export function CalendarPage() {
             onNext={handleNextMonth}
             onToday={handleToday}
           />
-          <CalendarGrid
-            currentDate={currentDate}
-            events={events}
-            onDateClick={handleDateClick}
-            onEventClick={handleEventClick}
-            onAddEvent={handleAddEvent}
-          />
+          <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={pointerWithin}>
+            <CalendarGrid
+              currentDate={currentDate}
+              events={events}
+              onDateClick={handleDateClick}
+              onEventClick={handleEventClick}
+              onAddEvent={handleAddEvent}
+            />
+          </DndContext>
         </div>
 
         {/* Right Sidebar */}
