@@ -1,12 +1,12 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const MONTHS = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
-const CalendarHeader = ({ currentDate, onPrev, onNext, onToday }) => {
+const CalendarHeader = ({ currentDate, onPrev, onNext, onToday, viewMode, onViewModeChange }) => {
     const month = MONTHS[currentDate.getMonth()];
     const year = currentDate.getFullYear();
 
@@ -48,6 +48,27 @@ const CalendarHeader = ({ currentDate, onPrev, onNext, onToday }) => {
                 </h2>
             </div>
 
+            {/* Right: View Mode Toggle */}
+            {onViewModeChange && (
+                <div className="flex items-center bg-bg-hover rounded-md p-0.5 border border-border-subtle">
+                    <button
+                        type="button"
+                        onClick={() => onViewModeChange('month')}
+                        className={`px-3 py-1 text-[13px] font-medium rounded-sm transition-colors cursor-pointer border-none
+                            ${viewMode === 'month' ? 'bg-bg-sidebar text-text-primary shadow-sm' : 'text-text-secondary bg-transparent hover:text-text-primary'}`}
+                    >
+                        Tháng
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onViewModeChange('week')}
+                        className={`px-3 py-1 text-[13px] font-medium rounded-sm transition-colors cursor-pointer border-none
+                            ${viewMode === 'week' ? 'bg-bg-sidebar text-text-primary shadow-sm' : 'text-text-secondary bg-transparent hover:text-text-primary'}`}
+                    >
+                        Tuần
+                    </button>
+                </div>
+            )}
         </header>
     );
 };

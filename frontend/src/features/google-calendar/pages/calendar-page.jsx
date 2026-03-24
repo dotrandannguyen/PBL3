@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { DndContext, useSensor, useSensors, PointerSensor, pointerWithin } from '@dnd-kit/core';
 import CalendarHeader from "../components/CalendarHeader";
 import CalendarGrid from "../components/CalendarGrid";
+import CalendarWeekGrid from "../components/CalendarWeekGrid";
 import CalendarSidebar from "../components/CalendarSidebar";
 import EventModal from "../components/EventModal";
 
@@ -77,17 +78,23 @@ export function CalendarPage() {
   const [events, setEvents] = useState(MOCK_EVENTS);
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [prefillRange, setPrefillRange] = useState(null);
+  const [viewMode, setViewMode] = useState('month');
 
-  const handlePrevMonth = () => {
-    setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1),
-    );
+  const handlePrev = () => {
+    if (viewMode === 'month') {
+      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+    } else {
+      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 7));
+    }
   };
 
-  const handleNextMonth = () => {
-    setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1),
-    );
+  const handleNext = () => {
+    if (viewMode === 'month') {
+      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+    } else {
+      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 7));
+    }
   };
 
   const handleToday = () => setCurrentDate(new Date());
@@ -126,20 +133,32 @@ export function CalendarPage() {
       setSelectedDate(date);
     }
     setEditingEvent(null);
+    setPrefillRange(null);
+    setShowModal(true);
+  };
+
+  const handleAddEventRange = (date, startTime, endTime) => {
+    if (date instanceof Date) {
+      setSelectedDate(date);
+    }
+    setEditingEvent(null);
+    setPrefillRange({ startTime, endTime });
     setShowModal(true);
   };
 
   const handleSaveEvent = (eventData) => {
-    if (editingEvent) {
-      setEvents(events.map((e) => (e.id === eventData.id ? eventData : e)));
-    } else {
-      setEvents([...events, eventData]);
-    }
+    setEvents(prev => {
+      if (editingEvent) {
+        return prev.map((e) => (String(e.id) === String(eventData.id) ? eventData : e));
+      } else {
+        return [...prev, eventData];
+      }
+    });
     setEditingEvent(null);
   };
 
   const handleDeleteEvent = (eventId) => {
-    setEvents(events.filter((e) => e.id !== eventId));
+    setEvents(prev => prev.filter((e) => String(e.id) !== String(eventId)));
   };
 
   return (
@@ -149,18 +168,30 @@ export function CalendarPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <CalendarHeader
             currentDate={currentDate}
-            onPrev={handlePrevMonth}
-            onNext={handleNextMonth}
+            onPrev={handlePrev}
+            onNext={handleNext}
             onToday={handleToday}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
           />
           <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={pointerWithin}>
-            <CalendarGrid
-              currentDate={currentDate}
-              events={events}
-              onDateClick={handleDateClick}
-              onEventClick={handleEventClick}
-              onAddEvent={handleAddEvent}
-            />
+            {viewMode === 'month' ? (
+              <CalendarGrid
+                currentDate={currentDate}
+                events={events}
+                onDateClick={handleDateClick}
+                onEventClick={handleEventClick}
+                onAddEvent={handleAddEvent}
+              />
+            ) : (
+              <CalendarWeekGrid
+                currentDate={currentDate}
+                events={events}
+                onDateClick={handleDateClick}
+                onEventClick={handleEventClick}
+                onAddEventRange={handleAddEventRange}
+              />
+            )}
           </DndContext>
         </div>
 
@@ -179,11 +210,13 @@ export function CalendarPage() {
         onClose={() => {
           setShowModal(false);
           setEditingEvent(null);
+          setPrefillRange(null);
         }}
         onSave={handleSaveEvent}
         onDelete={handleDeleteEvent}
         event={editingEvent}
         selectedDate={selectedDate || new Date()}
+        prefillRange={prefillRange}
       />
     </>
   );
