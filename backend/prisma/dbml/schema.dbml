@@ -17,6 +17,7 @@ Table users {
   accounts accounts [not null]
   integrations integrations [not null]
   tasks tasks [not null]
+  events events [not null]
   tags tags [not null]
   taskActivities task_activities [not null]
   syncLogs sync_logs [not null]
@@ -86,6 +87,22 @@ Table tasks {
   taskTags task_tags [not null]
   activities task_activities [not null]
   notifications notifications [not null]
+}
+
+Table events {
+  id String [pk]
+  userId String [not null]
+  title String [not null]
+  date DateTime [not null]
+  time String [not null]
+  color String [not null, default: '#3b82f6']
+  location String
+  description String
+  repeat EventRepeat [not null, default: 'NONE']
+  reminder EventReminder [not null, default: 'NONE']
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  user users [not null]
 }
 
 Table tags {
@@ -225,6 +242,21 @@ Enum NotifStatus {
   FAILED
 }
 
+Enum EventRepeat {
+  NONE
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+Enum EventReminder {
+  NONE
+  MINUTES_5
+  MINUTES_15
+  HOUR_1
+}
+
 Enum UserRole {
   USER
   ADMIN
@@ -235,6 +267,8 @@ Ref: accounts.userId > users.id [delete: Cascade]
 Ref: integrations.userId > users.id
 
 Ref: tasks.userId > users.id
+
+Ref: events.userId > users.id [delete: Cascade]
 
 Ref: tags.userId > users.id
 
