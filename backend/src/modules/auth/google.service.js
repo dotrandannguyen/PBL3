@@ -44,6 +44,10 @@ export const googleService = {
 		oauth2Client.setCredentials(tokens);
 		//Từ giờ mày đã đăng nhập Google rồi, đây là access token của mày, cứ dùng nó mà gọi API.
 
+		// 👉 THÊM DÒNG NÀY ĐỂ LẤY YA29 TOKEN:
+		console.log('================ GOOGLE ACCESS TOKEN ================');
+		console.log(tokens.access_token);
+		console.log('====================================================');
 		// lấy thông tin user từ gg
 		const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
 		const { data: googleUser } = await oauth2.userinfo.get();
