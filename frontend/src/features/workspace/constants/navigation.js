@@ -14,8 +14,7 @@ import {
 const MAIN_NAV_ITEMS = [
   { icon: Search, label: "Search" },
   { icon: Home, label: "Home" },
-  { icon: Users, label: "Meetings" },
-  { icon: Sparkles, label: "Notion AI" },
+
   { icon: Inbox, label: "Inbox" },
 ];
 
@@ -26,7 +25,6 @@ const NOTION_APPS = [
 
 const BOTTOM_NAV_ITEMS = [
   { icon: Settings, label: "Settings" },
-  { icon: Store, label: "Marketplace" },
   { icon: Trash2, label: "Trash" },
 ];
 
