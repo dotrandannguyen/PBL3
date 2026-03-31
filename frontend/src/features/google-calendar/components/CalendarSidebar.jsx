@@ -109,7 +109,7 @@ const CalendarSidebar = ({ currentDate, selectedDate, events, onDateSelect }) =>
                                 type="button"
                                 onClick={() => onDateSelect?.(date)}
                                 className={`
-                                    w-full aspect-square flex items-center justify-center text-[11px] rounded-full
+                                    w-full aspect-square flex items-center justify-center text-[11px] rounded-[6px]
                                     border-none cursor-pointer transition-colors duration-150 bg-transparent
                                     ${!isCurrentMonth ? 'text-text-tertiary' : 'text-text-primary'}
                                     ${isToday ? 'bg-accent-primary text-white font-bold' : ''}
@@ -140,13 +140,10 @@ const CalendarSidebar = ({ currentDate, selectedDate, events, onDateSelect }) =>
                         {selectedEvents.map((event) => (
                             <div
                                 key={event.id}
-                                className="flex items-start gap-2 p-2 rounded-md bg-bg-hover"
+                                className="flex items-start gap-2 p-2.5 rounded-[8px] bg-bg-main border border-border-subtle shadow-sm hover:border-border-focused transition-all"
+                                style={{ borderLeftWidth: '3px', borderLeftColor: event.color }}
                             >
-                                <span
-                                    className="w-2 h-2 rounded-full mt-1 shrink-0"
-                                    style={{ backgroundColor: event.color }}
-                                />
-                                <div className="flex-1 min-w-0">
+                                <div className="flex-1 min-w-0 pl-1">
                                     <p className="text-xs font-medium text-text-primary truncate m-0">
                                         {event.title}
                                     </p>
