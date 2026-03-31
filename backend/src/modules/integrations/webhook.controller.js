@@ -1,5 +1,9 @@
 import crypto from 'crypto';
+import { google } from 'googleapis';
 import prisma from '../../config/database.js';
+import { integrationService } from './integration.service.js';
+import { integrationRepository } from './integration.repository.js';
+import { encryptionUtils } from '../../common/utils/encryption.js';
 
 export const webhookController = {
 	handleGithub: async (req, res) => {
@@ -17,16 +21,13 @@ export const webhookController = {
 				return;
 			}
 
-			// Lưu ý: JSON.stringify có thể bị lệch format so với payload gốc của GitHub.
-			// Trong môi trường thực tế, người ta dùng express.raw().
-			// Nếu phần xác thực này báo lỗi chữ ký không hợp lệ, bạn có thể comment tạm đoạn if này để test luồng data trước.
 			const hmac = crypto.createHmac('sha256', secret);
-			const digest =
-				'sha256=' + hmac.update(JSON.stringify(req.body)).digest('hex');
+			// Hàm băm dùng dữ liệu gốc (rawBody) đã được cấu hình trong app.js
+			const digest = 'sha256=' + hmac.update(req.rawBody).digest('hex');
 
 			if (signature !== digest) {
 				console.error('🚨 [WEBHOOK] Chữ ký không hợp lệ! Bỏ qua request.');
-				// return; // Tạm comment dòng này nếu bị lỗi xác thực chữ ký do Express parse JSON
+				return;
 			}
 
 			// 3. Xử lý Payload từ GitHub
@@ -39,16 +40,16 @@ export const webhookController = {
 				(payload.action === 'opened' || payload.action === 'assigned')
 			) {
 				const issue = payload.issue;
-				const assignee = payload.assignee; // Người được giao việc
+				// Người liên quan: ưu tiên người được giao, nếu chưa có ai thì tính người tạo
+				const targetUser = payload.assignee || issue.user;
 
-				// Nếu issue không được giao cho ai, hệ thống không quan tâm
-				if (!assignee) return;
+				if (!targetUser) return;
 
 				// 4. Tìm xem GitHub ID này thuộc về User nào trong Database của bạn
 				const integration = await prisma.integration.findFirst({
 					where: {
 						provider: 'GITHUB',
-						providerUserId: String(assignee.id), // Tìm người được gán trong hệ thống
+						providerUserId: String(targetUser.id), // Tìm người được gán trong hệ thống
 					},
 				});
 
@@ -56,7 +57,7 @@ export const webhookController = {
 					console.log('====================================');
 					console.log('🎉 [WEBHOOK] GITHUB VỪA BẮN DATA VỀ!');
 					console.log('📌 Tiêu đề:', issue.title);
-					console.log('👤 Người giao:', assignee.login);
+					console.log('👤 Người xử lý:', targetUser.login);
 					console.log('====================================');
 
 					// 5. Lưu thẳng vào bảng Tasks
@@ -76,7 +77,7 @@ export const webhookController = {
 					console.log('✅ [WEBHOOK] Đồng bộ thành Task mới thành công!');
 				} else {
 					console.log(
-						`⚠️ [WEBHOOK] Bỏ qua: User GitHub ID ${assignee.id} chưa liên kết với tài khoản nào trên App.`,
+						`⚠️ [WEBHOOK] Bỏ qua: User GitHub ID ${targetUser.id} chưa liên kết với tài khoản nào trên App.`,
 					);
 				}
 			}
@@ -107,11 +108,82 @@ export const webhookController = {
 			console.log('🔢 History ID:', historyId);
 			console.log('====================================');
 
-			// BƯỚC TIẾP THEO (Sau khi test thông luồng này, ta sẽ viết code):
-			// - Tìm user có email này trong DB.
-			// - Lấy Access Token/Refresh Token của họ.
-			// - Gọi API Gmail tải nội dung thư.
-			// - Lưu vào bảng Task.
+			// 4. Tìm user có email này trong DB
+			const integration = await integrationRepository.findIntegrationByEmailAddress(
+				emailAddress,
+				'GOOGLE',
+			);
+
+			if (!integration) {
+				console.log(
+					`⚠️ [WEBHOOK] Email ${emailAddress} chưa liên kết với tài khoản nào trên App.`,
+				);
+				return;
+			}
+
+			// 5. Lấy Access Token và decrypt
+			const accessToken = encryptionUtils.decrypt(integration.accessTokenEncrypted);
+
+			// 6. Khởi tạo OAuth2 client với access token
+			const oauth2Client = new google.auth.OAuth2();
+			oauth2Client.setCredentials({ access_token: accessToken });
+
+			// 7. Lấy danh sách message IDs từ history
+			const messageIds = await integrationService.fetchEmailDetailsFromHistory(
+				oauth2Client,
+				historyId,
+			);
+
+			if (messageIds.length === 0) {
+				console.log('📭 [GMAIL] Không có email mới để xử lý.');
+				return;
+			}
+
+			// 8. Lấy chi tiết đầy đủ của mỗi email
+			const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+			const emailDetails = await Promise.all(
+				messageIds.map((id) => integrationService.getFullEmailDetails(gmail, id)),
+			);
+
+			// 9. Lọc emails theo điều kiện (chưa đọc + có chữ "task")
+			const filteredEmails = await integrationService.filterEmails(
+				emailDetails,
+				gmail,
+			);
+
+			if (filteredEmails.length === 0) {
+				console.log('📭 [GMAIL] Không có email nào đáp ứng điều kiện lọc.');
+				return;
+			}
+
+			// 10. Lưu mỗi email đó vào bảng Tasks
+			for (const email of filteredEmails) {
+				await prisma.task.create({
+					data: {
+						userId: integration.userId,
+						title: `[Gmail] ${email.subject}`,
+						description: email.body || 'Không có nội dung chi tiết.',
+						status: 'PENDING',
+						priority: 'MEDIUM',
+						sourceType: 'GMAIL',
+						sourceId: email.id,
+						sourceLink: email.link,
+						sourceMetadata: {
+							subject: email.subject,
+							from: email.from,
+							to: email.to,
+							date: email.date,
+							attachments: email.attachments,
+						},
+					},
+				});
+
+				console.log(`✅ [GMAIL] Đã lưu email "${email.subject}" thành Task.`);
+			}
+
+			console.log(
+				`✨ [GMAIL WEBHOOK] Đồng bộ ${filteredEmails.length} email thành công!`,
+			);
 		} catch (error) {
 			console.error('❌ Lỗi xử lý Webhook Gmail:', error);
 		}

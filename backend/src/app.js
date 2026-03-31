@@ -8,7 +8,11 @@ import integrationRouter from './modules/integrations/integration.router.js';
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({
+	verify: (req, res, buf) => {
+		req.rawBody = buf;
+	}
+}));
 // app.use(express.urlencoded({ extended: true }));
 app.use('/v1/api/auth', authRouter);
 app.use('/v1/api/user', userRouter);

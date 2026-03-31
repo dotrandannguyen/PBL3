@@ -129,4 +129,162 @@ export const integrationService = {
 			);
 		}
 	},
+
+	// ========== GMAIL WEBHOOK FUNCTIONS ==========
+
+	/**
+	 * Lấy chi tiết email từ Gmail History API
+	 * @param {object} oauth2Client - Google OAuth2 client (đã set credentials)
+	 * @param {string} historyId - History ID từ webhook payload
+	 * @returns {Array} Array of message IDs từ history
+	 */
+	fetchEmailDetailsFromHistory: async (oauth2Client, historyId) => {
+		const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+		try {
+			// Lấy lịch sử thay đổi từ historyId (nơi email mới được nhận)
+			const historyResponse = await gmail.users.history.list({
+				userId: 'me',
+				startHistoryId: historyId,
+				// Chỉ lấy email chưa đọc (UNREAD label)
+			});
+
+			const historyRecords = historyResponse.data.history || [];
+			if (historyRecords.length === 0) {
+				console.log('📭 [GMAIL] Không có history mới.');
+				return [];
+			}
+
+			// Extract messageId từ history records
+			// History có thể chứa ADDED, MODIFIED, DELETED actions
+			const messageIds = [];
+			historyRecords.forEach((record) => {
+				if (record.messagesAdded) {
+					record.messagesAdded.forEach((item) => {
+						messageIds.push(item.message.id);
+					});
+				}
+			});
+
+			console.log(`📬 [GMAIL] Tìm thấy ${messageIds.length} email mới từ history.`);
+			return messageIds;
+		} catch (error) {
+			console.error('❌ Lỗi lấy Gmail history:', error);
+			throw error;
+		}
+	},
+
+	/**
+	 * Lấy chi tiết đầy đủ của 1 email (Subject, From, To, Date, Body, Attachments)
+	 * @param {object} gmail - Gmail API client
+	 * @param {string} messageId - Message ID
+	 * @returns {object} Email object với chi tiết đầy đủ
+	 */
+	getFullEmailDetails: async (gmail, messageId) => {
+		try {
+			const msgResponse = await gmail.users.messages.get({
+				userId: 'me',
+				id: messageId,
+				format: 'full', // Lấy toàn bộ dữ liệu (headers + body + attachments)
+			});
+
+			const message = msgResponse.data;
+			const headers = message.payload.headers || [];
+
+			// Extract headers
+			const getHeader = (name) => headers.find((h) => h.name === name)?.value || '';
+
+			const subject = getHeader('Subject') || '(Không có tiêu đề)';
+			const from = getHeader('From') || 'Unknown';
+			const to = getHeader('To') || '';
+			const date = getHeader('Date') || '';
+
+			// Extract body content
+			let bodyContent = '';
+			if (message.payload.parts) {
+				// Email multipart (có text + HTML)
+				const textPart = message.payload.parts.find(
+					(p) => p.mimeType === 'text/plain',
+				);
+				const htmlPart = message.payload.parts.find(
+					(p) => p.mimeType === 'text/html',
+				);
+
+				if (textPart && textPart.body.data) {
+					bodyContent = Buffer.from(textPart.body.data, 'base64').toString(
+						'utf-8',
+					);
+				} else if (htmlPart && htmlPart.body.data) {
+					// Nếu chỉ có HTML, convert to text (simple)
+					bodyContent = Buffer.from(htmlPart.body.data, 'base64').toString(
+						'utf-8',
+					);
+				}
+			} else if (message.payload.body && message.payload.body.data) {
+				// Simple email (không multipart)
+				bodyContent = Buffer.from(message.payload.body.data, 'base64').toString(
+					'utf-8',
+				);
+			}
+
+			// Extract attachments metadata
+			const attachments = [];
+			if (message.payload.parts) {
+				message.payload.parts.forEach((part) => {
+					if (part.filename && part.body.attachmentId) {
+						attachments.push({
+							filename: part.filename,
+							mimeType: part.mimeType,
+							size: part.body.size || 0, // Size in bytes
+						});
+					}
+				});
+			}
+
+			return {
+				id: messageId,
+				subject,
+				from,
+				to,
+				date,
+				body: bodyContent,
+				attachments,
+				snippet: message.snippet,
+				link: `https://mail.google.com/mail/u/0/#inbox/${messageId}`,
+			};
+		} catch (error) {
+			console.error(`❌ Lỗi lấy chi tiết email ${messageId}:`, error);
+			throw error;
+		}
+	},
+
+	/**
+	 * Lọc emails theo điều kiện: chỉ giữ email chưa đọc + có chữ "task" trong Subject/Body
+	 * @param {Array} emails - Array of email objects
+	 * @param {object} gmail - Gmail API client (để remove UNREAD label sau)
+	 * @returns {Array} Filtered emails
+	 */
+	filterEmails: async (emails, gmail = null) => {
+		console.log(`🔍 [GMAIL] Lọc ${emails.length} email theo điều kiện...`);
+
+		const filteredEmails = emails.filter((email) => {
+			const searchText = `${email.subject} ${email.body}`.toLowerCase();
+			const hasTaskKeyword = searchText.includes('task');
+
+			if (hasTaskKeyword) {
+				console.log(`✅ [GMAIL] Email "${email.subject}" chứa từ "task"`);
+				return true;
+			} else {
+				console.log(
+					`⏭️ [GMAIL] Email "${email.subject}" không chứa từ "task" - bỏ qua`,
+				);
+				return false;
+			}
+		});
+
+		console.log(
+			`✨ [GMAIL] Kết quả: ${filteredEmails.length}/${emails.length} emails đáp ứng điều kiện`,
+		);
+		return filteredEmails;
+	},
 };
