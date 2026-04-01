@@ -180,23 +180,31 @@ export const googleService = {
 		});
 
 		// 🚀 TỰ ĐỘNG ĐĂNG KÝ GMAIL WATCH NGAY SAU KHI LƯU INTEGRATION THÀNH CÔNG
-		const watchData = await googleService.registerGmailWatch(tokens.access_token);
+		try {
+			const watchData = await googleService.registerGmailWatch(tokens.access_token);
 
-		// Lưu webhook data vào Integration nếu Watch thành công
-		if (watchData) {
-			await prisma.integration.update({
-				where: {
-					userId_provider: {
-						userId: result.id,
-						provider: 'GOOGLE',
+			// Lưu webhook data vào Integration nếu Watch thành công
+			if (watchData) {
+				await prisma.integration.update({
+					where: {
+						userId_provider: {
+							userId: result.id,
+							provider: 'GOOGLE',
+						},
 					},
-				},
-				data: {
-					webhookData: {
-						gmail: watchData,
+					data: {
+						webhookData: {
+							gmail: watchData,
+						},
 					},
-				},
-			});
+				});
+			}
+		} catch (watchError) {
+			// Log warning nhưng không crash - Gmail Watch là optional feature
+			console.warn(
+				'⚠️ [Google Auth] Gmail Watch registration failed, continuing anyway:',
+				watchError.message,
+			);
 		}
 
 		// Tạo JWT cho hệ thống

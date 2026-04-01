@@ -60,13 +60,13 @@ export const webhookController = {
 					console.log('👤 Người xử lý:', targetUser.login);
 					console.log('====================================');
 
-					// 5. Lưu thẳng vào bảng Tasks
+					// 5. Lưu thẳng vào bảng Tasks (INBOX - chờ duyệt)
 					await prisma.task.create({
 						data: {
 							userId: integration.userId,
 							title: `[GitHub] ${issue.title}`,
 							description: issue.body || 'Không có mô tả chi tiết.',
-							status: 'PENDING',
+							status: 'INBOX',
 							priority: 'MEDIUM',
 							sourceType: 'GITHUB',
 							sourceId: String(issue.id),
@@ -156,14 +156,14 @@ export const webhookController = {
 				return;
 			}
 
-			// 10. Lưu mỗi email đó vào bảng Tasks
+			// 10. Lưu mỗi email đó vào bảng Tasks (INBOX - chờ duyệt)
 			for (const email of filteredEmails) {
 				await prisma.task.create({
 					data: {
 						userId: integration.userId,
 						title: `[Gmail] ${email.subject}`,
 						description: email.body || 'Không có nội dung chi tiết.',
-						status: 'PENDING',
+						status: 'INBOX',
 						priority: 'MEDIUM',
 						sourceType: 'GMAIL',
 						sourceId: email.id,

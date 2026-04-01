@@ -37,6 +37,7 @@ enum IntegrationStatus {
 }
 
 enum TaskStatus {
+  INBOX       // Chờ duyệt từ Webhook hoặc Fetch API
   PENDING
   IN_PROGRESS
   DONE

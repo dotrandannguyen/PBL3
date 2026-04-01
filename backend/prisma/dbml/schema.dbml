@@ -53,6 +53,7 @@ Table integrations {
   refreshTokenEncrypted String
   expiresAt DateTime
   profileData Json
+  webhookData Json
   status IntegrationStatus [not null, default: 'ACTIVE']
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [default: `now()`, not null]

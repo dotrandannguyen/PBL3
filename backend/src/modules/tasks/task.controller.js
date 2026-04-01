@@ -102,4 +102,40 @@ export const taskController = {
 			next(error);
 		}
 	},
+
+	/**
+	 * GET /tasks/inbox
+	 * Lấy danh sách INBOX tasks (chờ duyệt)
+	 *
+	 * Query params:
+	 * - page: số trang (default: 1)
+	 * - limit: items per page (default: 10)
+	 */
+	getInbox: async (req, res, next) => {
+		try {
+			const userId = req.user.id;
+			const result = await taskService.getInboxTasks(userId, req.query);
+			return new HttpResponse(res).success(result);
+		} catch (error) {
+			next(error);
+		}
+	},
+
+	/**
+	 * PATCH /tasks/:id/confirm
+	 * Xác nhận INBOX task - chuyển từ INBOX → PENDING
+	 * Người dùng bấm "Thêm vào công việc" từ Inbox sẽ gọi endpoint này
+	 */
+	confirmInbox: async (req, res, next) => {
+		try {
+			const userId = req.user.id;
+			const taskId = req.params.id;
+
+			const result = await taskService.confirmInboxTask(userId, taskId);
+
+			return new HttpResponse(res).success(result);
+		} catch (error) {
+			next(error);
+		}
+	},
 };

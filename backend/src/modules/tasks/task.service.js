@@ -1,5 +1,6 @@
 import { taskRepository } from './task.repository.js';
-import { NotFoundException } from '../../common/exceptions/index.js';
+import { NotFoundException, OptionalException } from '../../common/exceptions/index.js';
+import { StatusCodes } from 'http-status-codes';
 
 /**
  * Task Service - Business Logic Layer
@@ -176,6 +177,74 @@ export const taskService = {
 		await taskRepository.softDelete(userId, taskId);
 
 		return { message: 'Task deleted successfully' };
+	},
+
+	/**
+	 * Lấy danh sách INBOX tasks (chờ duyệt từ Webhook/Fetch API)
+	 *
+	 * @param {String} userId - ID của user
+	 * @param {Object} query - { page, limit, search }
+	 * @returns {Object} { data: [], pagination: {} }
+	 */
+	getInboxTasks: async (userId, query) => {
+		// Parse pagination params
+		const page = parseInt(query.page) || 1;
+		const limit = parseInt(query.limit) || 10;
+		const skip = (page - 1) * limit;
+
+		// Fetch INBOX tasks từ repository
+		const [tasks, totalItems] = await Promise.all([
+			taskRepository.findInbox(userId, { skip, limit }),
+			taskRepository.countInbox(userId),
+		]);
+
+		// Map database format → API format
+		const mappedTasks = tasks.map((task) => mapTaskToResponse(task));
+
+		// Calculate pagination metadata
+		const totalPages = Math.ceil(totalItems / limit);
+
+		return {
+			data: mappedTasks,
+			pagination: {
+				page,
+				limit,
+				totalItems,
+				totalPages,
+			},
+		};
+	},
+
+	/**
+	 * Xác nhận INBOX task - chuyển từ INBOX → PENDING
+	 * Người dùng bấm "Thêm vào công việc" ở Inbox sẽ gọi endpoint này
+	 *
+	 * @param {String} userId
+	 * @param {String} taskId
+	 * @returns {Object} Updated task
+	 */
+	confirmInboxTask: async (userId, taskId) => {
+		// Check task tồn tại và có status = INBOX
+		const task = await taskRepository.findById(userId, taskId);
+		if (!task) {
+			throw new NotFoundException('Task không tồn tại.');
+		}
+
+		if (task.status !== 'INBOX') {
+			throw new OptionalException(
+				StatusCodes.BAD_REQUEST,
+				'Chỉ có thể xác nhận INBOX tasks. Task này không trong Inbox.',
+			);
+		}
+
+		// Chuyển từ INBOX → PENDING
+		await taskRepository.update(userId, taskId, {
+			status: 'PENDING',
+		});
+
+		// Fetch lại task đã update
+		const updatedTask = await taskRepository.findById(userId, taskId);
+		return mapTaskToResponse(updatedTask);
 	},
 };
 

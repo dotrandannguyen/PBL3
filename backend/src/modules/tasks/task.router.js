@@ -31,6 +31,16 @@ taskRouter.use(authGuard);
 taskRouter.get('/', validateRequestMiddleware(getTasksSchema), taskController.getAll);
 
 /**
+ * GET /tasks/inbox
+ * Lấy danh sách INBOX tasks (chờ duyệt từ Webhook/Fetch API)
+ *
+ * Query params:
+ * - page=1
+ * - limit=10
+ */
+taskRouter.get('/inbox', taskController.getInbox);
+
+/**
  * GET /tasks/:id
  * Lấy chi tiết 1 task
  */
@@ -55,6 +65,13 @@ taskRouter.patch(
 	validateRequestMiddleware(updateTaskSchema),
 	taskController.update,
 );
+
+/**
+ * PATCH /tasks/:id/confirm
+ * Xác nhận INBOX task - chuyển từ INBOX → PENDING
+ * Người dùng bấm "Thêm vào công việc" từ Inbox sẽ gọi endpoint này
+ */
+taskRouter.patch('/:id/confirm', taskController.confirmInbox);
 
 /**
  * DELETE /tasks/:id

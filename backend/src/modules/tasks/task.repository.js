@@ -1,4 +1,5 @@
 import prisma from '../../config/database.js';
+import { TaskStatus } from '@prisma/client';
 
 /**
  * Task Repository - Database Access Layer
@@ -20,11 +21,19 @@ export const taskRepository = {
 		// Filter by completed status
 		if (filters.completed !== undefined) {
 			// completed: true → status: DONE
-			// completed: false → status: PENDING, IN_PROGRESS
+			// completed: false → status: PENDING, IN_PROGRESS, INBOX (từ webhook)
 			where.status =
 				filters.completed === 'true'
 					? 'DONE'
-					: { in: ['PENDING', 'IN_PROGRESS'] };
+					: { in: ['PENDING', 'IN_PROGRESS', 'INBOX'] };
+		} else {
+			// Default: Hiển thị tất cả tasks (kể cả INBOX)
+			where.OR = [
+				{ status: TaskStatus.PENDING },
+				{ status: TaskStatus.IN_PROGRESS },
+				{ status: TaskStatus.DONE },
+				{ status: TaskStatus.INBOX }
+			];
 		}
 
 		// Search by title (case-insensitive)
@@ -64,10 +73,25 @@ export const taskRepository = {
 		};
 
 		if (filters.completed !== undefined) {
-			where.status =
-				filters.completed === 'true'
-					? 'DONE'
-					: { in: ['PENDING', 'IN_PROGRESS'] };
+			// completed: true → status: DONE
+			// completed: false → status: PENDING, IN_PROGRESS, INBOX (từ webhook)
+			if (filters.completed === 'true') {
+				where.status = TaskStatus.DONE;
+			} else {
+				where.OR = [
+					{ status: TaskStatus.PENDING },
+					{ status: TaskStatus.IN_PROGRESS },
+					{ status: TaskStatus.INBOX }
+				];
+			}
+		} else {
+			// Default: Đếm tất cả tasks (kể cả INBOX)
+			where.OR = [
+				{ status: TaskStatus.PENDING },
+				{ status: TaskStatus.IN_PROGRESS },
+				{ status: TaskStatus.DONE },
+				{ status: TaskStatus.INBOX }
+			];
 		}
 
 		if (filters.search) {
@@ -160,6 +184,55 @@ export const taskRepository = {
 			},
 			data: {
 				deletedAt: new Date(),
+			},
+		});
+	},
+
+	/**
+	 * Lấy danh sách INBOX tasks (chờ duyệt)
+	 * @param {String} userId - ID của user
+	 * @param {Object} pagination - { skip, limit }
+	 * @returns {Array} INBOX tasks
+	 */
+	findInbox: async (userId, pagination = {}) => {
+		return await prisma.task.findMany({
+			where: {
+				userId,
+				status: 'INBOX',
+				deletedAt: null,
+			},
+			skip: pagination.skip || 0,
+			take: pagination.limit || 10,
+			orderBy: [{ createdAt: 'desc' }],
+			select: {
+				id: true,
+				title: true,
+				description: true,
+				status: true,
+				priority: true,
+				sourceType: true,
+				sourceId: true,
+				sourceLink: true,
+				sourceMetadata: true,
+				dueDate: true,
+				completedAt: true,
+				createdAt: true,
+				updatedAt: true,
+			},
+		});
+	},
+
+	/**
+	 * Đếm tổng số INBOX tasks
+	 * @param {String} userId - ID của user
+	 * @returns {Number} Total count
+	 */
+	countInbox: async (userId) => {
+		return await prisma.task.count({
+			where: {
+				userId,
+				status: 'INBOX',
+				deletedAt: null,
 			},
 		});
 	},
