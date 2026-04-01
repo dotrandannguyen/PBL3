@@ -6,6 +6,7 @@ import {
 import { encryptionUtils } from '../../common/utils/encryption.js';
 import { integrationRepository } from './integration.repository.js';
 import { githubService } from '../auth/github.service.js';
+import { taskRepository } from '../tasks/task.repository.js';
 import axios from 'axios';
 import prisma from '../../config/database.js';
 
@@ -72,6 +73,30 @@ export const integrationService = {
 				}),
 			);
 
+			// === BƯỚC MỚI: Lọc và lưu emails có "task" vào database ===
+			// Lọc emails có từ "task" trong subject hoặc snippet
+			const emailsWithTask = detailedMessages.filter((email) => {
+				const searchText = `${email.subject} ${email.snippet}`.toLowerCase();
+				return searchText.includes('task');
+			});
+
+			if (emailsWithTask.length > 0) {
+				// Lấy full details của emails có "task"
+				const emailsWithTaskFullDetails = await Promise.all(
+					emailsWithTask.map((email) =>
+						integrationService.getFullEmailDetails(gmail, email.id),
+					),
+				);
+
+				// Lưu vào database
+				await integrationService.saveTasksToInbox(
+					userId,
+					emailsWithTaskFullDetails,
+					'GMAIL',
+				);
+			}
+
+			// Trả về metadata của tất cả 10 emails cho Frontend preview
 			return detailedMessages;
 		} catch (error) {
 			console.error('Error fetching Gmail preview:', error);
@@ -116,7 +141,11 @@ export const integrationService = {
 				creator: issue.user.login,
 				link: issue.html_url,
 				createdAt: issue.created_at,
+				description: issue.body || '', // Thêm description từ GitHub API
 			}));
+
+			// === BƯỚC MỚI: Lưu tất cả issues vào database ===
+			await integrationService.saveTasksToInbox(userId, formattedIssues, 'GITHUB');
 
 			return formattedIssues;
 		} catch (error) {
@@ -406,5 +435,74 @@ export const integrationService = {
 			console.error('❌ [GITHUB] Lỗi setup webhooks:', error.message);
 			throw error;
 		}
+	},
+
+	/**
+	 * Lưu tasks vào INBOX database
+	 * Hàm chung cho cả Sync Preview và Webhook
+	 * @param {String} userId - ID của user
+	 * @param {Array} tasksToSave - Mảng tasks đã được lọc (từ Gmail hoặc GitHub)
+	 * @param {String} sourceType - 'GMAIL' hoặc 'GITHUB'
+	 * @returns {Array} Mảng tasks đã được lưu vào database
+	 */
+	saveTasksToInbox: async (userId, tasksToSave, sourceType) => {
+		const savedTasks = [];
+
+		for (const task of tasksToSave) {
+			try {
+				let taskData = {};
+
+				if (sourceType === 'GMAIL') {
+					// Format Gmail task
+					taskData = {
+						title: `[Gmail] ${task.subject}`,
+						description: task.body || 'Không có nội dung chi tiết.',
+						priority: 'MEDIUM',
+						sourceType: 'GMAIL',
+						sourceId: task.id,
+						sourceLink: task.link,
+						sourceMetadata: {
+							subject: task.subject,
+							from: task.from,
+							to: task.to,
+							date: task.date,
+							attachments: task.attachments,
+						},
+					};
+				} else if (sourceType === 'GITHUB') {
+					// Format GitHub task
+					taskData = {
+						title: `[GitHub] ${task.title}`,
+						description: task.description || `Issue in ${task.repository} - State: ${task.state}`,
+						priority: 'MEDIUM',
+						sourceType: 'GITHUB',
+						sourceId: String(task.id),
+						sourceLink: task.link,
+						sourceMetadata: {
+							title: task.title,
+							state: task.state,
+							repository: task.repository,
+							creator: task.creator,
+							createdAt: task.createdAt,
+						},
+					};
+				}
+
+				// UPSERT vào database
+				const savedTask = await taskRepository.upsertTaskToInbox(userId, taskData);
+				savedTasks.push(savedTask);
+
+				console.log(
+					`✅ [SYNC] Đã lưu task "${taskData.title}" (${sourceType}) vào INBOX.`,
+				);
+			} catch (error) {
+				console.error(
+					`❌ [SYNC] Lỗi lưu task từ ${sourceType}:`,
+					error.message,
+				);
+			}
+		}
+
+		return savedTasks;
 	},
 };

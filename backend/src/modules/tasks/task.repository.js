@@ -21,18 +21,17 @@ export const taskRepository = {
 		// Filter by completed status
 		if (filters.completed !== undefined) {
 			// completed: true → status: DONE
-			// completed: false → status: PENDING, IN_PROGRESS, INBOX (từ webhook)
+			// completed: false → status: PENDING, IN_PROGRESS (loại bỏ INBOX - chỉ xem ở /tasks/inbox)
 			where.status =
 				filters.completed === 'true'
 					? 'DONE'
-					: { in: ['PENDING', 'IN_PROGRESS', 'INBOX'] };
+					: { in: ['PENDING', 'IN_PROGRESS'] };
 		} else {
-			// Default: Hiển thị tất cả tasks (kể cả INBOX)
+			// Default: Hiển thị tasks (PENDING, IN_PROGRESS, DONE - không bao gồm INBOX)
 			where.OR = [
 				{ status: TaskStatus.PENDING },
 				{ status: TaskStatus.IN_PROGRESS },
 				{ status: TaskStatus.DONE },
-				{ status: TaskStatus.INBOX }
 			];
 		}
 
@@ -74,23 +73,21 @@ export const taskRepository = {
 
 		if (filters.completed !== undefined) {
 			// completed: true → status: DONE
-			// completed: false → status: PENDING, IN_PROGRESS, INBOX (từ webhook)
+			// completed: false → status: PENDING, IN_PROGRESS (loại bỏ INBOX - chỉ xem ở /tasks/inbox)
 			if (filters.completed === 'true') {
 				where.status = TaskStatus.DONE;
 			} else {
 				where.OR = [
 					{ status: TaskStatus.PENDING },
 					{ status: TaskStatus.IN_PROGRESS },
-					{ status: TaskStatus.INBOX }
 				];
 			}
 		} else {
-			// Default: Đếm tất cả tasks (kể cả INBOX)
+			// Default: Đếm tasks (PENDING, IN_PROGRESS, DONE - không bao gồm INBOX)
 			where.OR = [
 				{ status: TaskStatus.PENDING },
 				{ status: TaskStatus.IN_PROGRESS },
 				{ status: TaskStatus.DONE },
-				{ status: TaskStatus.INBOX }
 			];
 		}
 
@@ -233,6 +230,59 @@ export const taskRepository = {
 				userId,
 				status: 'INBOX',
 				deletedAt: null,
+			},
+		});
+	},
+
+	/**
+	 * UPSERT task vào INBOX
+	 * Nếu task với (userId + sourceId) tồn tại → update
+	 * Nếu không tồn tại → create mới
+	 * @param {String} userId - ID của user
+	 * @param {Object} taskData - { title, description, priority, sourceType, sourceId, sourceLink, sourceMetadata }
+	 * @returns {Object} Task object từ database
+	 */
+	upsertTaskToInbox: async (userId, taskData) => {
+		// Tìm xem task với userId + sourceId đã tồn tại chưa
+		// Nếu sourceId không có, luôn create mới (không UPSERT)
+		if (taskData.sourceId) {
+			const existing = await prisma.task.findFirst({
+				where: {
+					userId,
+					sourceId: taskData.sourceId,
+				},
+			});
+
+			if (existing) {
+				// Cập nhật task hiện có
+				return await prisma.task.update({
+					where: { id: existing.id },
+					data: {
+						title: taskData.title,
+						description: taskData.description,
+						status: 'INBOX',
+						priority: taskData.priority || 'MEDIUM',
+						sourceType: taskData.sourceType,
+						sourceLink: taskData.sourceLink,
+						sourceMetadata: taskData.sourceMetadata,
+						updatedAt: new Date(),
+					},
+				});
+			}
+		}
+
+		// Nếu không tồn tại hoặc sourceId null → tạo task mới
+		return await prisma.task.create({
+			data: {
+				userId,
+				title: taskData.title,
+				description: taskData.description,
+				status: 'INBOX',
+				priority: taskData.priority || 'MEDIUM',
+				sourceType: taskData.sourceType,
+				sourceId: taskData.sourceId,
+				sourceLink: taskData.sourceLink,
+				sourceMetadata: taskData.sourceMetadata,
 			},
 		});
 	},

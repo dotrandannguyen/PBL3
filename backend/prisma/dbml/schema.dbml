@@ -183,6 +183,7 @@ Enum IntegrationStatus {
 }
 
 Enum TaskStatus {
+  INBOX
   PENDING
   IN_PROGRESS
   DONE
