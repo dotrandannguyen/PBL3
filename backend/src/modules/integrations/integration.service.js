@@ -5,7 +5,9 @@ import {
 } from '../../common/exceptions/index.js';
 import { encryptionUtils } from '../../common/utils/encryption.js';
 import { integrationRepository } from './integration.repository.js';
+import { githubService } from '../auth/github.service.js';
 import axios from 'axios';
+import prisma from '../../config/database.js';
 
 export const integrationService = {
 	getGmailPreview: async (userId) => {
@@ -286,5 +288,123 @@ export const integrationService = {
 			`✨ [GMAIL] Kết quả: ${filteredEmails.length}/${emails.length} emails đáp ứng điều kiện`,
 		);
 		return filteredEmails;
+	},
+
+	// ========== GITHUB WEBHOOK FUNCTIONS ==========
+
+	/**
+	 * Lấy danh sách repositories của user
+	 * @param {string} userId - User ID
+	 * @returns {Array} Array of repositories
+	 */
+	getGithubRepositories: async (userId) => {
+		// Lấy integration GitHub của user
+		const integration = await integrationRepository.getIntegrationGmailPreview(
+			userId,
+			'GITHUB',
+		);
+
+		if (!integration) {
+			throw new NotFoundException('Bạn chưa kết nối với GitHub.');
+		}
+
+		// Giải mã access token
+		const accessToken = encryptionUtils.decrypt(integration.accessTokenEncrypted);
+
+		try {
+			// Gọi githubService để lấy danh sách repositories
+			const repositories = await githubService.getUserRepositories(accessToken);
+			return repositories;
+		} catch (error) {
+			console.error('❌ [GITHUB] Lỗi lấy danh sách repositories:', error.message);
+			throw new UnauthorizedException(
+				'Không thể lấy danh sách repositories. Vui lòng kiểm tra kết nối GitHub.',
+			);
+		}
+	},
+
+	/**
+	 * Cài đặt webhooks cho các repositories
+	 * @param {string} userId - User ID
+	 * @param {Array} repositoryIds - Array of repository IDs
+	 * @returns {Object} Setup results
+	 */
+	setupGithubWebhooks: async (userId, repositoryIds) => {
+		// Lấy integration GitHub của user
+		const integration = await integrationRepository.getIntegrationGmailPreview(
+			userId,
+			'GITHUB',
+		);
+
+		if (!integration) {
+			throw new NotFoundException('Bạn chưa kết nối với GitHub.');
+		}
+
+		// Giải mã access token
+		const accessToken = encryptionUtils.decrypt(integration.accessTokenEncrypted);
+
+		try {
+			// Lấy danh sách repositories của user
+			const allRepositories = await githubService.getUserRepositories(accessToken);
+
+			// Filter chỉ lấy các repo theo repositoryIds
+			const selectedRepositories = allRepositories.filter((repo) =>
+				repositoryIds.includes(repo.id),
+			);
+
+			if (selectedRepositories.length === 0) {
+				throw new NotFoundException(
+					'Không tìm thấy repositories với ID được cung cấp.',
+				);
+			}
+
+			// Cài webhook cho các repositories
+			const setupResult = await githubService.setupWebhooksForRepositories(
+				accessToken,
+				selectedRepositories,
+			);
+
+			// Lưu webhook data vào Integration nếu setup thành công
+			if (setupResult.success.length > 0) {
+				// Khởi tạo webhookData nếu chưa có
+				const currentWebhookData = integration.webhookData || {};
+				if (!currentWebhookData.github) {
+					currentWebhookData.github = {};
+				}
+				if (!currentWebhookData.github.hookIds) {
+					currentWebhookData.github.hookIds = {};
+				}
+
+				// Thêm thông tin webhook mới vào
+				setupResult.success.forEach((item) => {
+					currentWebhookData.github.hookIds[item.repo] = {
+						hookId: item.webhookId,
+						createdAt: new Date().toISOString(),
+					};
+				});
+
+				// Cập nhật Integration với webhook data mới
+				await prisma.integration.update({
+					where: {
+						userId_provider: {
+							userId: userId,
+							provider: 'GITHUB',
+						},
+					},
+					data: {
+						webhookData: currentWebhookData,
+					},
+				});
+
+				console.log(
+					`✅ [GITHUB] Đã lưu webhook data cho ${setupResult.success.length} repositories`,
+				);
+			}
+
+			return setupResult;
+		} catch (error) {
+			console.error('❌ [GITHUB] Lỗi setup webhooks:', error.message);
+			throw error;
+		}
 	},
 };

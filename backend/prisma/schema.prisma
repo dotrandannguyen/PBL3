@@ -162,6 +162,7 @@ model Integration {
   expiresAt             DateTime?           @map("expires_at")
   
   profileData           Json?               @map("profile_data")
+  webhookData           Json?               @map("webhook_data") // Lưu thông tin webhook (Gmail Watch expiration, GitHub hook IDs, etc.)
   status                IntegrationStatus   @default(ACTIVE)
   
   createdAt             DateTime            @default(now()) @map("created_at")

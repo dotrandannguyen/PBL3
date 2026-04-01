@@ -16,4 +16,16 @@ integrationRouter.get('/preview/gmail', integrationController.previewGmail);
 // GET /integrations/preview/github
 integrationRouter.get('/preview/github', integrationController.previewGithub);
 
+// GET /integrations/github/repositories
+integrationRouter.get(
+	'/github/repositories',
+	integrationController.getGithubRepositories,
+);
+
+// POST /integrations/github/setup-webhooks
+integrationRouter.post(
+	'/github/setup-webhooks',
+	integrationController.setupGithubWebhooks,
+);
+
 export default integrationRouter;

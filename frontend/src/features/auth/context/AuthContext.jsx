@@ -27,7 +27,6 @@ export const AuthProvider = ({ children }) => {
     }
     setIsLoading(false);
   }, []);
-
   const persistAuth = (data) => {
     localStorage.setItem("accessToken", data.accessToken);
     localStorage.setItem("refreshToken", data.refreshToken);
