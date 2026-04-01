@@ -24,10 +24,19 @@ export const integrationService = {
 
 		// console.log('Decrypted Access Token:', accessToken);
 
-		// Khởi tạo client Google API và lấy preview (ví dụ: tên tài khoản, email, avatar)
-		// phải enable Gmail API trong Google Cloud Console và cấp quyền phù hợp
-		const oauth2Client = new google.auth.OAuth2();
-		oauth2Client.setCredentials({ access_token: accessToken });
+		// Khởi tạo client Google API
+		// Cấp đủ Client ID, Secret và Refresh Token để googleapis tự động gia hạn Access Token khi hết hạn (sau 1h)
+		const oauth2Client = new google.auth.OAuth2(
+			process.env.GOOGLE_CLIENT_ID,
+			process.env.GOOGLE_CLIENT_SECRET
+		);
+		
+		const credentials = { access_token: accessToken };
+		if (integration.refreshTokenEncrypted) {
+			credentials.refresh_token = encryptionUtils.decrypt(integration.refreshTokenEncrypted);
+		}
+		oauth2Client.setCredentials(credentials);
+		
 		const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
 		try {
@@ -35,7 +44,7 @@ export const integrationService = {
 				userId: 'me',
 				labelIds: ['INBOX'],
 				maxResults: 10,
-				q: 'task is:unread', // Chỉ lấy email chưa đọc để preview
+				// q: 'task is:unread', // BỎ BỘ LỌC NÀY ĐI vì nếu email không có chữ "task" hoặc đã đọc thì sẽ không ra gì cả
 			});
 
 			const messages = response.data.messages || [];

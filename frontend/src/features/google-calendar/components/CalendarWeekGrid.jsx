@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import CalendarEvent from './CalendarEvent';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -11,6 +11,42 @@ const getStartOfWeek = (date) => {
     newDate.setDate(diff);
     newDate.setHours(0, 0, 0, 0);
     return newDate;
+};
+
+// Calculate overlapping columns
+const calculateOverlaps = (dayEvents) => {
+    if (!dayEvents.length) return [];
+    
+    const parsed = dayEvents.map(e => {
+        const [sh, sm] = e.time ? e.time.split(':').map(Number) : [0, 0];
+        const [eh, em] = e.endTime ? e.endTime.split(':').map(Number) : [sh + 1, sm];
+        return { ...e, startMin: sh * 60 + sm, endMin: eh * 60 + em };
+    }).sort((a, b) => a.startMin - b.startMin);
+
+    const columns = [];
+    parsed.forEach(evt => {
+        let placed = false;
+        for (let col of columns) {
+            const lastEvent = col[col.length - 1];
+            if (lastEvent.endMin <= evt.startMin) {
+                col.push(evt);
+                placed = true;
+                break;
+            }
+        }
+        if (!placed) columns.push([evt]);
+    });
+
+    const numCols = columns.length;
+    const result = [];
+    columns.forEach((col, colIdx) => {
+        col.forEach(evt => {
+            evt.colIdx = colIdx;
+            evt.numCols = numCols;
+            result.push(evt);
+        });
+    });
+    return result;
 };
 
 const CalendarWeekGrid = ({ currentDate, events = [], onDateClick, onEventClick, onAddEventRange }) => {
@@ -35,59 +71,73 @@ const CalendarWeekGrid = ({ currentDate, events = [], onDateClick, onEventClick,
         return `${y}-${m}-${d}`;
     };
 
-    const [selectionStart, setSelectionStart] = React.useState(null);
-    const [selectionCurrent, setSelectionCurrent] = React.useState(null);
+    // Selection Drag state
+    const [selectionStart, setSelectionStart] = useState(null);
+    const [selectionCurrent, setSelectionCurrent] = useState(null);
+    const gridRef = useRef(null);
 
-    React.useEffect(() => {
-        const handleGlobalMouseUp = () => {
-            if (selectionStart && selectionCurrent) {
-                if (selectionStart.dateKey === selectionCurrent.dateKey) {
-                    const startH = Math.min(selectionStart.hour, selectionCurrent.hour);
-                    const endH = Math.max(selectionStart.hour, selectionCurrent.hour) + 1;
-                    
-                    const d = new Date(weekDays.find(w => formatDateKey(w) === selectionStart.dateKey));
-                    
-                    const startStr = `${String(startH).padStart(2, '0')}:00`;
-                    const endStr = `${String(endH).padStart(2, '0')}:00`;
-                    
-                    onAddEventRange?.(d, startStr, endStr);
-                }
-                setSelectionStart(null);
-                setSelectionCurrent(null);
+    // Current Time
+    const [currentTime, setCurrentTime] = useState(new Date());
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const handleMouseUp = () => {
+        if (selectionStart && selectionCurrent) {
+            if (selectionStart.dateKey === selectionCurrent.dateKey) {
+                const startMins = Math.min(selectionStart.mins, selectionCurrent.mins);
+                const endMins = Math.max(selectionStart.mins, selectionCurrent.mins) + 30; // each block is 30 mins
+                
+                const d = new Date(weekDays.find(w => formatDateKey(w) === selectionStart.dateKey));
+                
+                const sh = Math.floor(startMins / 60);
+                const sm = startMins % 60;
+                const eh = Math.floor(endMins / 60);
+                const em = endMins % 60;
+
+                const startStr = `${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}`;
+                const endStr = `${String(Math.min(eh, 23)).padStart(2, '0')}:${String(Math.min(em, 59)).padStart(2, '0')}`;
+                
+                onAddEventRange?.(d, startStr, endStr);
             }
-        };
-
-        window.addEventListener('mouseup', handleGlobalMouseUp);
-        return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
-    }, [selectionStart, selectionCurrent]);
-
-    const handleMouseDown = (dateKey, hour, e) => {
-        if (e.button !== 0) return;
-        e.preventDefault();
-        setSelectionStart({ dateKey, hour });
-        setSelectionCurrent({ dateKey, hour });
+            setSelectionStart(null);
+            setSelectionCurrent(null);
+        }
     };
 
-    const handleMouseEnter = (dateKey, hour) => {
+    const handleMouseDown = (dateKey, hour, half, e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        const mins = hour * 60 + (half * 30);
+        setSelectionStart({ dateKey, mins });
+        setSelectionCurrent({ dateKey, mins });
+    };
+
+    const handleMouseEnter = (dateKey, hour, half) => {
         if (selectionStart) {
-            setSelectionCurrent({ dateKey, hour });
+            setSelectionCurrent({ dateKey, mins: hour * 60 + (half * 30) });
         }
     };
 
     return (
-        <div className="flex-1 flex flex-col bg-bg-main overflow-hidden text-text-primary">
+        <div 
+            className="flex-1 flex flex-col bg-[#F7F7F5] overflow-hidden text-[#333]"
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+        >
             {/* Week Header (Days) */}
-            <div className="flex border-b border-border-subtle bg-bg-sidebar">
-                <div className="w-[60px] flex-shrink-0 border-r border-border-subtle" /> {/* Time column spacer */}
+            <div className="flex border-b border-[#E9ECEF] bg-white overflow-y-scroll scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <div className="w-[60px] flex-shrink-0 border-r border-[#E9ECEF]" />
                 <div className="flex-1 grid grid-cols-7">
                     {weekDays.map((day, idx) => {
                         const dayIsToday = isToday(day);
                         return (
-                            <div key={idx} className="flex flex-col items-center justify-center py-2 border-r border-border-subtle last:border-r-0">
-                                <span className={`text-[11px] font-medium uppercase mb-1 ${dayIsToday ? 'text-accent-primary' : 'text-text-secondary'}`}>
+                            <div key={idx} className="flex flex-col items-center justify-center py-2 border-r border-[#E9ECEF] last:border-r-0">
+                                <span className={`text-[11px] font-semibold uppercase mb-1 ${dayIsToday ? 'text-accent-primary' : 'text-[#777]'}`}>
                                     {DAYS_OF_WEEK[idx]}
                                 </span>
-                                <span className={`text-xl flex items-center justify-center w-8 h-8 rounded-full ${dayIsToday ? 'bg-accent-primary text-white font-bold' : 'text-text-primary hover:bg-bg-hover cursor-pointer'}`}>
+                                <span className={`text-xl flex items-center justify-center w-8 h-8 rounded-full ${dayIsToday ? 'bg-accent-primary text-white font-bold' : 'text-[#333] hover:bg-[#F2F2F2] cursor-pointer'}`}>
                                     {day.getDate()}
                                 </span>
                             </div>
@@ -97,13 +147,13 @@ const CalendarWeekGrid = ({ currentDate, events = [], onDateClick, onEventClick,
             </div>
 
             {/* Week Body (Time Grid) */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden relative select-none">
+            <div className="flex-1 overflow-y-scroll overflow-x-hidden relative select-none bg-white" ref={gridRef}>
                 <div className="flex min-h-[1440px]"> {/* 24 hours * 60px height per hour */}
                     {/* Time Axis */}
-                    <div className="w-[60px] flex flex-col flex-shrink-0 border-r border-border-subtle bg-bg-main">
+                    <div className="w-[60px] flex flex-col flex-shrink-0 border-r border-[#E9ECEF] bg-white">
                         {HOURS.map(hour => (
                             <div key={`time-${hour}`} className="h-[60px] flex justify-end pr-2 pt-1 border-b border-transparent">
-                                <span className="text-[11px] text-text-tertiary">
+                                <span className="text-[11px] text-[#777]">
                                     {hour === 0 ? '' : `${hour}:00`}
                                 </span>
                             </div>
@@ -115,26 +165,40 @@ const CalendarWeekGrid = ({ currentDate, events = [], onDateClick, onEventClick,
                         {/* Horizontal Hour Lines (Background) */}
                         <div className="absolute inset-0 pointer-events-none flex flex-col">
                             {HOURS.map(hour => (
-                                <div key={`line-${hour}`} className="h-[60px] border-b border-border-subtle w-full opacity-50" />
+                                <div key={`line-${hour}`} className="h-[60px] border-b border-[#E9ECEF] w-full" />
                             ))}
+                        </div>
+
+                        {/* Current Time Line */}
+                        <div 
+                            className="absolute z-30 pointer-events-none left-0 right-0 border-t-[2px] border-red-500"
+                            style={{ top: `${(currentTime.getHours() * 60) + currentTime.getMinutes()}px` }}
+                        >
+                            <div className="w-2.5 h-2.5 bg-red-500 rounded-full absolute -top-[5px] -left-[5px] shadow-sm"/>
                         </div>
 
                         {weekDays.map((day, dayIdx) => {
                             const dateKey = formatDateKey(day);
-                            // Get events for this day
-                            const dayEvents = events.filter(e => e.date === dateKey);
+                            const rawDayEvents = events.filter(e => e.date === dateKey && e.time);
+                            const blockEvents = calculateOverlaps(rawDayEvents);
 
                             return (
-                                <div key={dateKey} className="relative flex flex-col border-r border-border-subtle last:border-r-0 h-full group">
-                                    {/* Clickable Hour Cells */}
+                                <div key={dateKey} className="relative flex flex-col border-r border-[#E9ECEF] last:border-r-0 h-full group">
+                                    {/* Clickable 30-min Cells */}
                                     <div className="absolute inset-0 flex flex-col z-0">
                                         {HOURS.map(hour => (
-                                            <div 
-                                                key={`${dateKey}-${hour}`} 
-                                                className="h-[60px] w-full hover:bg-bg-block-hover cursor-pointer border-r border-transparent transition-colors"
-                                                onMouseDown={(e) => handleMouseDown(dateKey, hour, e)}
-                                                onMouseEnter={() => handleMouseEnter(dateKey, hour)}
-                                            />
+                                            <div key={`${dateKey}-${hour}`} className="h-[60px] w-full flex flex-col">
+                                                <div 
+                                                    className="flex-1 hover:bg-[#F2F2F2]/50 cursor-pointer border-r border-transparent transition-colors"
+                                                    onMouseDown={(e) => handleMouseDown(dateKey, hour, 0, e)}
+                                                    onMouseEnter={() => handleMouseEnter(dateKey, hour, 0)}
+                                                />
+                                                <div 
+                                                    className="flex-1 hover:bg-[#F2F2F2]/50 cursor-pointer border-r border-transparent transition-colors"
+                                                    onMouseDown={(e) => handleMouseDown(dateKey, hour, 1, e)}
+                                                    onMouseEnter={() => handleMouseEnter(dateKey, hour, 1)}
+                                                />
+                                            </div>
                                         ))}
                                     </div>
 
@@ -143,42 +207,34 @@ const CalendarWeekGrid = ({ currentDate, events = [], onDateClick, onEventClick,
                                         <div 
                                             className="absolute pointer-events-none z-20"
                                             style={{
-                                                top: `${Math.min(selectionStart.hour, selectionCurrent.hour) * 60}px`,
-                                                height: `${(Math.abs(selectionCurrent.hour - selectionStart.hour) + 1) * 60}px`,
+                                                top: `${Math.min(selectionStart.mins, selectionCurrent.mins)}px`,
+                                                height: `${Math.abs(selectionCurrent.mins - selectionStart.mins) + 30}px`,
                                                 left: '2px',
                                                 right: '8px'
                                             }}
                                         >
-                                            <div className="w-full h-full bg-accent-primary/20 border-2 border-accent-primary rounded-[4px]" />
+                                            <div className="w-full h-full bg-accent-primary/20 border border-accent-primary rounded-[3px] shadow-sm" />
                                         </div>
                                     )}
 
                                     {/* Render Events */}
                                     <div className="absolute inset-0 pointer-events-none z-10">
-                                        {dayEvents.map(event => {
-                                            if (!event.time) return null; // All day events need a different handling or top bar
+                                        {blockEvents.map(event => {
+                                            const durationMins = event.endMin - event.startMin;
                                             
-                                            const [eventHour, eventMin] = event.time.split(':').map(Number);
-                                            const startMinutes = (eventHour * 60) + (eventMin || 0);
-                                            const topPos = (startMinutes / 60) * 60; // 60px per hour
-                                            
-                                            // Handle duration if exists, otherwise default 1 hr (60px)
-                                            let durationMins = 60;
-                                            if (event.endTime) {
-                                                const [endH, endM] = event.endTime.split(':').map(Number);
-                                                durationMins = (endH * 60 + (endM || 0)) - startMinutes;
-                                            }
-                                            if (durationMins < 30) durationMins = 30; // Min height
+                                            // Overlap positioning
+                                            const widthPct = 100 / event.numCols;
+                                            const leftPct = widthPct * event.colIdx;
 
                                             return (
                                                 <div 
                                                     key={event.id}
-                                                    className="absolute pointer-events-auto shadow-sm"
+                                                    className="absolute pointer-events-auto"
                                                     style={{ 
-                                                        top: `${topPos}px`, 
-                                                        height: `${durationMins}px`,
-                                                        left: '2px',
-                                                        right: '8px',
+                                                        top: `${event.startMin}px`, 
+                                                        height: `${Math.max(durationMins, 20)}px`,
+                                                        left: `calc(${leftPct}% + 2px)`,
+                                                        width: `calc(${widthPct}% - 4px)`,
                                                         paddingTop: '2px',
                                                         paddingBottom: '2px'
                                                     }}

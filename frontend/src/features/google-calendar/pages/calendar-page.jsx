@@ -117,13 +117,13 @@ export function CalendarPage() {
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (!over) return;
-    
+
     const activeEvent = active.data.current?.event;
-    const newDateStr = over.data.current?.date; 
-    
+    const newDateStr = over.data.current?.date;
+
     if (activeEvent && newDateStr && activeEvent.date !== newDateStr) {
-      setEvents(prev => prev.map(e => 
-          e.id === activeEvent.id ? { ...e, date: newDateStr } : e
+      setEvents(prev => prev.map(e =>
+        e.id === activeEvent.id ? { ...e, date: newDateStr } : e
       ));
     }
   };
