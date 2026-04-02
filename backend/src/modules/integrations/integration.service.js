@@ -473,7 +473,9 @@ export const integrationService = {
 					// Format GitHub task
 					taskData = {
 						title: `[GitHub] ${task.title}`,
-						description: task.description || `Issue in ${task.repository} - State: ${task.state}`,
+						description:
+							task.description ||
+							`Issue in ${task.repository} - State: ${task.state}`,
 						priority: 'MEDIUM',
 						sourceType: 'GITHUB',
 						sourceId: String(task.id),
@@ -489,17 +491,17 @@ export const integrationService = {
 				}
 
 				// UPSERT vào database
-				const savedTask = await taskRepository.upsertTaskToInbox(userId, taskData);
+				const savedTask = await taskRepository.upsertTaskToInbox(
+					userId,
+					taskData,
+				);
 				savedTasks.push(savedTask);
 
 				console.log(
 					`✅ [SYNC] Đã lưu task "${taskData.title}" (${sourceType}) vào INBOX.`,
 				);
 			} catch (error) {
-				console.error(
-					`❌ [SYNC] Lỗi lưu task từ ${sourceType}:`,
-					error.message,
-				);
+				console.error(`❌ [SYNC] Lỗi lưu task từ ${sourceType}:`, error.message);
 			}
 		}
 
