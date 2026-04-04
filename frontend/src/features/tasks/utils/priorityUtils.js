@@ -9,19 +9,24 @@
  */
 export const getPriorityColor = (priority) => {
   const priorityMap = {
-    HIGH: { bg: "bg-red-500/20", text: "text-red-400", label: "High" },
+    URGENT: {
+      bg: "bg-orange-500/20",
+      text: "text-orange-400",
+      label: "Khẩn cấp",
+    },
+    HIGH: { bg: "bg-red-500/20", text: "text-red-400", label: "Cao" },
     MEDIUM: {
       bg: "bg-yellow-500/20",
       text: "text-yellow-400",
-      label: "Medium",
+      label: "Trung bình",
     },
-    LOW: { bg: "bg-blue-500/20", text: "text-blue-400", label: "Low" },
+    LOW: { bg: "bg-blue-500/20", text: "text-blue-400", label: "Thấp" },
   };
   return (
     priorityMap[priority] || {
       bg: "bg-gray-500/20",
       text: "text-gray-400",
-      label: "None",
+      label: "Không ưu tiên",
     }
   );
 };

@@ -76,6 +76,7 @@ Table tasks {
   dueDate DateTime
   reminderAt DateTime
   completedAt DateTime
+  scheduledAt DateTime
   sourceType TaskSource [not null, default: 'MANUAL']
   sourceId String
   sourceLink String

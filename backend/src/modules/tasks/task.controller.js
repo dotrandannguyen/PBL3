@@ -53,13 +53,12 @@ export const taskController = {
 	 * POST /tasks
 	 * Tạo task mới
 	 *
-	 * Body: { title: string, completed?: boolean }
+	 * Body: { title: string, description?: string, priority?: string, dueDate?: string, startAt?: string | null }
 	 */
 	create: async (req, res, next) => {
 		try {
 			const userId = req.user.id;
 			const result = await taskService.createTask(userId, req.body);
-			console.log(req.body);
 
 			return new HttpResponse(res).created(result);
 		} catch (error) {
@@ -69,9 +68,9 @@ export const taskController = {
 
 	/**
 	 * PATCH /tasks/:id
-	 * Update task (title hoặc completed status)
+	 * Update task (title, description, priority, dueDate, status)
 	 *
-	 * Body: { title?: string, completed?: boolean }
+	 * Body: { title?: string, description?: string, priority?: string, dueDate?: string, status?: string }
 	 */
 	update: async (req, res, next) => {
 		try {
@@ -79,6 +78,26 @@ export const taskController = {
 			const taskId = req.params.id;
 
 			const result = await taskService.updateTask(userId, taskId, req.body);
+
+			return new HttpResponse(res).success(result);
+		} catch (error) {
+			next(error);
+		}
+	},
+
+	/**
+	 * PATCH /tasks/:id/schedule
+	 * Set scheduled start time for task
+	 *
+	 * Body: { startAt: string | null }
+	 */
+	markScheduled: async (req, res, next) => {
+		try {
+			const userId = req.user.id;
+			const taskId = req.params.id;
+			const { startAt } = req.body;
+
+			const result = await taskService.markTaskScheduled(userId, taskId, startAt);
 
 			return new HttpResponse(res).success(result);
 		} catch (error) {

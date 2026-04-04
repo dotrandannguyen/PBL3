@@ -1,5 +1,9 @@
 import { taskRepository } from './task.repository.js';
 import { NotFoundException } from '../../common/exceptions/index.js';
+import { eventRepository } from '../events/event.repository.js';
+
+const DEFAULT_TASK_EVENT_COLOR = '#2383e2';
+const CALENDAR_METADATA_KEY = 'calendar';
 
 /**
  * Task Service - Business Logic Layer
@@ -19,31 +23,24 @@ export const taskService = {
 	 * @returns {Object} { data: [], pagination: {} }
 	 */
 	getTasks: async (userId, query) => {
-		// Parse pagination params
-		const page = parseInt(query.page) || 1;
-		const limit = parseInt(query.limit) || 10;
+		const page = Number.parseInt(query.page, 10) || 1;
+		const limit = Number.parseInt(query.limit, 10) || 10;
 		const skip = (page - 1) * limit;
-
-		// Parse filter params
-		const filters = {
-			completed: query.completed, // 'true' | 'false' | undefined
+		const repositoryQuery = {
+			completed: query.completed,
 			search: query.search || undefined,
+			skip,
+			take: limit,
 		};
 
-		// Fetch data từ repository
 		const [tasks, totalItems] = await Promise.all([
-			taskRepository.findMany(userId, filters, { skip, limit }),
-			taskRepository.countTasks(userId, filters),
+			taskRepository.findMany(userId, repositoryQuery),
+			taskRepository.countTasks(userId, repositoryQuery),
 		]);
-
-		// Map database format → API format
-		const mappedTasks = tasks.map((task) => mapTaskToResponse(task));
-
-		// Calculate pagination metadata
 		const totalPages = Math.ceil(totalItems / limit);
 
 		return {
-			data: mappedTasks,
+			data: tasks.map(mapTask),
 			pagination: {
 				page,
 				limit,
@@ -63,56 +60,55 @@ export const taskService = {
 			throw new NotFoundException('Task không tồn tại.');
 		}
 
-		return mapTaskToResponse(task);
+		return mapTask(task);
 	},
 
 	/**
 	 * Tạo task mới
 	 *
 	 * @param {String} userId
-	 * @param {Object} dto - { title, completed?, dueDate? }
+	 * @param {Object} data - { title, description?, priority?, dueDate?, startAt? }
 	 */
-	createTask: async (userId, dto) => {
-		// Map API format → DB format
+	createTask: async (userId, data) => {
 		const taskData = {
-			title: dto.title,
-			status: dto.completed === true ? 'DONE' : 'PENDING',
+			title: data.title,
+			description: data.description ?? null,
+			priority: data.priority ?? 'MEDIUM',
+			dueDate: data.dueDate ? new Date(data.dueDate) : null,
+			scheduledAt: data.startAt ? new Date(data.startAt) : null,
+			status: 'PENDING',
 		};
-
-		// Add dueDate if provided
-		if (dto.dueDate) {
-			taskData.dueDate = new Date(dto.dueDate);
-		}
-
-		// Add description if provided
-		if (dto.description) {
-			taskData.description = dto.description;
-		}
-
-		// Add priority if provided
-		if (dto.priority) {
-			taskData.priority = dto.priority;
-		}
-
-		// Nếu task được tạo với completed=true, set completedAt
-		if (dto.completed === true) {
-			taskData.completedAt = new Date();
-		}
 
 		const task = await taskRepository.create(userId, taskData);
 
-		return mapTaskToResponse(task);
+		if (task.scheduledAt) {
+			const calendarEventId = await upsertScheduledTaskEvent(
+				userId,
+				task,
+				task.scheduledAt,
+			);
+
+			await taskRepository.update(userId, task.id, {
+				sourceMetadata: withCalendarMetadata(
+					task.sourceMetadata,
+					calendarEventId,
+				),
+			});
+		}
+
+		const createdTask = await taskRepository.findById(userId, task.id);
+
+		return mapTask(createdTask);
 	},
 
 	/**
-	 * Cập nhật task (title, completed, dueDate, etc.)
+	 * Cập nhật task (title, description, priority, dueDate, status)
 	 *
 	 * @param {String} userId
 	 * @param {String} taskId
-	 * @param {Object} dto - { title?, completed?, dueDate?, description?, priority? }
+	 * @param {Object} data - { title?, description?, priority?, dueDate?, status? }
 	 */
-	updateTask: async (userId, taskId, dto) => {
-		// Check task tồn tại
+	updateTask: async (userId, taskId, data) => {
 		const existingTask = await taskRepository.findById(userId, taskId);
 		if (!existingTask) {
 			throw new NotFoundException('Task không tồn tại.');
@@ -120,82 +116,224 @@ export const taskService = {
 
 		const updateData = {};
 
-		// Update title nếu có
-		if (dto.title !== undefined) {
-			updateData.title = dto.title;
+		if (data.title !== undefined) {
+			updateData.title = data.title;
+		}
+		if (data.description !== undefined) {
+			updateData.description = data.description;
+		}
+		if (data.priority !== undefined) {
+			updateData.priority = data.priority;
+		}
+		if (data.dueDate !== undefined) {
+			updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
 		}
 
-		// Update dueDate nếu có
-		if (dto.dueDate !== undefined) {
-			updateData.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
-		}
+		if (data.status !== undefined) {
+			updateData.status = data.status;
 
-		// Update description nếu có
-		if (dto.description !== undefined) {
-			updateData.description = dto.description;
-		}
-
-		// Update priority nếu có
-		if (dto.priority !== undefined) {
-			updateData.priority = dto.priority;
-		}
-
-		// Update completed status
-		if (dto.completed !== undefined) {
-			if (dto.completed === true) {
-				// Mark as completed
-				updateData.status = 'DONE';
+			if (existingTask.status !== 'DONE' && data.status === 'DONE') {
 				updateData.completedAt = new Date();
-			} else {
-				// Mark as incomplete
-				updateData.status = 'PENDING';
+			}
+
+			if (existingTask.status === 'DONE' && data.status !== 'DONE') {
 				updateData.completedAt = null;
 			}
 		}
 
-		// Thực hiện update
 		await taskRepository.update(userId, taskId, updateData);
-
-		// Fetch lại task đã update để trả về
 		const updatedTask = await taskRepository.findById(userId, taskId);
 
-		return mapTaskToResponse(updatedTask);
+		if (
+			updatedTask?.scheduledAt &&
+			(data.title !== undefined || data.description !== undefined)
+		) {
+			await upsertScheduledTaskEvent(
+				userId,
+				updatedTask,
+				new Date(updatedTask.scheduledAt),
+			);
+		}
+
+		return mapTask(updatedTask);
+	},
+
+	/**
+	 * Đánh dấu task đã được schedule cho thời điểm startAt
+	 */
+	markTaskScheduled: async (userId, taskId, startAt) => {
+		const existingTask = await taskRepository.findById(userId, taskId);
+		if (!existingTask) {
+			throw new NotFoundException('Task không tồn tại.');
+		}
+		const nextScheduledAt = startAt ? new Date(startAt) : null;
+		const currentCalendarEventId = getCalendarEventId(existingTask.sourceMetadata);
+
+		if (nextScheduledAt) {
+			const calendarEventId = await upsertScheduledTaskEvent(
+				userId,
+				existingTask,
+				nextScheduledAt,
+				currentCalendarEventId,
+			);
+
+			await taskRepository.update(userId, taskId, {
+				scheduledAt: nextScheduledAt,
+				sourceMetadata: withCalendarMetadata(
+					existingTask.sourceMetadata,
+					calendarEventId,
+				),
+			});
+		} else {
+			if (currentCalendarEventId) {
+				await eventRepository.delete(userId, currentCalendarEventId);
+			}
+
+			await taskRepository.update(userId, taskId, {
+				scheduledAt: null,
+				sourceMetadata: withoutCalendarMetadata(existingTask.sourceMetadata),
+			});
+		}
+
+		const updatedTask = await taskRepository.findById(userId, taskId);
+		return mapTask(updatedTask);
 	},
 
 	/**
 	 * Xóa task (soft delete)
 	 */
 	deleteTask: async (userId, taskId) => {
-		// Check task tồn tại
 		const task = await taskRepository.findById(userId, taskId);
 		if (!task) {
 			throw new NotFoundException('Task không tồn tại.');
 		}
 
-		// Soft delete
+		const calendarEventId = getCalendarEventId(task.sourceMetadata);
+		if (calendarEventId) {
+			await eventRepository.delete(userId, calendarEventId);
+		}
+
 		await taskRepository.softDelete(userId, taskId);
 
 		return { message: 'Task deleted successfully' };
 	},
 };
 
+async function upsertScheduledTaskEvent(
+	userId,
+	task,
+	scheduledAt,
+	existingEventId = getCalendarEventId(task.sourceMetadata),
+) {
+	const payload = buildTaskEventPayload(task, scheduledAt);
+
+	if (existingEventId) {
+		const updateResult = await eventRepository.update(
+			userId,
+			existingEventId,
+			payload,
+		);
+		if (updateResult.count > 0) {
+			return existingEventId;
+		}
+	}
+
+	const createdEvent = await eventRepository.create(userId, payload);
+	return createdEvent.id;
+}
+
+function buildTaskEventPayload(task, scheduledAt) {
+	return {
+		title: task.title,
+		date: toDateOnly(scheduledAt),
+		time: toTimeHM(scheduledAt),
+		color: DEFAULT_TASK_EVENT_COLOR,
+		location: null,
+		description: task.description ?? null,
+		repeat: 'NONE',
+		reminder: 'NONE',
+	};
+}
+
+function toDateOnly(dateObj) {
+	const year = dateObj.getFullYear();
+	const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+	const day = String(dateObj.getDate()).padStart(2, '0');
+	return new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+}
+
+function toTimeHM(dateObj) {
+	const hours = String(dateObj.getHours()).padStart(2, '0');
+	const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+	return `${hours}:${minutes}`;
+}
+
+function getCalendarEventId(sourceMetadata) {
+	const metadata = normalizeMetadata(sourceMetadata);
+	const calendarMetadata = metadata[CALENDAR_METADATA_KEY];
+
+	if (
+		!calendarMetadata ||
+		typeof calendarMetadata !== 'object' ||
+		Array.isArray(calendarMetadata)
+	) {
+		return null;
+	}
+
+	return typeof calendarMetadata.eventId === 'string' ? calendarMetadata.eventId : null;
+}
+
+function withCalendarMetadata(sourceMetadata, eventId) {
+	const metadata = normalizeMetadata(sourceMetadata);
+	const baseCalendarMetadata =
+		typeof metadata[CALENDAR_METADATA_KEY] === 'object' &&
+		metadata[CALENDAR_METADATA_KEY] !== null &&
+		!Array.isArray(metadata[CALENDAR_METADATA_KEY])
+			? metadata[CALENDAR_METADATA_KEY]
+			: {};
+
+	metadata[CALENDAR_METADATA_KEY] = {
+		...baseCalendarMetadata,
+		eventId,
+		source: 'TASK_SCHEDULE',
+	};
+
+	return metadata;
+}
+
+function withoutCalendarMetadata(sourceMetadata) {
+	const metadata = normalizeMetadata(sourceMetadata);
+	if (Object.prototype.hasOwnProperty.call(metadata, CALENDAR_METADATA_KEY)) {
+		delete metadata[CALENDAR_METADATA_KEY];
+	}
+
+	return Object.keys(metadata).length > 0 ? metadata : null;
+}
+
+function normalizeMetadata(sourceMetadata) {
+	if (
+		sourceMetadata &&
+		typeof sourceMetadata === 'object' &&
+		!Array.isArray(sourceMetadata)
+	) {
+		return { ...sourceMetadata };
+	}
+
+	return {};
+}
+
 /**
- * Helper: Map database model → API response format
- *
- * DB format: { status: 'DONE' | 'PENDING' | 'IN_PROGRESS' }
- * API format: { completed: true | false }
+ * Helper: map task entity -> response contract
  */
-function mapTaskToResponse(task) {
+function mapTask(task) {
 	return {
 		id: task.id,
 		title: task.title,
-		completed: task.status === 'DONE', // Map status → completed
-		status: task.status,
-		dueDate: task.dueDate, // Include due date
 		description: task.description,
+		completed: task.status === 'DONE',
 		priority: task.priority,
-		completedAt: task.completedAt,
+		dueDate: task.dueDate,
+		scheduledAt: task.scheduledAt,
 		createdAt: task.createdAt,
-		updatedAt: task.updatedAt,
 	};
 }

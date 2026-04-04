@@ -1,7 +1,11 @@
 import axios from "axios";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const NETWORK_ERROR_MESSAGE = `Không thể kết nối server (${API_BASE_URL}).`;
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000",
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
@@ -21,17 +25,25 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (!error.response && error.code === "ERR_NETWORK") {
+      error.message = NETWORK_ERROR_MESSAGE;
+    }
+
+    if (error.code === "ECONNABORTED") {
+      error.message = "Kết nối server quá thời gian chờ, vui lòng thử lại.";
+    }
+
     if (error.response?.status === 401) {
-      const requestUrl = error.config?.url || '';
+      const requestUrl = error.config?.url || "";
       const EXCLUDED_URLS = [
-        '/auth/login', 
-        '/auth/register', 
-        '/health', 
-        '/auth/google/url', 
-        '/auth/github/url',
-        '/integrations/' // <-- Thêm dòng này để ngăn 401 từ Github/Gmail làm văng app
+        "/auth/login",
+        "/auth/register",
+        "/health",
+        "/auth/google/url",
+        "/auth/github/url",
+        "/integrations/", // <-- Thêm dòng này để ngăn 401 từ Github/Gmail làm văng app
       ];
-      const isExcluded = EXCLUDED_URLS.some(url => requestUrl.includes(url));
+      const isExcluded = EXCLUDED_URLS.some((url) => requestUrl.includes(url));
 
       // Only auto-redirect if we were carrying a token (i.e. not the login call itself)
       const hadToken = !!localStorage.getItem("accessToken");
