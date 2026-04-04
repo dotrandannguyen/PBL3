@@ -8,6 +8,7 @@
 export * from './requests/create-task.request.js';
 export * from './requests/update-task.request.js';
 export * from './requests/get-tasks.request.js';
+export * from './requests/schedule-task.request.js';
 
 // Response DTOs
 export * from './responses/task.response.js';
