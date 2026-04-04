@@ -24,8 +24,8 @@ export const getPriorityColor = (priority) => {
   };
   return (
     priorityMap[priority] || {
-      bg: "bg-gray-500/20",
-      text: "text-gray-400",
+      bg: "bg-bg-hover",
+      text: "text-text-tertiary",
       label: "Không ưu tiên",
     }
   );

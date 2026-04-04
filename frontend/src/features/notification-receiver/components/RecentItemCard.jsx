@@ -19,14 +19,14 @@ export function RecentItemCard({ item, onClick }) {
       {/* Nửa trên: Cover / Visual */}
       <div
         className={`h-16 flex items-center px-4 relative overflow-hidden ${
-          isGmail ? "bg-red-500/10" : "bg-gray-500/10"
+          isGmail ? "bg-red-500/10" : "bg-bg-hover"
         }`}
       >
         {/* Background Icon mờ đi tạo điểm nhấn */}
         <Icon
           size={64}
           className={`absolute -right-2 -bottom-4 opacity-10 transform group-hover:scale-110 group-hover:-rotate-12 transition-transform duration-300 ${
-            isGmail ? "text-red-500" : "text-gray-400"
+            isGmail ? "text-red-500" : "text-text-tertiary"
           }`}
         />
         {/* Icon nhỏ góc trái giống Notion */}

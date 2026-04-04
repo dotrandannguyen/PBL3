@@ -827,7 +827,7 @@ const TaskList = ({ title = "Danh sách công việc" }) => {
               <Plus size={14} />
               <input
                 ref={newTaskInputRef}
-                className="flex-1 border-none bg-transparent text-sm text-text-primary outline-none placeholder-neutral-500"
+                className="flex-1 border-none bg-transparent text-sm text-text-primary outline-none placeholder:text-text-tertiary"
                 placeholder="Tiêu đề công việc"
                 value={newTaskText}
                 onChange={(e) => {

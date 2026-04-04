@@ -89,15 +89,15 @@ const TaskToolbar = ({
       >
         {/* Search Input */}
         {isSearchOpen ? (
-          <div className="mr-2 flex items-center gap-1 rounded bg-neutral-700 px-2 py-1">
-            <Search size={14} className="text-neutral-500" />
+          <div className="mr-2 flex items-center gap-1 rounded bg-bg-active px-2 py-1">
+            <Search size={14} className="text-text-tertiary" />
             <input
               autoFocus
               placeholder="Tìm công việc..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               onBlur={() => !searchQuery && onSearchOpenChange(false)}
-              className="w-32 border-none bg-transparent px-2 py-1 text-xs text-white outline-none placeholder-neutral-600 sm:w-44"
+              className="w-32 border-none bg-transparent px-2 py-1 text-xs text-text-primary outline-none placeholder:text-text-tertiary sm:w-44"
             />
             {searchQuery && (
               <button
@@ -105,7 +105,7 @@ const TaskToolbar = ({
                   onSearchChange("");
                   onSearchOpenChange(false);
                 }}
-                className="bg-transparent border-none text-neutral-500 cursor-pointer hover:text-white transition-colors"
+                className="bg-transparent border-none text-text-tertiary cursor-pointer hover:text-text-primary transition-colors"
               >
                 ×
               </button>

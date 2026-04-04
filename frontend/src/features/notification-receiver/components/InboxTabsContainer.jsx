@@ -53,7 +53,7 @@ export function InboxTabsContainer({
           onClick={() => onFilterChange("github")}
           className={`flex items-center gap-3 px-6 py-3.5 text-sm font-medium transition-colors border-b-2 ${
             filter === "github"
-              ? "border-gray-400 text-text-primary bg-gray-500/5"
+              ? "border-border-focused text-text-primary bg-bg-hover"
               : "border-transparent text-text-tertiary hover:bg-bg-hover"
           }`}
         >

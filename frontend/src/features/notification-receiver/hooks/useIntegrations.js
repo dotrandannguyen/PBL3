@@ -71,7 +71,7 @@ export const useIntegrations = () => {
           time: new Date(issue.createdAt),
           link: issue.link,
           icon: Github,
-          color: "text-gray-800 dark:text-gray-200",
+          color: "text-text-primary",
           itemData: issue,
         }));
         allItems = [...allItems, ...issues];
