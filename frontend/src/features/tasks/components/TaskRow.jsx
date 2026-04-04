@@ -2,7 +2,25 @@ import React, { useState, useEffect, useRef } from "react";
 import { Trash2, Loader, Calendar } from "lucide-react";
 import TaskCheckbox from "./TaskCheckbox";
 import { formatDate, formatDateToISO, getTodayDate } from "../utils/dateUtils";
-import { getPriorityColor } from "../utils/priorityUtils";
+
+const RenderPriorityPill = ({ priority }) => {
+  if (!priority) return <span>Priority</span>;
+  const p = typeof priority === 'string' ? priority.toUpperCase() : priority;
+  const styles = {
+    HIGH: { bg: 'bg-red-500/15 hover:bg-red-500/25', text: 'text-red-400', label: 'High' },
+    MEDIUM: { bg: 'bg-yellow-500/15 hover:bg-yellow-500/25', text: 'text-yellow-400', label: 'Medium' },
+    LOW: { bg: 'bg-blue-500/15 hover:bg-blue-500/25', text: 'text-blue-400', label: 'Low' },
+  };
+  const s = styles[p];
+  if (!s) return <span>{p}</span>;
+
+  return (
+    <div className={`flex items-center justify-center px-3 py-1 rounded-[6px] ${s.bg} w-full transition-colors min-w-[75px]`}>
+      <span className={`text-[12px] font-medium ${s.text} leading-tight tracking-wide`}>{s.label}</span>
+    </div>
+  );
+};
+
 
 /**
  * TaskRow Component
@@ -68,9 +86,8 @@ const TaskRow = ({
       ) : (
         <button
           type="button"
-          className={`flex-1 bg-transparent border-none px-0 py-1 text-sm text-left cursor-text transition-colors ${
-            task.completed === true ? "text-text-tertiary" : "text-text-primary"
-          }`}
+          className={`flex-1 bg-transparent border-none px-0 py-1 text-sm text-left cursor-text transition-colors ${task.completed === true ? "text-text-tertiary" : "text-text-primary"
+            }`}
           onClick={onEdit}
         >
           {task.title || task.text}
@@ -78,19 +95,17 @@ const TaskRow = ({
       )}
 
       {/* Priority Selector */}
-      <div ref={priorityRef} className="relative">
+      <div ref={priorityRef} className="relative w-[100px] flex-shrink-0 flex justify-start">
         <button
           type="button"
-          className="flex items-center gap-1 px-2 py-1 rounded text-xs text-text-tertiary hover:bg-white/5 transition-colors whitespace-nowrap"
+          className="w-full flex items-center justify-start gap-1 p-0 rounded-md text-xs transition-colors whitespace-nowrap border-none bg-transparent cursor-pointer"
           onClick={() => setIsPriorityOpen(!isPriorityOpen)}
           title="Set priority"
         >
           {(() => {
             const currentPriority = isEditing ? editPriority : task.priority;
             return currentPriority ? (
-              <span className={getPriorityColor(currentPriority).text}>
-                {getPriorityColor(currentPriority).label}
-              </span>
+              <RenderPriorityPill priority={currentPriority} />
             ) : (
               <span>Priority</span>
             );
@@ -98,18 +113,17 @@ const TaskRow = ({
         </button>
 
         {isPriorityOpen && (
-          <div className="absolute top-full right-0 mt-1 z-10 bg-bg-sidebar border border-border-subtle rounded shadow-lg p-1 text-xs">
+          <div className="absolute top-full right-0 mt-1.5 z-50 bg-bg-sidebar border border-border-subtle rounded-xl shadow-2xl p-1.5 flex flex-col gap-1 min-w-[110px]">
             <button
               type="button"
               onClick={() => {
                 onPriorityChange("HIGH");
                 setIsPriorityOpen(false);
               }}
-              className={`block w-full text-left px-3 py-1.5 hover:bg-white/5 rounded text-red-400 ${
-                editPriority === "HIGH" ? "bg-white/10" : ""
-              }`}
+              className={`w-full text-left px-2 py-1.5 hover:bg-white/10 rounded-lg flex items-center transition-colors border-none bg-transparent cursor-pointer ${editPriority === "HIGH" ? "bg-white/5" : ""
+                }`}
             >
-              High
+              <RenderPriorityPill priority="HIGH" />
             </button>
             <button
               type="button"
@@ -117,11 +131,10 @@ const TaskRow = ({
                 onPriorityChange("MEDIUM");
                 setIsPriorityOpen(false);
               }}
-              className={`block w-full text-left px-3 py-1.5 hover:bg-white/5 rounded text-yellow-400 ${
-                editPriority === "MEDIUM" ? "bg-white/10" : ""
-              }`}
+              className={`w-full text-left px-2 py-1.5 hover:bg-white/10 rounded-lg flex items-center transition-colors border-none bg-transparent cursor-pointer ${editPriority === "MEDIUM" ? "bg-white/5" : ""
+                }`}
             >
-              Medium
+              <RenderPriorityPill priority="MEDIUM" />
             </button>
             <button
               type="button"
@@ -129,21 +142,20 @@ const TaskRow = ({
                 onPriorityChange("LOW");
                 setIsPriorityOpen(false);
               }}
-              className={`block w-full text-left px-3 py-1.5 hover:bg-white/5 rounded text-blue-400 ${
-                editPriority === "LOW" ? "bg-white/10" : ""
-              }`}
+              className={`w-full text-left px-2 py-1.5 hover:bg-white/10 rounded-lg flex items-center transition-colors border-none bg-transparent cursor-pointer ${editPriority === "LOW" ? "bg-white/5" : ""
+                }`}
             >
-              Low
+              <RenderPriorityPill priority="LOW" />
             </button>
           </div>
         )}
       </div>
 
       {/* Date Picker */}
-      <div ref={datePickerRef} className="relative">
+      <div ref={datePickerRef} className="relative w-[120px] flex-shrink-0 flex justify-start">
         <button
           type="button"
-          className="flex items-center gap-1 px-2 py-1 rounded text-xs text-text-tertiary hover:bg-white/5 transition-colors whitespace-nowrap"
+          className="flex items-center justify-start gap-1.5 px-2 py-1.5 w-full rounded-md text-xs text-text-tertiary hover:bg-white/5 transition-colors whitespace-nowrap border-none bg-transparent cursor-pointer"
           onClick={() => setIsDateOpen(!isDateOpen)}
           title="Set due date"
         >
@@ -168,9 +180,8 @@ const TaskRow = ({
 
       <button
         type="button"
-        className={`p-1 rounded-md bg-transparent text-text-tertiary cursor-pointer opacity-0 hover:bg-red-500/10 hover:text-red-500 transition-all hover:opacity-100 ${
-          isDeleting ? "opacity-50 cursor-not-allowed" : ""
-        }`}
+        className={`w-7 h-7 flex items-center justify-center p-0 rounded-md bg-transparent text-text-tertiary cursor-pointer opacity-0 hover:bg-red-500/10 hover:text-red-500 transition-all hover:opacity-100 ${isDeleting ? "opacity-50 cursor-not-allowed" : ""
+          }`}
         onClick={onDelete}
         disabled={isDeleting}
       >

@@ -16,6 +16,24 @@ import TaskToolbar from "../components/TaskToolbar";
 import TaskRow from "../components/TaskRow";
 import { getTodayDate } from "../utils/dateUtils";
 
+const RenderPriorityPill = ({ priority }) => {
+  if (!priority) return <span>Priority</span>;
+  const p = typeof priority === 'string' ? priority.toUpperCase() : priority;
+  const styles = {
+    HIGH: { bg: 'bg-red-500/15 hover:bg-red-500/25', text: 'text-red-400', label: 'High' },
+    MEDIUM: { bg: 'bg-yellow-500/15 hover:bg-yellow-500/25', text: 'text-yellow-400', label: 'Medium' },
+    LOW: { bg: 'bg-blue-500/15 hover:bg-blue-500/25', text: 'text-blue-400', label: 'Low' },
+  };
+  const s = styles[p];
+  if (!s) return <span>{p}</span>;
+
+  return (
+    <div className={`flex items-center justify-center px-3 py-1 rounded-[6px] ${s.bg} w-full transition-colors min-w-[75px]`}>
+      <span className={`text-[12px] font-medium ${s.text} leading-tight tracking-wide`}>{s.label}</span>
+    </div>
+  );
+};
+
 /**
  * TaskList - Hiển thị danh sách tasks từ API
  */
@@ -261,45 +279,41 @@ const TaskList = ({ title = "To Do List" }) => {
           )}
 
           {!loading && (
-            <div className="flex items-center gap-3 py-3 px-0 text-text-tertiary">
-              <Plus size={14} />
+            <div className="flex items-center gap-3 py-2 px-0 text-text-tertiary border-b border-transparent hover:bg-white/2 transition-colors">
+              <div className="w-[18px] flex justify-center">
+                 <Plus size={14} className="text-text-tertiary" />
+              </div>
+              
               <input
-                className="flex-1 bg-transparent border-none text-text-primary text-sm outline-none placeholder-neutral-600"
+                className="flex-1 bg-transparent border-none px-0 py-1 text-text-primary text-sm outline-none placeholder-neutral-600"
                 placeholder="New task"
                 value={newTaskText}
                 onChange={(e) => setNewTaskText(e.target.value)}
                 onKeyDown={handleNewTaskKeyDown}
               />
-              <div ref={priorityDropdownRef} className="relative">
+              
+              {/* Priority Selector aligned with TaskRow */}
+              <div ref={priorityDropdownRef} className="relative w-[100px] flex-shrink-0 flex justify-start">
                 <button
                   type="button"
-                  className={`px-2 py-1 rounded text-xs border border-border-subtle bg-white/5 cursor-pointer hover:bg-white/10 focus:outline-none focus:border-accent-primary transition-colors ${
-                    newTaskPriority === "HIGH"
-                      ? "text-red-400"
-                      : newTaskPriority === "MEDIUM"
-                        ? "text-yellow-400"
-                        : "text-blue-400"
-                  }`}
+                  className="w-full flex items-center justify-start gap-1 p-0 rounded-md text-xs transition-colors whitespace-nowrap border-none bg-transparent cursor-pointer"
                   onClick={() => setShowPriorityDropdown(!showPriorityDropdown)}
-                  title="Task priority"
                 >
-                  {newTaskPriority}
+                  <RenderPriorityPill priority={newTaskPriority} />
                 </button>
                 {showPriorityDropdown && (
-                  <div className="absolute top-full right-0 mt-1 bg-bg-sidebar border border-border-subtle rounded shadow-lg p-1 text-xs z-20 w-max">
+                  <div className="absolute top-full left-0 mt-1.5 bg-bg-sidebar border border-border-subtle rounded-xl shadow-2xl p-1.5 flex flex-col gap-1 z-20 min-w-[110px]">
                     <button
                       type="button"
                       onClick={() => {
-                        setNewTaskPriority("LOW");
+                        setNewTaskPriority("HIGH");
                         setShowPriorityDropdown(false);
                       }}
-                      className={`block text-left px-3 py-1.5 hover:bg-white/5 rounded whitespace-nowrap ${
-                        newTaskPriority === "LOW"
-                          ? "bg-white/10 text-blue-400"
-                          : "text-blue-400"
+                      className={`w-full text-left px-2 py-1.5 hover:bg-white/10 rounded-lg flex items-center transition-colors border-none bg-transparent cursor-pointer ${
+                        newTaskPriority === "HIGH" ? "bg-white/5" : ""
                       }`}
                     >
-                      Low
+                      <RenderPriorityPill priority="HIGH" />
                     </button>
                     <button
                       type="button"
@@ -307,31 +321,37 @@ const TaskList = ({ title = "To Do List" }) => {
                         setNewTaskPriority("MEDIUM");
                         setShowPriorityDropdown(false);
                       }}
-                      className={`block text-left px-3 py-1.5 hover:bg-white/5 rounded whitespace-nowrap ${
-                        newTaskPriority === "MEDIUM"
-                          ? "bg-white/10 text-yellow-400"
-                          : "text-yellow-400"
+                      className={`w-full text-left px-2 py-1.5 hover:bg-white/10 rounded-lg flex items-center transition-colors border-none bg-transparent cursor-pointer ${
+                        newTaskPriority === "MEDIUM" ? "bg-white/5" : ""
                       }`}
                     >
-                      Medium
+                      <RenderPriorityPill priority="MEDIUM" />
                     </button>
                     <button
                       type="button"
                       onClick={() => {
-                        setNewTaskPriority("HIGH");
+                        setNewTaskPriority("LOW");
                         setShowPriorityDropdown(false);
                       }}
-                      className={`block text-left px-3 py-1.5 hover:bg-white/5 rounded whitespace-nowrap ${
-                        newTaskPriority === "HIGH"
-                          ? "bg-white/10 text-red-400"
-                          : "text-red-400"
+                      className={`w-full text-left px-2 py-1.5 hover:bg-white/10 rounded-lg flex items-center transition-colors border-none bg-transparent cursor-pointer ${
+                        newTaskPriority === "LOW" ? "bg-white/5" : ""
                       }`}
                     >
-                      High
+                      <RenderPriorityPill priority="LOW" />
                     </button>
                   </div>
                 )}
               </div>
+
+              {/* Date dummy to align with DatePicker */}
+              <div className="relative w-[120px] flex-shrink-0 flex justify-start items-center">
+                <div className="flex items-center justify-start gap-1.5 px-2 py-1 w-full text-xs text-text-tertiary">
+                   <span>Today</span>
+                </div>
+              </div>
+
+              {/* Dummy delete button space */}
+              <div className="w-7 h-7 flex-shrink-0 p-0" />
             </div>
           )}
         </div>

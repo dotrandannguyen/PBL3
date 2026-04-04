@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { DndContext, useSensor, useSensors, PointerSensor, pointerWithin } from '@dnd-kit/core';
+import { DndContext, useSensor, useSensors, PointerSensor, pointerWithin, DragOverlay } from '@dnd-kit/core';
 import CalendarHeader from "../components/CalendarHeader";
 import CalendarGrid from "../components/CalendarGrid";
 import CalendarWeekGrid from "../components/CalendarWeekGrid";
 import CalendarSidebar from "../components/CalendarSidebar";
 import EventModal from "../components/EventModal";
+import { CalendarEventUI } from "../components/CalendarEvent";
 
 // Mock Events Data
 const MOCK_EVENTS = [
@@ -80,6 +81,7 @@ export function CalendarPage() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [prefillRange, setPrefillRange] = useState(null);
   const [viewMode, setViewMode] = useState('month');
+  const [activeEvent, setActiveEvent] = useState(null);
 
   const handlePrev = () => {
     if (viewMode === 'month') {
@@ -114,7 +116,12 @@ export function CalendarPage() {
     })
   );
 
+  const handleDragStart = (event) => {
+    setActiveEvent(event.active.data.current?.event || null);
+  };
+
   const handleDragEnd = (event) => {
+    setActiveEvent(null);
     const { active, over } = event;
     if (!over) return;
 
@@ -174,7 +181,7 @@ export function CalendarPage() {
             viewMode={viewMode}
             onViewModeChange={setViewMode}
           />
-          <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={pointerWithin}>
+          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} collisionDetection={pointerWithin}>
             {viewMode === 'month' ? (
               <CalendarGrid
                 currentDate={currentDate}
@@ -192,6 +199,11 @@ export function CalendarPage() {
                 onAddEventRange={handleAddEventRange}
               />
             )}
+            <DragOverlay>
+              {activeEvent ? (
+                <CalendarEventUI event={activeEvent} isOverlay={true} style={{ width: '100%', height: '100%' }} />
+              ) : null}
+            </DragOverlay>
           </DndContext>
         </div>
 

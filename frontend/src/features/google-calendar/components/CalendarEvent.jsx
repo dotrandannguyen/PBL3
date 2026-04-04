@@ -1,44 +1,47 @@
 import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 
+export const CalendarEventUI = React.forwardRef(({ event, isDragging, isOverlay, className, style, onClick, ...props }, ref) => (
+    <button
+        ref={ref}
+        type="button"
+        onClick={(e) => {
+            e.stopPropagation();
+            if (!isDragging && !isOverlay) {
+                onClick?.(event);
+            }
+        }}
+        className={`w-full h-full text-left px-2 py-1.5 rounded-[4px] text-[11px] leading-snug overflow-hidden cursor-grab active:cursor-grabbing transition-colors duration-150 block border border-border-subtle bg-white/5 hover:bg-white/10 hover:border-white/20 ${isOverlay ? 'opacity-100 ring-1 ring-white/50 scale-[1.02] shadow-xl z-50' : isDragging ? 'opacity-0' : ''} ${className || 'mb-1'}`}
+        style={{ 
+            ...style,
+            borderLeft: `3px solid ${event.color || '#2383e2'}`
+        }}
+        {...props}
+    >
+        <div className="flex flex-col">
+            <span className="font-medium truncate text-text-primary">{event.title}</span>
+            {event.time && <span className="text-text-tertiary text-[10px] truncate mt-0.5">{event.time}</span>}
+        </div>
+    </button>
+));
+
 const CalendarEvent = ({ event, onClick, className }) => {
-    const {attributes, listeners, setNodeRef, transform, isDragging} = useDraggable({
+    const {attributes, listeners, setNodeRef, isDragging} = useDraggable({
         id: `event-${event.id}`,
         data: { event },
     });
 
-    const style = transform ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        zIndex: 50,
-        transition: isDragging ? 'none' : undefined,
-    } : undefined;
+    // when dragging, we just show it faded, DragOverlay handles the visual flying
     return (
-        <button
+        <CalendarEventUI
             ref={setNodeRef}
-            type="button"
-            onClick={(e) => {
-                e.stopPropagation();
-                if (!isDragging) {
-                    onClick?.(event);
-                }
-            }}
-            className={`w-full h-full text-left px-2 py-1 rounded-[3px] text-[11px] leading-tight overflow-hidden cursor-grab active:cursor-grabbing hover:shadow-sm transition-all duration-150 border block ${isDragging ? 'opacity-50 ring-2 ring-accent-primary z-50' : 'opacity-100'} ${className || 'mb-[3px]'}`}
-            style={{ 
-                ...style,
-                backgroundColor: event.color + '15', 
-                color: '#333333',
-                borderColor: event.color + '30',
-                borderWidth: '1px'
-            }}
+            event={event}
+            onClick={onClick}
+            className={className}
+            isDragging={isDragging}
             {...listeners}
             {...attributes}
-        >
-            <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: event.color }} />
-                <span className="font-semibold truncate text-[#111]">{event.title}</span>
-            </div>
-            {event.time && <div className="opacity-70 text-[10px] pl-3 truncate">{event.time}</div>}
-        </button>
+        />
     );
 };
 

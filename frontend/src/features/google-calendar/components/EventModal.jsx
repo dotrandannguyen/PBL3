@@ -221,6 +221,65 @@ const TimePicker = ({ value, onChange, startTimeRef }) => {
     );
 };
 
+// ─── Custom Select Dropdown ──────
+const CustomSelect = ({ value, onChange, options }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const selectedOption = options.find(o => o.value === value) || options[0];
+
+    return (
+        <div className="relative flex-1" ref={containerRef}>
+            <button
+                type="button"
+                onClick={(e) => {
+                    e.preventDefault();
+                    setIsOpen(!isOpen);
+                }}
+                className={`w-full bg-bg-hover text-text-primary text-[13px] pl-4 pr-3 py-1.5 rounded-full border-none cursor-pointer 
+                            focus:outline-none flex justify-between items-center transition-colors hover:bg-bg-active
+                            ${isOpen ? 'ring-2 ring-accent-primary/20' : ''}`}
+            >
+                <span className="truncate">{selectedOption?.label}</span>
+                <ChevronDown size={14} className={`text-text-tertiary transition-transform duration-200 shrink-0 ml-2 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            <div
+                className={`absolute left-0 right-0 top-[calc(100%+6px)] bg-bg-sidebar border border-border-subtle rounded-xl 
+                           shadow-2xl z-50 flex flex-col py-1.5 transition-all duration-200 origin-top
+                           ${isOpen ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 translate-y-[-4px] invisible pointer-events-none'}`}
+            >
+                {options.map(opt => (
+                    <button
+                        key={opt.value}
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            onChange(opt.value);
+                            setIsOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-[13px] cursor-pointer transition-colors border-none min-h-[34px] flex items-center
+                            ${opt.value === value ? 'bg-accent-primary/10 text-accent-primary font-medium' : 'bg-transparent text-text-secondary hover:bg-bg-hover hover:text-text-primary'}
+                        `}
+                    >
+                        {opt.label}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 // ─── Main EventModal ───────────────────────────────────
 const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, prefillRange }) => {
     const [title, setTitle] = useState('');
@@ -418,7 +477,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                         >
                                             {isAllDay && (
                                                 <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                                                    <path d="M1 4L3.5 6.5L9 1" stroke="var(--bg-main, #191919)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                    <path d="M1 4L3.5 6.5L9 1" stroke="var(--bg-main, #191919)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                                 </svg>
                                             )}
                                         </div>
@@ -523,46 +582,46 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                             {/* Status */}
                                             <div className="flex items-center gap-3">
                                                 <CalendarIcon size={16} className="text-text-tertiary shrink-0" />
-                                                <select
+                                                <CustomSelect
                                                     value={status}
-                                                    onChange={(e) => setStatus(e.target.value)}
-                                                    className="flex-1 bg-bg-hover text-text-primary text-[13px] px-4 py-1.5 rounded-full border-none cursor-pointer focus:outline-none"
-                                                >
-                                                    <option value="busy" className="bg-bg-main">Bận</option>
-                                                    <option value="free" className="bg-bg-main">Rảnh</option>
-                                                </select>
+                                                    onChange={setStatus}
+                                                    options={[
+                                                        { value: "busy", label: "Bận" },
+                                                        { value: "free", label: "Rảnh" }
+                                                    ]}
+                                                />
                                             </div>
 
                                             {/* Visibility */}
                                             <div className="flex items-center gap-3">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-tertiary shrink-0">
-                                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
                                                 </svg>
-                                                <select
+                                                <CustomSelect
                                                     value={visibility}
-                                                    onChange={(e) => setVisibility(e.target.value)}
-                                                    className="flex-1 bg-bg-hover text-text-primary text-[13px] px-4 py-1.5 rounded-full border-none cursor-pointer focus:outline-none"
-                                                >
-                                                    <option value="default" className="bg-bg-main">Chế độ hiển thị mặc định</option>
-                                                    <option value="private" className="bg-bg-main">Riêng tư</option>
-                                                    <option value="public" className="bg-bg-main">Công khai</option>
-                                                </select>
+                                                    onChange={setVisibility}
+                                                    options={[
+                                                        { value: "default", label: "Chế độ hiển thị mặc định" },
+                                                        { value: "private", label: "Riêng tư" },
+                                                        { value: "public", label: "Công khai" }
+                                                    ]}
+                                                />
                                             </div>
 
                                             {/* Notification */}
                                             <div className="flex items-center gap-3">
                                                 <Bell size={16} className="text-text-tertiary shrink-0" />
-                                                <select
+                                                <CustomSelect
                                                     value={reminder}
-                                                    onChange={(e) => setReminder(e.target.value)}
-                                                    className="flex-1 bg-bg-hover text-text-primary text-[13px] px-4 py-1.5 rounded-full border-none cursor-pointer focus:outline-none"
-                                                >
-                                                    <option value="none" className="bg-bg-main">Không nhắc</option>
-                                                    <option value="10_min" className="bg-bg-main">10 phút trước</option>
-                                                    <option value="30_min" className="bg-bg-main">30 phút trước</option>
-                                                    <option value="1_hour" className="bg-bg-main">1 giờ trước</option>
-                                                    <option value="1_day" className="bg-bg-main">1 ngày trước</option>
-                                                </select>
+                                                    onChange={setReminder}
+                                                    options={[
+                                                        { value: "none", label: "Không nhắc" },
+                                                        { value: "10_min", label: "10 phút trước" },
+                                                        { value: "30_min", label: "30 phút trước" },
+                                                        { value: "1_hour", label: "1 giờ trước" },
+                                                        { value: "1_day", label: "1 ngày trước" }
+                                                    ]}
+                                                />
                                             </div>
                                         </div>
                                     )}

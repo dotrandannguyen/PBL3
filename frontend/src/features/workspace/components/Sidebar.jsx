@@ -1,6 +1,6 @@
 import React from "react";
 import { Plus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   UserAvatar,
   NavItem,
@@ -25,6 +25,8 @@ const Sidebar = ({
   // State for Inbox Panel
   const [showInbox, setShowInbox] = React.useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = location.pathname;
 
   // Filter pages by type - tách logic ra ngoài return
   const privatePages = pages.filter((p) => p.type === "private");
@@ -37,21 +39,33 @@ const Sidebar = ({
 
         {/* Main Navigation */}
         <nav className="py-1 mb-2">
-          {MAIN_NAV_ITEMS.map((item) => (
-            <NavItem
-              key={item.label}
-              icon={item.icon}
-              label={item.label}
-              isActive={item.label === "Inbox" && showInbox}
-              onClick={() => {
-                if (item.label === "Inbox") {
-                  setShowInbox(!showInbox);
-                } else if (item.label === "Home") {
-                  navigate("/app");
-                }
-              }}
-            />
-          ))}
+          {MAIN_NAV_ITEMS.map((item) => {
+            let isActive = false;
+            if (item.label === "Inbox") {
+              isActive = showInbox;
+            } else if (item.label === "Home") {
+              // Highlight Home if we are at /app and no specific private page is active
+              isActive = currentPath === "/app" && !activePage;
+            } else if (item.label === "Search") {
+              isActive = currentPath === "/search"; // Or wherever search goes
+            }
+
+            return (
+              <NavItem
+                key={item.label}
+                icon={item.icon}
+                label={item.label}
+                isActive={isActive}
+                onClick={() => {
+                  if (item.label === "Inbox") {
+                    setShowInbox(!showInbox);
+                  } else if (item.label === "Home") {
+                    navigate("/app");
+                  }
+                }}
+              />
+            );
+          })}
         </nav>
 
         {/* Private Pages Section */}
@@ -66,7 +80,7 @@ const Sidebar = ({
                 navigate(`/app`);
                 onPageClick(pageId);
               }}
-              isActive={page.id === activePage}
+              isActive={currentPath === "/app" && page.id === activePage}
               onDelete={onDeletePage}
               onRename={onRenamePage}
             />
@@ -88,27 +102,50 @@ const Sidebar = ({
         {/* Notion Apps Section */}
         <section className="py-1 mb-2 pt-2">
           <SectionHeader title="Notion apps" />
-          {NOTION_APPS.map((item) => (
-            <NavItem
-              key={item.label}
-              icon={item.icon}
-              label={item.label}
-              onClick={() => {
-                if (item.label === "Notion Mail") {
-                  navigate("/mail");
-                } else if (item.label === "Notion Calendar") {
-                  navigate("/calendar");
-                }
-              }}
-            />
-          ))}
+          {NOTION_APPS.map((item) => {
+            let isActive = false;
+            if (item.label === "Notion Mail") isActive = currentPath === "/mail";
+            if (item.label === "Notion Calendar") isActive = currentPath === "/calendar";
+
+            return (
+              <NavItem
+                key={item.label}
+                icon={item.icon}
+                label={item.label}
+                isActive={isActive}
+                onClick={() => {
+                  if (item.label === "Notion Mail") {
+                    navigate("/mail");
+                  } else if (item.label === "Notion Calendar") {
+                    navigate("/calendar");
+                  }
+                }}
+              />
+            );
+          })}
         </section>
 
         {/* Bottom Navigation */}
         <nav className="py-1 mb-2">
-          {BOTTOM_NAV_ITEMS.map((item) => (
-            <NavItem key={item.label} icon={item.icon} label={item.label} />
-          ))}
+          {BOTTOM_NAV_ITEMS.map((item) => {
+            let isActive = false;
+            if (item.label === "Settings") isActive = currentPath === "/settings";
+            if (item.label === "Trash") isActive = currentPath === "/trash";
+
+            return (
+              <NavItem 
+                key={item.label} 
+                icon={item.icon} 
+                label={item.label} 
+                isActive={isActive}
+                onClick={() => {
+                  if (item.label === "Settings") {
+                    navigate("/settings");
+                  }
+                }}
+              />
+            );
+          })}
         </nav>
 
         {/* Invite Members Panel */}
