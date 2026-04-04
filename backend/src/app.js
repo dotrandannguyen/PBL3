@@ -7,12 +7,22 @@ import taskRouter from './modules/tasks/task.router.js';
 import integrationRouter from './modules/integrations/integration.router.js';
 const app = express();
 
-app.use(cors());
-app.use(express.json({
-	verify: (req, res, buf) => {
-		req.rawBody = buf;
-	}
-}));
+// ✅ CORS Configuration - match with Socket.io CORS
+app.use(
+	cors({
+		origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+		methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+		credentials: true,
+	}),
+);
+
+app.use(
+	express.json({
+		verify: (req, res, buf) => {
+			req.rawBody = buf;
+		},
+	}),
+);
 // app.use(express.urlencoded({ extended: true }));
 app.use('/v1/api/auth', authRouter);
 app.use('/v1/api/user', userRouter);

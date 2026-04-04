@@ -61,7 +61,7 @@ export const webhookController = {
 					console.log('====================================');
 
 					// 5. Lưu thẳng vào bảng Tasks (INBOX - chờ duyệt)
-					await prisma.task.create({
+					const newTask = await prisma.task.create({
 						data: {
 							userId: integration.userId,
 							title: `[GitHub] ${issue.title}`,
@@ -75,6 +75,25 @@ export const webhookController = {
 					});
 
 					console.log('✅ [WEBHOOK] Đồng bộ thành Task mới thành công!');
+
+					// ✅ 6. EMIT SOCKET.IO EVENT CHO USER
+					try {
+						const io = req.app.get('socketio');
+						if (io) {
+							io.to(integration.userId).emit('NEW_INBOX_ITEM', {
+								message: 'Bạn có một công việc mới từ GitHub!',
+								task: newTask,
+							});
+							console.log(
+								`📡 [SOCKET.IO] Đã gửi sự kiện tới user ${integration.userId}`,
+							);
+						}
+					} catch (socketError) {
+						console.error(
+							'⚠️ [SOCKET.IO] Lỗi khi emit event:',
+							socketError.message,
+						);
+					}
 				} else {
 					console.log(
 						`⚠️ [WEBHOOK] Bỏ qua: User GitHub ID ${targetUser.id} chưa liên kết với tài khoản nào trên App.`,
@@ -158,7 +177,7 @@ export const webhookController = {
 
 			// 10. Lưu mỗi email đó vào bảng Tasks (INBOX - chờ duyệt)
 			for (const email of filteredEmails) {
-				await prisma.task.create({
+				const newTask = await prisma.task.create({
 					data: {
 						userId: integration.userId,
 						title: `[Gmail] ${email.subject}`,
@@ -179,6 +198,25 @@ export const webhookController = {
 				});
 
 				console.log(`✅ [GMAIL] Đã lưu email "${email.subject}" thành Task.`);
+
+				// ✅ EMIT SOCKET.IO EVENT CHO USER
+				try {
+					const io = req.app.get('socketio');
+					if (io) {
+						io.to(integration.userId).emit('NEW_INBOX_ITEM', {
+							message: 'Bạn có một email công việc mới!',
+							task: newTask,
+						});
+						console.log(
+							`📡 [SOCKET.IO] Đã gửi sự kiện tới user ${integration.userId}`,
+						);
+					}
+				} catch (socketError) {
+					console.error(
+						'⚠️ [SOCKET.IO] Lỗi khi emit event:',
+						socketError.message,
+					);
+				}
 			}
 
 			console.log(
