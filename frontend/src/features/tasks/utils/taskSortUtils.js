@@ -27,10 +27,10 @@ export const sortTasks = (tasks, sortBy) => {
         return dateB - dateA;
       });
     case "priority-high":
-      const priorityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+      const priorityOrder = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
       return sorted.sort((a, b) => {
-        const aP = priorityOrder[a.priority] ?? 3;
-        const bP = priorityOrder[b.priority] ?? 3;
+        const aP = priorityOrder[a.priority] ?? 4;
+        const bP = priorityOrder[b.priority] ?? 4;
         return aP - bP;
       });
     case "title":

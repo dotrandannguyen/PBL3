@@ -9,7 +9,7 @@
  * Output: "January 10, 2026"
  */
 export const formatDate = (date) => {
-  if (!date) return "No date";
+  if (!date) return "";
   const options = { month: "long", day: "numeric", year: "numeric" };
   try {
     // Handle string dates (ISO format or simple date string)
@@ -17,13 +17,13 @@ export const formatDate = (date) => {
 
     // Validate date object
     if (!(dateObj instanceof Date) || isNaN(dateObj)) {
-      return "Invalid date";
+      return "";
     }
 
-    return dateObj.toLocaleDateString("en-US", options);
+    return dateObj.toLocaleDateString("vi-VN", options);
   } catch (err) {
     console.error("Date formatting error:", err);
-    return "Invalid date";
+    return "";
   }
 };
 
@@ -33,7 +33,10 @@ export const formatDate = (date) => {
  */
 export const getTodayDate = () => {
   const today = new Date();
-  return today.toISOString().split("T")[0];
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 /**
