@@ -122,17 +122,60 @@ export function CalendarPage() {
 
   const handleDragEnd = (event) => {
     setActiveEvent(null);
-    const { active, over } = event;
+    const { active, over, delta } = event;
     if (!over) return;
 
     const activeEvent = active.data.current?.event;
-    const newDateStr = over.data.current?.date;
+    if (!activeEvent) return;
 
-    if (activeEvent && newDateStr && activeEvent.date !== newDateStr) {
-      setEvents(prev => prev.map(e =>
-        e.id === activeEvent.id ? { ...e, date: newDateStr } : e
-      ));
-    }
+    const newDateStr = over.data.current?.date || activeEvent.date;
+
+    setEvents(prev => prev.map(e => {
+      if (String(e.id) !== String(activeEvent.id)) return e;
+
+      let updatedEvent = { ...e };
+      let changed = false;
+
+      // Update date if dragged to a different day column
+      if (activeEvent.date !== newDateStr) {
+        updatedEvent.date = newDateStr;
+        changed = true;
+      }
+
+      // In Week view, adjust time based on vertical pixel drag 
+      // (1 pixel = 1 minute, since 60px = 1 hour)
+      if (viewMode === 'week' && e.time && typeof delta.y === 'number') {
+        const timeToMins = (t) => {
+          const [h, m] = t.split(':').map(Number);
+          return Math.round(h * 60 + m);
+        };
+        const minsToTime = (totalMins) => {
+          // Clamp to boundaries to prevent dragging into invalid hours (next day)
+          const clamped = Math.max(0, Math.min(24 * 60 - 15, totalMins));
+          const h = Math.floor(clamped / 60);
+          const m = Math.floor(clamped % 60);
+          return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+        };
+
+        // Snap vertical shift to 15-minute intervals for better UX
+        const deltaMins = Math.round(delta.y / 15) * 15;
+
+        if (deltaMins !== 0) {
+          const startMins = timeToMins(e.time);
+          let duration = 60; // default 1 hour fallback
+          if (e.endTime) {
+            duration = timeToMins(e.endTime) - startMins;
+          }
+
+          const newStartMins = startMins + deltaMins;
+          updatedEvent.time = minsToTime(newStartMins);
+          updatedEvent.endTime = minsToTime(newStartMins + duration);
+          changed = true;
+        }
+      }
+
+      return changed ? updatedEvent : e;
+    }));
   };
 
   const handleAddEvent = (date) => {

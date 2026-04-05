@@ -12,7 +12,7 @@ export const CalendarEventUI = React.forwardRef(({ event, isDragging, isOverlay,
             }
         }}
         className={`w-full h-full text-left px-2 py-1.5 rounded-[4px] text-[11px] leading-snug overflow-hidden cursor-grab active:cursor-grabbing transition-colors duration-150 block border border-border-subtle bg-white/5 hover:bg-white/10 hover:border-white/20 ${isOverlay ? 'opacity-100 ring-1 ring-white/50 scale-[1.02] shadow-xl z-50' : isDragging ? 'opacity-0' : ''} ${className || 'mb-1'}`}
-        style={{ 
+        style={{
             ...style,
             borderLeft: `3px solid ${event.color || '#2383e2'}`
         }}
@@ -26,7 +26,7 @@ export const CalendarEventUI = React.forwardRef(({ event, isDragging, isOverlay,
 ));
 
 const CalendarEvent = ({ event, onClick, className }) => {
-    const {attributes, listeners, setNodeRef, isDragging} = useDraggable({
+    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: `event-${event.id}`,
         data: { event },
     });

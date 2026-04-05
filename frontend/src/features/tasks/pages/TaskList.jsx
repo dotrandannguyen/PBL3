@@ -14,6 +14,7 @@ import { useTasks } from "../hooks/useTasks";
 import { useTaskFilters } from "../hooks/useTaskFilters";
 import TaskToolbar from "../components/TaskToolbar";
 import TaskRow from "../components/TaskRow";
+import TaskSlideOver from "../components/TaskSlideOver";
 import { getTodayDate } from "../utils/dateUtils";
 
 const RenderPriorityPill = ({ priority }) => {
@@ -76,8 +77,11 @@ const TaskList = ({ title = "To Do List" }) => {
   const [newTaskPriority, setNewTaskPriority] = useState("MEDIUM");
   const [deletingId, setDeletingId] = useState(null);
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
 
   const priorityDropdownRef = useRef(null);
+
+  const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
 
   useEffect(() => {
     fetchTasks();
@@ -270,6 +274,7 @@ const TaskList = ({ title = "To Do List" }) => {
                   handlePriorityChange(task.id, priority)
                 }
                 isDeleting={deletingId === task.id}
+                onOpenDashboard={() => setSelectedTaskId(task.id)}
               />
             ))
           ) : (
@@ -356,6 +361,13 @@ const TaskList = ({ title = "To Do List" }) => {
           )}
         </div>
       </div>
+      
+      <TaskSlideOver 
+        isOpen={!!selectedTaskId}
+        onClose={() => setSelectedTaskId(null)}
+        task={selectedTask}
+        onUpdate={updateTaskData}
+      />
     </main>
   );
 };

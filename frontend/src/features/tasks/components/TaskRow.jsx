@@ -41,6 +41,7 @@ const TaskRow = ({
   onEditKeyDown,
   onDelete,
   isDeleting,
+  onOpenDashboard,
 }) => {
   const [isDateOpen, setIsDateOpen] = useState(false);
   const [isPriorityOpen, setIsPriorityOpen] = useState(false);
@@ -71,7 +72,7 @@ const TaskRow = ({
   }, [isDateOpen, isPriorityOpen]);
 
   return (
-    <div className="flex items-center gap-3 py-2 px-0 border-b border-border-subtle hover:bg-white/2 transition-colors">
+    <div className="group flex items-center gap-3 py-2 px-0 border-b border-border-subtle hover:bg-white/2 transition-colors relative">
       <TaskCheckbox checked={task.completed === true} onChange={onToggle} />
 
       {isEditing ? (
@@ -84,14 +85,26 @@ const TaskRow = ({
           autoFocus
         />
       ) : (
-        <button
-          type="button"
-          className={`flex-1 bg-transparent border-none px-0 py-1 text-sm text-left cursor-text transition-colors ${task.completed === true ? "text-text-tertiary" : "text-text-primary"
-            }`}
-          onClick={onEdit}
-        >
-          {task.title || task.text}
-        </button>
+        <div className="flex-1 flex items-center gap-2 overflow-hidden">
+            <button
+              type="button"
+              className={`bg-transparent border-none px-0 py-1 text-sm text-left cursor-text transition-colors truncate ${task.completed === true ? "text-text-tertiary" : "text-text-primary"
+                }`}
+              onClick={onEdit}
+            >
+              {task.title || task.text}
+            </button>
+            <button 
+                type="button"
+                onClick={() => onOpenDashboard && onOpenDashboard(task)}
+                className="opacity-0 group-hover:opacity-100 p-1 flex items-center justify-center rounded-md hover:bg-white/10 text-text-tertiary hover:text-text-primary transition-all cursor-pointer border-none bg-transparent"
+                title="Mở chi tiết (Open side peek)"
+            >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                </svg>
+            </button>
+        </div>
       )}
 
       {/* Priority Selector */}

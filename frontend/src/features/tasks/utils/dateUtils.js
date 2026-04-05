@@ -55,3 +55,26 @@ export const formatDateToISO = (date) => {
     return "";
   }
 };
+
+/**
+ * Format date for Vietnam locale (used in TaskSlideOver for created date)
+ * Input: "2026-03-14T10:30:00.000Z"
+ * Output: "14 Tháng 3, 2026" or similar readable format
+ */
+export const formatDateVN = (date) => {
+  if (!date) return "N/A";
+  try {
+    const dateObj = typeof date === "string" ? new Date(date) : date;
+    if (!(dateObj instanceof Date) || isNaN(dateObj)) return "N/A";
+
+    return dateObj.toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  } catch {
+    return "N/A";
+  }
+};
