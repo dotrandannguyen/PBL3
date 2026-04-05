@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { useIntegrations } from "../hooks/useIntegrations";
+import useInboxSocket from "../hooks/useInboxSocket";
 import useAuth from "../../auth/hooks/useAuth";
 import { getGoogleAuthUrl, getGithubAuthUrl } from "../../auth/api/auth.api";
+import { toast } from "sonner";
 import {
   InboxHeader,
   ConnectionAlert,
@@ -15,6 +17,21 @@ export function MailReceiverPage() {
   const { data, loading, error, connected, refetch } = useIntegrations();
   const [filter, setFilter] = useState("all");
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // ✅ Setup real-time socket listener: Khi có inbox item mới -> refetch tự động
+  useInboxSocket(user?.id, (newItemData) => {
+    console.log("📥 Có tin nhắn mới! Đang refetch inbox...", newItemData);
+
+    // Gọi refetch để cập nhật danh sách inbox
+    refetch();
+
+    // Hiển thị toast notification (non-intrusive)
+    toast.success(newItemData.message || "Bạn có tin nhắn mới! 📬", {
+      position: "bottom-right",
+      duration: 4000,
+      description: newItemData.task?.title || "Inbox updated with new item",
+    });
+  });
 
   // Lấy 5 tin nhắn mới nhất để hiển thị trên phần "Truy cập nhanh"
   const recentItems = data.slice(0, 5);
