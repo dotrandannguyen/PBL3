@@ -53,8 +53,9 @@ export const getTask = (id) => apiClient.get(`/v1/api/tasks/${id}`);
  *   {
  *     title: string (required),
  *     description?: string,
- *     priority?: 'LOW' | 'MEDIUM' | 'HIGH',
- *     dueDate?: date string
+ *     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT',
+ *     dueDate?: date string,
+ *     startAt?: ISO datetime string | null
  *   }
  *
  * @returns {Promise} Newly created task object
@@ -70,9 +71,9 @@ export const createTask = (data) => apiClient.post("/v1/api/tasks", data);
  * @param {Object} data - Fields to update:
  *   {
  *     title?: string,
- *     completed?: boolean (maps to status: DONE/PENDING),
+ *     status?: 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'ARCHIVED',
  *     description?: string,
- *     priority?: 'LOW' | 'MEDIUM' | 'HIGH',
+ *     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT',
  *     dueDate?: date string
  *   }
  *
@@ -80,6 +81,18 @@ export const createTask = (data) => apiClient.post("/v1/api/tasks", data);
  */
 export const updateTask = (id, data) =>
   apiClient.patch(`/v1/api/tasks/${id}`, data);
+
+/**
+ * PATCH /v1/api/tasks/:id/schedule
+ *
+ * Set lịch start cho task
+ *
+ * @param {string} id - Task ID
+ * @param {Object} data - { startAt: ISO datetime string | null }
+ * @returns {Promise} Updated task object
+ */
+export const scheduleTask = (id, data) =>
+  apiClient.patch(`/v1/api/tasks/${id}/schedule`, data);
 
 /**
  * DELETE /v1/api/tasks/:id

@@ -1,8 +1,12 @@
 import axios from "axios";
 import { toast } from "sonner";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const NETWORK_ERROR_MESSAGE = `Không thể kết nối server (${API_BASE_URL}).`;
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000",
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
@@ -29,18 +33,38 @@ apiClient.interceptors.response.use(
     const method = error.config?.method?.toUpperCase();
     const errorMessage = error.response?.data?.message || error.message;
 
+    if (!error.response && error.code === "ERR_NETWORK") {
+      error.message = NETWORK_ERROR_MESSAGE;
+    }
+
+    if (error.code === "ECONNABORTED") {
+      error.message = "Kết nối server quá thời gian chờ, vui lòng thử lại.";
+    }
+
     // Log chi tiết lỗi
     console.error(`[API Error] ${method} ${url} - Status: ${status}`);
     console.error(`[API Error Message] ${errorMessage}`);
     console.error(`[Full Error Response]`, error.response?.data || error);
 
     if (status === 401) {
+      const requestUrl = error.config?.url || "";
+      const EXCLUDED_URLS = [
+        "/auth/login",
+        "/auth/register",
+        "/health",
+        "/auth/google/url",
+        "/auth/github/url",
+        "/integrations/",
+      ];
+      const isExcluded = EXCLUDED_URLS.some((path) =>
+        requestUrl.includes(path),
+      );
       const hadToken = !!localStorage.getItem("accessToken");
       console.warn(
         `[401 Unauthorized] ${method} ${url} - Had Token: ${hadToken}`,
       );
 
-      if (hadToken) {
+      if (hadToken && !isExcluded) {
         // Hiển thị error message rõ ràng
         toast.error(`Phiên đăng nhập hết hạn: ${errorMessage}`);
 
@@ -63,9 +87,12 @@ apiClient.interceptors.response.use(
     } else if (error.code === "ECONNABORTED") {
       console.error(`[Timeout] ${method} ${url}`);
       toast.error("Kết nối bị timeout, vui lòng thử lại");
-    } else if (error.message === "Network Error") {
+    } else if (
+      error.message === "Network Error" ||
+      error.message === NETWORK_ERROR_MESSAGE
+    ) {
       console.error(`[Network Error] ${method} ${url}`);
-      toast.error("Lỗi mạng, không thể kết nối đến server");
+      toast.error(error.message);
     }
 
     return Promise.reject(error);

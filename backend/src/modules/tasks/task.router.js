@@ -12,6 +12,7 @@ import { authGuard, validateRequestMiddleware } from '../../common/middleware/in
 import { createTaskSchema } from './dto/requests/create-task.request.js';
 import { updateTaskSchema } from './dto/requests/update-task.request.js';
 import { getTasksSchema } from './dto/requests/get-tasks.request.js';
+import { scheduleTaskSchema } from './dto/requests/schedule-task.request.js';
 
 const taskRouter = Router();
 
@@ -50,15 +51,15 @@ taskRouter.get('/:id', taskController.getOne);
  * POST /tasks
  * Tạo task mới
  *
- * Body: { title: string, completed?: boolean }
+ * Body: { title: string, description?: string, priority?: string, dueDate?: string, startAt?: string | null }
  */
 taskRouter.post('/', validateRequestMiddleware(createTaskSchema), taskController.create);
 
 /**
  * PATCH /tasks/:id
- * Update task (title hoặc completed)
+ * Update task (title, description, priority, dueDate, status)
  *
- * Body: { title?: string, completed?: boolean }
+ * Body: { title?: string, description?: string, priority?: string, dueDate?: string, status?: string }
  */
 taskRouter.patch(
 	'/:id',
@@ -72,6 +73,18 @@ taskRouter.patch(
  * Người dùng bấm "Thêm vào công việc" từ Inbox sẽ gọi endpoint này
  */
 taskRouter.patch('/:id/confirm', taskController.confirmInbox);
+
+/**
+ * PATCH /tasks/:id/schedule
+ * Set schedule start time cho task
+ *
+ * Body: { startAt: string | null }
+ */
+taskRouter.patch(
+	'/:id/schedule',
+	validateRequestMiddleware(scheduleTaskSchema),
+	taskController.markScheduled,
+);
 
 /**
  * DELETE /tasks/:id

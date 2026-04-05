@@ -1,6 +1,24 @@
 import prisma from '../../config/database.js';
 import { TaskStatus } from '@prisma/client';
 
+const taskSelect = {
+	id: true,
+	title: true,
+	description: true,
+	status: true,
+	priority: true,
+	dueDate: true,
+	scheduledAt: true,
+	sourceType: true,
+	sourceId: true,
+	sourceLink: true,
+	sourceMetadata: true,
+	isConverted: true,
+	completedAt: true,
+	createdAt: true,
+	updatedAt: true,
+};
+
 /**
  * Task Repository - Database Access Layer
  * Clean architecture: Repository chỉ giao tiếp với database
@@ -8,26 +26,21 @@ import { TaskStatus } from '@prisma/client';
 export const taskRepository = {
 	/**
 	 * Lấy danh sách tasks với pagination và filter
-	 * @param {String} userId - ID của user
-	 * @param {Object} filters - { completed, search }
-	 * @param {Object} pagination - { page, limit, skip }
+	 * @param {String} userId
+	 * @param {Object} query - { completed, search, skip, take }
 	 */
-	findMany: async (userId, filters = {}, pagination = {}) => {
+	findMany: async (userId, query = {}) => {
 		const where = {
 			userId,
-			deletedAt: null, // Không lấy task đã xóa
+			deletedAt: null,
 		};
 
-		// Filter by completed status
-		if (filters.completed !== undefined) {
-			// completed: true → status: DONE
-			// completed: false → status: PENDING, IN_PROGRESS (loại bỏ INBOX - chỉ xem ở /tasks/inbox)
+		if (query.completed !== undefined) {
 			where.status =
-				filters.completed === 'true'
+				query.completed === true || query.completed === 'true'
 					? 'DONE'
 					: { in: ['PENDING', 'IN_PROGRESS'] };
 		} else {
-			// Default: Hiển thị tasks (PENDING, IN_PROGRESS, DONE - không bao gồm INBOX)
 			where.OR = [
 				{ status: TaskStatus.PENDING },
 				{ status: TaskStatus.IN_PROGRESS },
@@ -35,55 +48,41 @@ export const taskRepository = {
 			];
 		}
 
-		// Search by title (case-insensitive)
-		if (filters.search) {
+		if (query.search) {
 			where.title = {
-				contains: filters.search,
+				contains: query.search,
 				mode: 'insensitive',
 			};
 		}
 
 		return await prisma.task.findMany({
 			where,
-			skip: pagination.skip || 0,
-			take: pagination.limit || 10,
-			orderBy: [{ createdAt: 'desc' }],
-			select: {
-				id: true,
-				title: true,
-				description: true,
-				status: true,
-				priority: true,
-				dueDate: true,
-				completedAt: true,
-				createdAt: true,
-				updatedAt: true,
-			},
+			skip: query.skip ?? 0,
+			take: query.take ?? 10,
+			orderBy: [
+				{ scheduledAt: { sort: 'asc', nulls: 'last' } },
+				{ dueDate: { sort: 'asc', nulls: 'last' } },
+				{ createdAt: 'desc' },
+			],
+			select: taskSelect,
 		});
 	},
 
 	/**
 	 * Đếm tổng số tasks (cho pagination metadata)
 	 */
-	countTasks: async (userId, filters = {}) => {
+	countTasks: async (userId, query = {}) => {
 		const where = {
 			userId,
 			deletedAt: null,
 		};
 
-		if (filters.completed !== undefined) {
-			// completed: true → status: DONE
-			// completed: false → status: PENDING, IN_PROGRESS (loại bỏ INBOX - chỉ xem ở /tasks/inbox)
-			if (filters.completed === 'true') {
-				where.status = TaskStatus.DONE;
-			} else {
-				where.OR = [
-					{ status: TaskStatus.PENDING },
-					{ status: TaskStatus.IN_PROGRESS },
-				];
-			}
+		if (query.completed !== undefined) {
+			where.status =
+				query.completed === true || query.completed === 'true'
+					? 'DONE'
+					: { in: ['PENDING', 'IN_PROGRESS'] };
 		} else {
-			// Default: Đếm tasks (PENDING, IN_PROGRESS, DONE - không bao gồm INBOX)
 			where.OR = [
 				{ status: TaskStatus.PENDING },
 				{ status: TaskStatus.IN_PROGRESS },
@@ -91,9 +90,9 @@ export const taskRepository = {
 			];
 		}
 
-		if (filters.search) {
+		if (query.search) {
 			where.title = {
-				contains: filters.search,
+				contains: query.search,
 				mode: 'insensitive',
 			};
 		}
@@ -112,17 +111,7 @@ export const taskRepository = {
 				userId,
 				deletedAt: null,
 			},
-			select: {
-				id: true,
-				title: true,
-				description: true,
-				status: true,
-				priority: true,
-				dueDate: true,
-				completedAt: true,
-				createdAt: true,
-				updatedAt: true,
-			},
+			select: taskSelect,
 		});
 	},
 
@@ -134,22 +123,14 @@ export const taskRepository = {
 			data: {
 				userId,
 				title: taskData.title,
-				description: taskData.description || null,
-				status: taskData.status || 'PENDING',
-				priority: taskData.priority || 'MEDIUM',
-				dueDate: taskData.dueDate || null,
+				description: taskData.description ?? null,
+				status: taskData.status ?? 'PENDING',
+				priority: taskData.priority ?? 'MEDIUM',
+				dueDate: taskData.dueDate ?? null,
+				scheduledAt: taskData.scheduledAt ?? null,
+				sourceMetadata: taskData.sourceMetadata ?? null,
 			},
-			select: {
-				id: true,
-				title: true,
-				description: true,
-				status: true,
-				priority: true,
-				dueDate: true,
-				completedAt: true,
-				createdAt: true,
-				updatedAt: true,
-			},
+			select: taskSelect,
 		});
 	},
 
@@ -181,6 +162,7 @@ export const taskRepository = {
 			},
 			data: {
 				deletedAt: new Date(),
+				scheduledAt: null,
 			},
 		});
 	},

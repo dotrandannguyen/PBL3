@@ -77,30 +77,38 @@ export const useIntegrations = () => {
           ? gmailResult.value.data.data
           : [];
 
-        const mails = gmailDataArray.map((mail) => {
-          // ✅ Lookup task dùng taskId (task ID từ preview API)
-          const task = taskMapById[mail.taskId];
-          // 🔍 DEBUG: Log lookup result
-          if (mail.taskId) {
-            console.log(
-              `📧 [Gmail] Lookup mail.taskId=${mail.taskId}: task=${task ? `FOUND (isConverted=${task.isConverted})` : "NOT FOUND"}`,
-            );
-          }
-          return {
-            id: mail.taskId || `gmail-${mail.id}`,
-            source: "gmail",
-            sender: mail.from,
-            subject: mail.subject,
-            preview: mail.snippet,
-            time: new Date(mail.date),
-            link: mail.link,
-            icon: Mail,
-            color: "text-red-500",
-            status: "INBOX",
-            isConverted: task?.isConverted || false,
-            itemData: mail,
-          };
-        });
+        const mails = gmailDataArray
+          .map((mail) => {
+            // ✅ Lookup task dùng taskId (task ID từ preview API)
+            const task = taskMapById[mail.taskId];
+
+            // Task external đã ARCHIVED => xem như đã dismiss khỏi inbox
+            if (task?.status === "ARCHIVED") {
+              return null;
+            }
+
+            // 🔍 DEBUG: Log lookup result
+            if (mail.taskId) {
+              console.log(
+                `📧 [Gmail] Lookup mail.taskId=${mail.taskId}: task=${task ? `FOUND (isConverted=${task.isConverted})` : "NOT FOUND"}`,
+              );
+            }
+            return {
+              id: mail.taskId || `gmail-${mail.id}`,
+              source: "gmail",
+              sender: mail.from,
+              subject: mail.subject,
+              preview: mail.snippet,
+              time: new Date(mail.date),
+              link: mail.link,
+              icon: Mail,
+              color: "text-red-500",
+              status: task?.status || "INBOX",
+              isConverted: task?.isConverted || false,
+              itemData: mail,
+            };
+          })
+          .filter(Boolean);
         allItems = [...allItems, ...mails];
       } else if (
         gmailResult.status === "rejected" &&
@@ -115,30 +123,38 @@ export const useIntegrations = () => {
           ? githubResult.value.data.data
           : [];
 
-        const issues = githubDataArray.map((issue) => {
-          // ✅ Lookup task dùng taskId (task ID từ preview API)
-          const task = taskMapById[issue.taskId];
-          // 🔍 DEBUG: Log lookup result
-          if (issue.taskId) {
-            console.log(
-              `🐙 [GitHub] Lookup issue.taskId=${issue.taskId}: task=${task ? `FOUND (isConverted=${task.isConverted})` : "NOT FOUND"}`,
-            );
-          }
-          return {
-            id: issue.taskId || `github-${issue.id}`,
-            source: "github",
-            sender: issue.creator || issue.repository,
-            subject: issue.title,
-            preview: `Issue in ${issue.repository} - State: ${issue.state}`,
-            time: new Date(issue.createdAt),
-            link: issue.link,
-            icon: Github,
-            color: "text-gray-800 dark:text-gray-200",
-            status: "INBOX",
-            isConverted: task?.isConverted || false,
-            itemData: issue,
-          };
-        });
+        const issues = githubDataArray
+          .map((issue) => {
+            // ✅ Lookup task dùng taskId (task ID từ preview API)
+            const task = taskMapById[issue.taskId];
+
+            // Task external đã ARCHIVED => xem như đã dismiss khỏi inbox
+            if (task?.status === "ARCHIVED") {
+              return null;
+            }
+
+            // 🔍 DEBUG: Log lookup result
+            if (issue.taskId) {
+              console.log(
+                `🐙 [GitHub] Lookup issue.taskId=${issue.taskId}: task=${task ? `FOUND (isConverted=${task.isConverted})` : "NOT FOUND"}`,
+              );
+            }
+            return {
+              id: issue.taskId || `github-${issue.id}`,
+              source: "github",
+              sender: issue.creator || issue.repository,
+              subject: issue.title,
+              preview: `Issue in ${issue.repository} - State: ${issue.state}`,
+              time: new Date(issue.createdAt),
+              link: issue.link,
+              icon: Github,
+              color: "text-gray-800 dark:text-gray-200",
+              status: task?.status || "INBOX",
+              isConverted: task?.isConverted || false,
+              itemData: issue,
+            };
+          })
+          .filter(Boolean);
         allItems = [...allItems, ...issues];
       } else if (
         githubResult.status === "rejected" &&

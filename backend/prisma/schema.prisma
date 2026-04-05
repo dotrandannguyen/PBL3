@@ -95,6 +95,25 @@ enum NotifStatus {
   @@map("notif_status")
 }
 
+enum EventRepeat {
+  NONE
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+
+  @@map("event_repeat")
+}
+
+enum EventReminder {
+  NONE
+  MINUTES_5
+  MINUTES_15
+  HOUR_1
+
+  @@map("event_reminder")
+}
+
 // --- MODELS ---
 
 /// Người dùng hệ thống
@@ -116,6 +135,7 @@ model User {
   accounts      Account[] //MỚI: Các phương thức đăng nhập (Google, GitHub login)
   integrations   Integration[] //CŨ: Các kết nối để lấy dữ liệu (Gmail Sync)
   tasks          Task[]
+  events         Event[]
   tags           Tag[]
   taskActivities TaskActivity[]
   syncLogs       SyncLog[]
@@ -189,7 +209,7 @@ model Task {
   dueDate        DateTime?    @map("due_date")
   reminderAt     DateTime?    @map("reminder_at")
   completedAt    DateTime?    @map("completed_at")
-  
+  scheduledAt    DateTime?
   sourceType     TaskSource   @default(MANUAL) @map("source_type")
   sourceId       String?      @map("source_id")
   sourceLink     String?      @map("source_link")
@@ -208,7 +228,30 @@ model Task {
   @@index([userId])
   @@index([status])
   @@index([userId, dueDate])
+  @@index([userId, scheduledAt])
   @@map("tasks")
+}
+
+model Event {
+  id          String        @id @default(uuid())
+  userId      String        @map("user_id")
+
+  title       String
+  date        DateTime      @db.Date
+  time        String
+  color       String        @default("#3b82f6")
+  location    String?
+  description String?       @db.Text
+  repeat      EventRepeat   @default(NONE)
+  reminder    EventReminder @default(NONE)
+
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("events")
 }
 
 model Tag {
