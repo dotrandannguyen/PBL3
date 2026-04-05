@@ -4,6 +4,7 @@ import prisma from '../../config/database.js';
 import { integrationService } from './integration.service.js';
 import { integrationRepository } from './integration.repository.js';
 import { encryptionUtils } from '../../common/utils/encryption.js';
+import { taskRepository } from '../tasks/task.repository.js';
 
 export const webhookController = {
 	handleGithub: async (req, res) => {
@@ -61,18 +62,20 @@ export const webhookController = {
 					console.log('====================================');
 
 					// 5. Lưu thẳng vào bảng Tasks (INBOX - chờ duyệt)
-					const newTask = await prisma.task.create({
-						data: {
-							userId: integration.userId,
-							title: `[GitHub] ${issue.title}`,
-							description: issue.body || 'Không có mô tả chi tiết.',
-							status: 'INBOX',
-							priority: 'MEDIUM',
-							sourceType: 'GITHUB',
-							sourceId: String(issue.id),
-							sourceLink: issue.html_url,
-						},
-					});
+					// ✅ Dùng upsert để tránh duplicate khi re-sync
+					const taskData = {
+						title: `[GitHub] ${issue.title}`,
+						description: issue.body || 'Không có mô tả chi tiết.',
+						priority: 'MEDIUM',
+						sourceType: 'GITHUB',
+						sourceId: String(issue.id),
+						sourceLink: issue.html_url,
+					};
+
+					const newTask = await taskRepository.upsertTaskToInbox(
+						integration.userId,
+						taskData,
+					);
 
 					console.log('✅ [WEBHOOK] Đồng bộ thành Task mới thành công!');
 
@@ -176,26 +179,28 @@ export const webhookController = {
 			}
 
 			// 10. Lưu mỗi email đó vào bảng Tasks (INBOX - chờ duyệt)
+			// ✅ Dùng upsert để tránh duplicate khi re-sync
 			for (const email of filteredEmails) {
-				const newTask = await prisma.task.create({
-					data: {
-						userId: integration.userId,
-						title: `[Gmail] ${email.subject}`,
-						description: email.body || 'Không có nội dung chi tiết.',
-						status: 'INBOX',
-						priority: 'MEDIUM',
-						sourceType: 'GMAIL',
-						sourceId: email.id,
-						sourceLink: email.link,
-						sourceMetadata: {
-							subject: email.subject,
-							from: email.from,
-							to: email.to,
-							date: email.date,
-							attachments: email.attachments,
-						},
+				const taskData = {
+					title: `[Gmail] ${email.subject}`,
+					description: email.body || 'Không có nội dung chi tiết.',
+					priority: 'MEDIUM',
+					sourceType: 'GMAIL',
+					sourceId: email.id,
+					sourceLink: email.link,
+					sourceMetadata: {
+						subject: email.subject,
+						from: email.from,
+						to: email.to,
+						date: email.date,
+						attachments: email.attachments,
 					},
-				});
+				};
+
+				const newTask = await taskRepository.upsertTaskToInbox(
+					integration.userId,
+					taskData,
+				);
 
 				console.log(`✅ [GMAIL] Đã lưu email "${email.subject}" thành Task.`);
 

@@ -80,6 +80,7 @@ Table tasks {
   sourceId String
   sourceLink String
   sourceMetadata Json
+  isConverted Boolean [not null, default: false]
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [default: `now()`, not null]
   deletedAt DateTime

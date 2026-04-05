@@ -1,3 +1,4 @@
+import prisma from '../../config/database.js';
 import { taskRepository } from './task.repository.js';
 import { NotFoundException, OptionalException } from '../../common/exceptions/index.js';
 import { StatusCodes } from 'http-status-codes';
@@ -181,6 +182,8 @@ export const taskService = {
 
 	/**
 	 * Lấy danh sách INBOX tasks (chờ duyệt từ Webhook/Fetch API)
+	 * ✅ QUAN TRỌNG: Fetch TẤT CẢ tasks từ sourceType GMAIL/GITHUB (không filter status)
+	 * Để frontend có thể lookup và merge isConverted flag cho tất cả tasks (kể cả PENDING/DONE)
 	 *
 	 * @param {String} userId - ID của user
 	 * @param {Object} query - { page, limit, search }
@@ -189,14 +192,49 @@ export const taskService = {
 	getInboxTasks: async (userId, query) => {
 		// Parse pagination params
 		const page = parseInt(query.page) || 1;
-		const limit = parseInt(query.limit) || 10;
+		const limit = parseInt(query.limit) || 100; // Tăng limit để lấy đủ tasks
 		const skip = (page - 1) * limit;
 
-		// Fetch INBOX tasks từ repository
-		const [tasks, totalItems] = await Promise.all([
-			taskRepository.findInbox(userId, { skip, limit }),
-			taskRepository.countInbox(userId),
-		]);
+		// ✅ Fetch TẤT CẢ tasks từ sourceType GMAIL/GITHUB (bất kể status)
+		// Không dùng findInbox() vì nó chỉ lấy status=INBOX
+		const tasks = await prisma.task.findMany({
+			where: {
+				userId,
+				sourceType: {
+					in: ['GMAIL', 'GITHUB'],
+				},
+				deletedAt: null,
+			},
+			skip,
+			take: limit,
+			orderBy: [{ createdAt: 'desc' }],
+			select: {
+				id: true,
+				title: true,
+				description: true,
+				status: true,
+				priority: true,
+				sourceType: true,
+				sourceId: true,
+				sourceLink: true,
+				sourceMetadata: true,
+				isConverted: true,
+				dueDate: true,
+				completedAt: true,
+				createdAt: true,
+				updatedAt: true,
+			},
+		});
+
+		const totalItems = await prisma.task.count({
+			where: {
+				userId,
+				sourceType: {
+					in: ['GMAIL', 'GITHUB'],
+				},
+				deletedAt: null,
+			},
+		});
 
 		// Map database format → API format
 		const mappedTasks = tasks.map((task) => mapTaskToResponse(task));
@@ -218,6 +256,7 @@ export const taskService = {
 	/**
 	 * Xác nhận INBOX task - chuyển từ INBOX → PENDING
 	 * Người dùng bấm "Thêm vào công việc" ở Inbox sẽ gọi endpoint này
+	 * ✅ Set is_converted = true để tránh sync lại tạo duplicate
 	 *
 	 * @param {String} userId
 	 * @param {String} taskId
@@ -237,9 +276,10 @@ export const taskService = {
 			);
 		}
 
-		// Chuyển từ INBOX → PENDING
+		// Chuyển từ INBOX → PENDING + Mark as converted
 		await taskRepository.update(userId, taskId, {
 			status: 'PENDING',
+			isConverted: true,
 		});
 
 		// Fetch lại task đã update
@@ -253,17 +293,23 @@ export const taskService = {
  *
  * DB format: { status: 'DONE' | 'PENDING' | 'IN_PROGRESS' }
  * API format: { completed: true | false }
+ * Include tất cả fields cho Inbox view
  */
 function mapTaskToResponse(task) {
 	return {
 		id: task.id,
 		title: task.title,
-		completed: task.status === 'DONE', // Map status → completed
+		completed: task.status === 'DONE',
 		status: task.status,
-		dueDate: task.dueDate, // Include due date
 		description: task.description,
 		priority: task.priority,
+		dueDate: task.dueDate,
 		completedAt: task.completedAt,
+		sourceType: task.sourceType,
+		sourceId: task.sourceId,
+		sourceLink: task.sourceLink,
+		sourceMetadata: task.sourceMetadata,
+		isConverted: task.isConverted || false, // ✅ Include isConverted flag
 		createdAt: task.createdAt,
 		updatedAt: task.updatedAt,
 	};

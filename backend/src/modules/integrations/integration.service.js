@@ -73,31 +73,25 @@ export const integrationService = {
 				}),
 			);
 
-			// === BƯỚC MỚI: Lọc và lưu emails có "task" vào database ===
-			// Lọc emails có từ "task" trong subject hoặc snippet
-			const emailsWithTask = detailedMessages.filter((email) => {
-				const searchText = `${email.subject} ${email.snippet}`.toLowerCase();
-				return searchText.includes('task');
+			// === BƯỚC MỚI: Lưu tất cả emails vào database và return task IDs ===
+			// Lưu tất cả emails vào INBOX (không filter "task" nữa)
+			const tasksBySourceId = await integrationService.saveTasksToInbox(
+				userId,
+				detailedMessages,
+				'GMAIL',
+			);
+
+			// ✅ Match emails với saved tasks by sourceId (email.id)
+			const emailsWithTaskIds = detailedMessages.map((email) => {
+				const savedTask = tasksBySourceId[email.id];
+				return {
+					...email,
+					taskId: savedTask?.id || null,
+				};
 			});
 
-			if (emailsWithTask.length > 0) {
-				// Lấy full details của emails có "task"
-				const emailsWithTaskFullDetails = await Promise.all(
-					emailsWithTask.map((email) =>
-						integrationService.getFullEmailDetails(gmail, email.id),
-					),
-				);
-
-				// Lưu vào database
-				await integrationService.saveTasksToInbox(
-					userId,
-					emailsWithTaskFullDetails,
-					'GMAIL',
-				);
-			}
-
-			// Trả về metadata của tất cả 10 emails cho Frontend preview
-			return detailedMessages;
+			// Trả về: metadata của tất cả 10 emails + actual task IDs
+			return emailsWithTaskIds;
 		} catch (error) {
 			console.error('Error fetching Gmail preview:', error);
 			throw new UnauthorizedException(
@@ -144,10 +138,23 @@ export const integrationService = {
 				description: issue.body || '', // Thêm description từ GitHub API
 			}));
 
-			// === BƯỚC MỚI: Lưu tất cả issues vào database ===
-			await integrationService.saveTasksToInbox(userId, formattedIssues, 'GITHUB');
+			// === Bước Mới: Lưu tất cả issues vào database và return task IDs ===
+			const tasksBySourceId = await integrationService.saveTasksToInbox(
+				userId,
+				formattedIssues,
+				'GITHUB',
+			);
 
-			return formattedIssues;
+			// ✅ Match issues với saved tasks by sourceId (issue.id)
+			const issuesWithTaskIds = formattedIssues.map((issue) => {
+				const savedTask = tasksBySourceId[String(issue.id)];
+				return {
+					...issue,
+					taskId: savedTask?.id || null,
+				};
+			});
+
+			return issuesWithTaskIds;
 		} catch (error) {
 			console.error('Lỗi gọi GitHub API:', {
 				status: error.response?.status,
@@ -446,7 +453,8 @@ export const integrationService = {
 	 * @returns {Array} Mảng tasks đã được lưu vào database
 	 */
 	saveTasksToInbox: async (userId, tasksToSave, sourceType) => {
-		const savedTasks = [];
+		// Return map: sourceId -> savedTask (instead of array to avoid index mismatch)
+		const tasksBySourceId = {};
 
 		for (const task of tasksToSave) {
 			try {
@@ -495,16 +503,13 @@ export const integrationService = {
 					userId,
 					taskData,
 				);
-				savedTasks.push(savedTask);
-
-				console.log(
-					`✅ [SYNC] Đã lưu task "${taskData.title}" (${sourceType}) vào INBOX.`,
-				);
+				// ✅ Use sourceId as key to avoid index mismatch
+				tasksBySourceId[taskData.sourceId] = savedTask;
 			} catch (error) {
 				console.error(`❌ [SYNC] Lỗi lưu task từ ${sourceType}:`, error.message);
 			}
 		}
 
-		return savedTasks;
+		return tasksBySourceId;
 	},
 };

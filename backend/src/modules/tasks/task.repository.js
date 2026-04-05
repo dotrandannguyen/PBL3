@@ -186,16 +186,19 @@ export const taskRepository = {
 	},
 
 	/**
-	 * Lấy danh sách INBOX tasks (chờ duyệt)
+	 * Lấy danh sách INBOX tasks (chờ duyệt + đã thêm vào task)
+	 * Trả về TẤT CẢ tasks từ external sources để hiển thị status
 	 * @param {String} userId - ID của user
 	 * @param {Object} pagination - { skip, limit }
-	 * @returns {Array} INBOX tasks
+	 * @returns {Array} Tasks từ external sources (cả converted và unconverted)
 	 */
 	findInbox: async (userId, pagination = {}) => {
 		return await prisma.task.findMany({
 			where: {
 				userId,
-				status: 'INBOX',
+				sourceType: {
+					in: ['GMAIL', 'GITHUB'],
+				},
 				deletedAt: null,
 			},
 			skip: pagination.skip || 0,
@@ -211,6 +214,7 @@ export const taskRepository = {
 				sourceId: true,
 				sourceLink: true,
 				sourceMetadata: true,
+				isConverted: true,
 				dueDate: true,
 				completedAt: true,
 				createdAt: true,
@@ -220,7 +224,7 @@ export const taskRepository = {
 	},
 
 	/**
-	 * Đếm tổng số INBOX tasks
+	 * Đếm tổng số INBOX tasks (tất cả tasks từ external)
 	 * @param {String} userId - ID của user
 	 * @returns {Number} Total count
 	 */
@@ -228,7 +232,9 @@ export const taskRepository = {
 		return await prisma.task.count({
 			where: {
 				userId,
-				status: 'INBOX',
+				sourceType: {
+					in: ['GMAIL', 'GITHUB'],
+				},
 				deletedAt: null,
 			},
 		});
@@ -236,8 +242,9 @@ export const taskRepository = {
 
 	/**
 	 * UPSERT task vào INBOX
-	 * Nếu task với (userId + sourceId) tồn tại → update
+	 * Nếu task với (userId + sourceId) tồn tại → SKIP nếu đã converted, nếu còn INBOX thì update
 	 * Nếu không tồn tại → create mới
+	 * ✅ Tránh overwrite PENDING/DONE tasks khi re-sync
 	 * @param {String} userId - ID của user
 	 * @param {Object} taskData - { title, description, priority, sourceType, sourceId, sourceLink, sourceMetadata }
 	 * @returns {Object} Task object từ database
@@ -254,15 +261,21 @@ export const taskRepository = {
 			});
 
 			if (existing) {
-				// Cập nhật task hiện có
+				// ✅ Nếu task đã được convert (isConverted = true), skip update để giữ status PENDING/DONE
+				if (existing.isConverted) {
+					console.log(
+						`⏭️  [UPSERT] Task "${existing.title}" đã được convert, skip re-sync.`,
+					);
+					return existing;
+				}
+
+				// Cập nhật task hiện có (chỉ update nếu còn INBOX)
 				return await prisma.task.update({
 					where: { id: existing.id },
 					data: {
 						title: taskData.title,
 						description: taskData.description,
-						status: 'INBOX',
 						priority: taskData.priority || 'MEDIUM',
-						sourceType: taskData.sourceType,
 						sourceLink: taskData.sourceLink,
 						sourceMetadata: taskData.sourceMetadata,
 						updatedAt: new Date(),
@@ -283,6 +296,7 @@ export const taskRepository = {
 				sourceId: taskData.sourceId,
 				sourceLink: taskData.sourceLink,
 				sourceMetadata: taskData.sourceMetadata,
+				isConverted: false,
 			},
 		});
 	},

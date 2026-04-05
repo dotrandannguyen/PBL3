@@ -1,14 +1,19 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Inbox,
-  Filter,
-  Check,
-  MoreHorizontal,
   RefreshCw,
   Mail,
   Github,
+  Plus,
+  CheckCircle,
+  Eye,
 } from "lucide-react";
 import { useIntegrations } from "../../../notification-receiver/hooks/useIntegrations";
+import { ItemDetailModal } from "../../../notification-receiver/components";
+import useInboxSocket from "../../../notification-receiver/hooks/useInboxSocket";
+import useAuth from "../../../auth/hooks/useAuth";
+import { confirmInboxTask } from "../../../tasks/api/task.api";
+import { toast } from "sonner";
 
 const formatTimeAgo = (dateStr) => {
   const date = new Date(dateStr);
@@ -24,8 +29,63 @@ const formatTimeAgo = (dateStr) => {
 };
 
 const InboxPanel = ({ isOpen, onClose }) => {
+  const { user } = useAuth();
   const [filter, setFilter] = useState("all");
-  const { data, loading, refetch, connected } = useIntegrations();
+  const [selectedItem, setSelectedItem] = useState(null);
+  const { data, setData, loading, refetch, connected } = useIntegrations();
+
+  const handleStatusChange = useCallback(
+    (taskId, newStatus) => {
+      if (setData) {
+        setData((prevData) =>
+          prevData.map((item) =>
+            item.id === taskId
+              ? { ...item, status: newStatus, isConverted: true }
+              : item,
+          ),
+        );
+      }
+
+      if (selectedItem && selectedItem.id === taskId) {
+        setSelectedItem({
+          ...selectedItem,
+          status: newStatus,
+          isConverted: true,
+        });
+      }
+    },
+    [selectedItem, setData],
+  );
+
+  const handleConfirm = async (event, item) => {
+    event.stopPropagation();
+
+    try {
+      await confirmInboxTask(item.id);
+      handleStatusChange(item.id, "PENDING");
+      toast.success("✓ Đã đưa vào danh sách công việc!", {
+        position: "bottom-right",
+        duration: 3000,
+      });
+    } catch (error) {
+      toast.error("Lỗi khi chuyển thành Task");
+      console.error(error);
+    }
+  };
+
+  const handleNewInboxItem = useCallback(
+    (newItemData) => {
+      refetch();
+      toast.success(newItemData.message || "Bạn có tin nhắn mới! 📬", {
+        position: "bottom-right",
+        duration: 4000,
+        description: newItemData.task?.title || "Inbox updated with new item",
+      });
+    },
+    [refetch],
+  );
+
+  useInboxSocket(user?.id, handleNewInboxItem);
 
   const filteredData = data.filter((item) => {
     if (filter === "all") return true;
@@ -49,12 +109,12 @@ const InboxPanel = ({ isOpen, onClose }) => {
         }`}
       >
         {/* Header */}
-        <header className="flex items-center justify-between px-4 py-4 border-b border-border-subtle flex-shrink-0">
+        <header className="flex items-center justify-between px-4 py-4 border-b border-border-subtle shrink-0">
           <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
             <Inbox size={16} />
             Hộp thư
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
               onClick={refetch}
               disabled={loading}
@@ -63,23 +123,11 @@ const InboxPanel = ({ isOpen, onClose }) => {
             >
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
             </button>
-            <button
-              className="p-1 rounded hover:bg-white/5 text-text-tertiary hover:text-text-secondary transition-colors"
-              title="Bộ lọc"
-            >
-              <Filter size={14} />
-            </button>
-            <button
-              className="p-1 rounded hover:bg-white/5 text-text-tertiary hover:text-text-secondary transition-colors"
-              title="Đánh dấu đã đọc"
-            >
-              <Check size={14} />
-            </button>
           </div>
         </header>
 
         {/* Tabs */}
-        <div className="flex border-b border-border-subtle px-4 flex-shrink-0">
+        <div className="flex border-b border-border-subtle px-4 shrink-0">
           {[
             { id: "all", label: "Tất cả" },
             { id: "gmail", label: "Gmail", icon: Mail },
@@ -133,7 +181,7 @@ const InboxPanel = ({ isOpen, onClose }) => {
                   className="border-b border-border-subtle px-4 py-3 hover:bg-white/3 transition-colors cursor-pointer bg-white/5"
                 >
                   <div className="flex gap-3">
-                    <div className="flex-shrink-0 mt-0.5">
+                    <div className="shrink-0 mt-0.5">
                       <Icon size={16} className={item.color} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -141,7 +189,7 @@ const InboxPanel = ({ isOpen, onClose }) => {
                         <span className="text-sm font-medium text-text-primary truncate">
                           {item.sender}
                         </span>
-                        <span className="text-xs text-text-tertiary flex-shrink-0 whitespace-nowrap">
+                        <span className="text-xs text-text-tertiary shrink-0 whitespace-nowrap">
                           {formatTimeAgo(item.time)}
                         </span>
                       </div>
@@ -151,6 +199,33 @@ const InboxPanel = ({ isOpen, onClose }) => {
                       <div className="text-xs text-text-tertiary line-clamp-2">
                         {item.preview}
                       </div>
+
+                      <div className="mt-2 flex items-center justify-end gap-2">
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedItem(item);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-text-tertiary hover:text-text-primary hover:bg-white/10 transition-colors"
+                          title="Xem chi tiết"
+                        >
+                          <Eye size={12} /> Chi tiết
+                        </button>
+
+                        {item.isConverted ? (
+                          <div className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-green-500 bg-green-500/10">
+                            <CheckCircle size={12} /> Đã thêm
+                          </div>
+                        ) : (
+                          <button
+                            onClick={(event) => handleConfirm(event, item)}
+                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium bg-accent-primary text-white hover:bg-opacity-90 transition-colors"
+                            title="Thêm vào Task"
+                          >
+                            <Plus size={12} /> Thêm vào Task
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -159,6 +234,12 @@ const InboxPanel = ({ isOpen, onClose }) => {
           )}
         </div>
       </div>
+
+      <ItemDetailModal
+        item={selectedItem}
+        onClose={() => setSelectedItem(null)}
+        onStatusChange={handleStatusChange}
+      />
     </>
   );
 };

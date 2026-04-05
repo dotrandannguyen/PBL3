@@ -90,3 +90,43 @@ export const updateTask = (id, data) =>
  * @returns {Promise} Confirmation response
  */
 export const deleteTask = (id) => apiClient.delete(`/v1/api/tasks/${id}`);
+
+/**
+ * PATCH /v1/api/tasks/:id/confirm
+ *
+ * Xác nhận INBOX task - chuyển từ INBOX → PENDING
+ * Đưa mail/issue từ phần Notification Receiver vào danh sách To-Do List
+ *
+ * @param {string} id - Task ID
+ * @returns {Promise} Updated task object với status='PENDING'
+ */
+export const confirmInboxTask = (id) =>
+  apiClient.patch(`/v1/api/tasks/${id}/confirm`);
+
+/**
+ * GET /v1/api/tasks/inbox
+ *
+ * Lấy danh sách INBOX tasks (từ Gmail/GitHub)
+ * Bao gồm cả tasks đã convert (isConverted=true) để hiển thị status
+ *
+ * @param {Object} query - Tuỳ chọn query params:
+ *   - page: number (default: 1)
+ *   - limit: number (default: 10)
+ *
+ * @returns {Promise} Response object:
+ *   {
+ *     success: true,
+ *     data: {
+ *       message?: string,
+ *       data: [{
+ *         id, title, description, status, priority,
+ *         sourceType, sourceId, sourceLink, sourceMetadata,
+ *         isConverted: boolean,  // ✅ Để check đã thêm vào task chưa
+ *         createdAt, updatedAt
+ *       }],
+ *       pagination: { page, limit, totalItems, totalPages }
+ *     }
+ *   }
+ */
+export const getInboxTasks = (query = {}) =>
+  apiClient.get("/v1/api/tasks/inbox", { params: query });

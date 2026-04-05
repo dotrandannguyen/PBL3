@@ -1,13 +1,37 @@
-import { X, ExternalLink } from "lucide-react";
+import { X, ExternalLink, CheckCircle, Plus } from "lucide-react";
+import { confirmInboxTask } from "../../tasks/api/task.api";
+import { toast } from "sonner";
 
 /**
  * @component ItemDetailModal
  * Modal hiển thị chi tiết tin nhắn/issue
- * @param {Object} item - Dữ liệu item { subject, sender, source, preview, time, link }
+ * @param {Object} item - Dữ liệu item { subject, sender, source, preview, time, link, status, id }
  * @param {Function} onClose - Callback khi đóng modal
+ * @param {Function} onStatusChange - Callback khi confirm inbox task (taskId, newStatus)
  */
-export function ItemDetailModal({ item, onClose }) {
+export function ItemDetailModal({ item, onClose, onStatusChange }) {
   if (!item) return null;
+
+  /**
+   * 👉 Xử lý click "Thêm vào Task" trong Modal
+   * Gọi API confirm → update UI → show toast
+   */
+  const handleConfirm = async () => {
+    try {
+      await confirmInboxTask(item.id);
+      // ✅ Update UI: set isConverted = true để hiển thị "✓ Đã thêm vào task"
+      if (onStatusChange) onStatusChange(item.id, "PENDING");
+      toast.success("✓ Đã đưa vào danh sách công việc!", {
+        position: "bottom-right",
+        duration: 3000,
+      });
+      // Optionally close modal sau 1.5s để user thấy confirm animation
+      setTimeout(onClose, 1500);
+    } catch (error) {
+      toast.error("Lỗi khi chuyển thành Task");
+      console.error(error);
+    }
+  };
 
   return (
     <div
@@ -42,13 +66,32 @@ export function ItemDetailModal({ item, onClose }) {
 
         {/* Content */}
         <div className="p-8 overflow-y-auto flex-1">
-          <h2 className="text-2xl font-normal text-text-primary mb-8 flex items-center gap-3">
-            {item.subject}
-            <span className="px-2 py-0.5 text-xs bg-bg-hover text-text-tertiary rounded-md">
-              {item.source === "gmail" ? "Hộp thư đến" : "Vấn đề"}
-            </span>
-          </h2>
+          {/* Header với Subject + Action Button */}
+          <div className="flex items-start justify-between mb-8 gap-4">
+            <div className="flex-1">
+              <h2 className="text-2xl font-normal text-text-primary flex items-center gap-3">
+                {item.subject}
+                <span className="px-2 py-0.5 text-xs bg-bg-hover text-text-tertiary rounded-md">
+                  {item.source === "gmail" ? "Hộp thư đến" : "Vấn đề"}
+                </span>
+              </h2>
+            </div>
+            {/* 👉 CONFIRM BUTTON OR BADGE */}
+            {item.isConverted ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-green-500 bg-green-500/10 rounded-md whitespace-nowrap">
+                <CheckCircle size={16} />✓ Đã thêm vào task
+              </div>
+            ) : (
+              <button
+                onClick={handleConfirm}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-accent-primary text-white rounded-md hover:bg-opacity-90 transition-colors shadow-sm whitespace-nowrap"
+              >
+                <Plus size={16} /> Thêm vào Task
+              </button>
+            )}
+          </div>
 
+          {/* Sender & Timestamp */}
           <div className="flex items-start justify-between mb-8">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-accent-primary flex items-center justify-center text-white font-medium text-xl shadow-sm">

@@ -194,6 +194,7 @@ model Task {
   sourceId       String?      @map("source_id")
   sourceLink     String?      @map("source_link")
   sourceMetadata Json?        @map("source_metadata")
+  isConverted    Boolean      @default(false) @map("is_converted")
   
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at")
