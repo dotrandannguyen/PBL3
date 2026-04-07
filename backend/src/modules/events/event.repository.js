@@ -15,11 +15,32 @@ const eventSelect = {
 };
 
 export const eventRepository = {
-	findMany: async (userId) => {
+	findMany: async (userId, options = {}) => {
+		const {
+			where = {},
+			skip,
+			take,
+			orderBy = [{ date: 'asc' }, { time: 'asc' }, { createdAt: 'asc' }],
+		} = options;
+
 		return await prisma.event.findMany({
-			where: { userId },
-			orderBy: [{ date: 'asc' }, { time: 'asc' }, { createdAt: 'asc' }],
+			where: {
+				userId,
+				...where,
+			},
+			...(typeof skip === 'number' ? { skip } : {}),
+			...(typeof take === 'number' ? { take } : {}),
+			orderBy,
 			select: eventSelect,
+		});
+	},
+
+	count: async (userId, where = {}) => {
+		return await prisma.event.count({
+			where: {
+				userId,
+				...where,
+			},
 		});
 	},
 
@@ -50,6 +71,15 @@ export const eventRepository = {
 				userId,
 			},
 			data: updateData,
+		});
+	},
+
+	delete: async (userId, eventId) => {
+		return await prisma.event.deleteMany({
+			where: {
+				id: eventId,
+				userId,
+			},
 		});
 	},
 };

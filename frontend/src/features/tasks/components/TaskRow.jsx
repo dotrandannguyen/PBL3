@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Trash2, Loader, Calendar } from "lucide-react";
+import { Trash2, Loader, Calendar, Clock3 } from "lucide-react";
 import TaskCheckbox from "./TaskCheckbox";
 import { formatDate, formatDateToISO, getTodayDate } from "../utils/dateUtils";
+import { getPriorityColor } from "../utils/priorityUtils";
 
 const RenderPriorityPill = ({ priority }) => {
   if (!priority) return <span>Priority</span>;
@@ -21,36 +22,43 @@ const RenderPriorityPill = ({ priority }) => {
   );
 };
 
-
 /**
  * TaskRow Component
- * Represents a single task with editing, date picker, and priority selector
+ * Represents a single task with editing, date picker, priority selector, and schedule picker.
+ * UI: HEAD (Notion-style minimal inline row with side-peek button)
+ * Logic: Incoming (full scheduling, description editing via SlideOver)
  */
 const TaskRow = ({
   task,
   isEditing,
   editText,
+  editDescription,
   editDate,
+  editScheduledAt,
   editPriority,
   onToggle,
   onEdit,
   onEditChange,
+  onEditDescriptionChange,
   onDateChange,
+  onScheduleChange,
   onPriorityChange,
   onEditSave,
+  onEditCancel,
   onEditKeyDown,
   onDelete,
   isDeleting,
   onOpenDashboard,
+  isScheduling,
 }) => {
   const [isDateOpen, setIsDateOpen] = useState(false);
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [isPriorityOpen, setIsPriorityOpen] = useState(false);
 
-  // Refs for dropdown containers
   const datePickerRef = useRef(null);
+  const schedulePickerRef = useRef(null);
   const priorityRef = useRef(null);
 
-  // Click outside detection for date and priority dropdowns
   useEffect(() => {
     function handleClickOutside(event) {
       if (
@@ -59,17 +67,68 @@ const TaskRow = ({
       ) {
         setIsDateOpen(false);
       }
+
+      if (
+        schedulePickerRef.current &&
+        !schedulePickerRef.current.contains(event.target)
+      ) {
+        setIsScheduleOpen(false);
+      }
+
       if (priorityRef.current && !priorityRef.current.contains(event.target)) {
         setIsPriorityOpen(false);
       }
     }
 
-    if (isDateOpen || isPriorityOpen) {
+    if (isDateOpen || isScheduleOpen || isPriorityOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [isDateOpen, isPriorityOpen]);
+  }, [isDateOpen, isScheduleOpen, isPriorityOpen]);
+
+  const toDateTimeLocal = (value) => {
+    if (!value) return "";
+
+    const dateObj = new Date(value);
+    if (Number.isNaN(dateObj.getTime())) return "";
+
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    const hours = String(dateObj.getHours()).padStart(2, "0");
+    const minutes = String(dateObj.getMinutes()).padStart(2, "0");
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  const dueDateValue = formatDateToISO(
+    isEditing ? editDate : task.dueDate || task.date,
+  );
+  const dueDateLabelSource = isEditing ? editDate : task.dueDate || task.date;
+  const scheduleLabelSource = isEditing ? editScheduledAt : task.scheduledAt;
+  const scheduleEndAtValue = dueDateLabelSource
+    ? toDateTimeLocal(dueDateLabelSource)
+    : "";
+
+  const currentPriority = isEditing
+    ? editPriority || task.priority
+    : task.priority;
+
+  const formatDateTime = (value) => {
+    if (!value) return "";
+
+    const dateObj = new Date(value);
+    if (Number.isNaN(dateObj.getTime())) return "";
+
+    return dateObj.toLocaleString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
 
   return (
     <div className="group flex items-center gap-3 py-2 px-0 border-b border-border-subtle hover:bg-white/2 transition-colors relative">
@@ -94,7 +153,7 @@ const TaskRow = ({
             >
               {task.title || task.text}
             </button>
-            <button 
+            <button
                 type="button"
                 onClick={() => onOpenDashboard && onOpenDashboard(task)}
                 className="opacity-0 group-hover:opacity-100 p-1 flex items-center justify-center rounded-md hover:bg-white/10 text-text-tertiary hover:text-text-primary transition-all cursor-pointer border-none bg-transparent"
@@ -116,7 +175,6 @@ const TaskRow = ({
           title="Set priority"
         >
           {(() => {
-            const currentPriority = isEditing ? editPriority : task.priority;
             return currentPriority ? (
               <RenderPriorityPill priority={currentPriority} />
             ) : (
@@ -181,19 +239,90 @@ const TaskRow = ({
             <input
               type="date"
               className="px-2 py-1 rounded bg-white/10 border border-border-subtle text-text-primary text-xs"
-              value={formatDateToISO(task.dueDate) || getTodayDate()}
+              value={dueDateValue || getTodayDate()}
               onChange={(e) => {
                 onDateChange(e.target.value);
                 setIsDateOpen(false);
               }}
             />
+            {(task.dueDate || task.date || dueDateValue) && (
+              <button
+                type="button"
+                className="mt-2 block w-full rounded border border-border-subtle px-2 py-1 text-xs text-text-secondary hover:bg-white/5"
+                onClick={() => {
+                  onDateChange("");
+                  setIsDateOpen(false);
+                }}
+              >
+                Bỏ ngày hạn
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Schedule Picker (logic from incoming) */}
+      <div ref={schedulePickerRef} className="relative">
+        <button
+          type="button"
+          className="flex items-center gap-1 px-2 py-1 rounded text-xs text-text-tertiary hover:bg-white/5 transition-colors whitespace-nowrap border-none bg-transparent cursor-pointer"
+          onClick={() => setIsScheduleOpen(!isScheduleOpen)}
+          title="Lên lịch bắt đầu"
+          disabled={isScheduling}
+        >
+          {isScheduling ? (
+            <Loader size={12} className="animate-spin" />
+          ) : (
+            <Clock3 size={12} />
+          )}
+          <span>
+            {scheduleLabelSource
+              ? `${formatDateTime(scheduleLabelSource)}`
+              : "Lên lịch"}
+          </span>
+        </button>
+
+        {isScheduleOpen && (
+          <div className="absolute top-full right-0 mt-1 z-10 w-56 bg-bg-sidebar border border-border-subtle rounded shadow-lg p-2 space-y-2">
+            <label className="flex flex-col gap-1 text-[11px] text-text-secondary">
+              <span>Start At</span>
+              <input
+                type="datetime-local"
+                className="px-2 py-1 rounded bg-white/10 border border-border-subtle text-text-primary text-xs"
+                value={editScheduledAt || ""}
+                onChange={(e) => onScheduleChange(e.target.value)}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1 text-[11px] text-text-secondary">
+              <span>End At</span>
+              <input
+                type="datetime-local"
+                className="px-2 py-1 rounded bg-white/10 border border-border-subtle text-text-primary text-xs"
+                value={scheduleEndAtValue}
+                onChange={(e) => onDateChange(e.target.value)}
+              />
+            </label>
+
+            {(task.scheduledAt || editScheduledAt) && (
+              <button
+                type="button"
+                className="mt-2 block w-full rounded border border-border-subtle px-2 py-1 text-xs text-text-secondary hover:bg-white/5"
+                onClick={() => {
+                  onScheduleChange("");
+                  setIsScheduleOpen(false);
+                }}
+              >
+                Bỏ lịch
+              </button>
+            )}
           </div>
         )}
       </div>
 
       <button
         type="button"
-        className={`w-7 h-7 flex items-center justify-center p-0 rounded-md bg-transparent text-text-tertiary cursor-pointer opacity-0 hover:bg-red-500/10 hover:text-red-500 transition-all hover:opacity-100 ${isDeleting ? "opacity-50 cursor-not-allowed" : ""
+        className={`w-7 h-7 flex items-center justify-center p-0 rounded-md bg-transparent text-text-tertiary cursor-pointer opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-all ${isDeleting ? "opacity-50 cursor-not-allowed" : ""
           }`}
         onClick={onDelete}
         disabled={isDeleting}

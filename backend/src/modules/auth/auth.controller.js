@@ -52,7 +52,7 @@ export const authController = {
 			const { code, error } = req.query || {};
 
 			if (error) {
-				return res.redirect(`${FRONTEND_URL}/login?error=google_denied`);
+				return res.redirect(`${FRONTEND_URL}/auth/login?error=google_denied`);
 			}
 			const data = await googleService.handleCallback(code);
 			const params = new URLSearchParams({
@@ -62,8 +62,9 @@ export const authController = {
 			});
 			console.log('Google callback data:', data.accessToken);
 			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
-		} catch {
-			return res.redirect(`${FRONTEND_URL}/login?error=google_failed`);
+		} catch (error) {
+			console.error('Google Callback Error:', error);
+			return res.redirect(`${FRONTEND_URL}/auth/login?error=google_failed`);
 		}
 	},
 
@@ -76,10 +77,10 @@ export const authController = {
 			const { code, error } = req.query || {};
 
 			if (error) {
-				return res.redirect(`${FRONTEND_URL}/login?error=github_denied`);
+				return res.redirect(`${FRONTEND_URL}/auth/login?error=github_denied`);
 			}
 			if (!code) {
-				return res.redirect(`${FRONTEND_URL}/login?error=github_no_code`);
+				return res.redirect(`${FRONTEND_URL}/auth/login?error=github_no_code`);
 			}
 
 			const data = await githubService.handleCallback(code);
@@ -90,8 +91,9 @@ export const authController = {
 			});
 			console.log('GitHub callback data:', data.accessToken);
 			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
-		} catch {
-			return res.redirect(`${FRONTEND_URL}/login?error=github_failed`);
+		} catch (error) {
+            console.error('GitHub Callback Error:', error);
+			return res.redirect(`${FRONTEND_URL}/auth/login?error=github_failed`);
 		}
 	},
 };

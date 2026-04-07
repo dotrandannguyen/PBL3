@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Clock, AlignLeft, Bell, MapPin, Users, Video, ChevronDown, GripHorizontal, Calendar as CalendarIcon } from 'lucide-react';
 
 const EVENT_COLORS = [
@@ -58,18 +58,43 @@ const formatDateVN = (dateStr) => {
     return `${dayNames[date.getDay()]}, ${d} tháng ${m}`;
 };
 
+/* ── Helpers from incoming (logic) ──────────────────────────── */
+const getReminderLabel = (reminder) => {
+    if (reminder === 'MINUTES_5') return '5 phút';
+    if (reminder === 'MINUTES_15') return '15 phút';
+    if (reminder === 'HOUR_1') return '1 giờ';
+    return 'không';
+};
+
+const toHHMM = (isoValue) => {
+    if (!isoValue) return '';
+    const dateObj = new Date(isoValue);
+    if (Number.isNaN(dateObj.getTime())) return '';
+    const hours = String(dateObj.getHours()).padStart(2, '0');
+    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+};
+
+const toDateOnly = (isoValue) => {
+    if (!isoValue) return '';
+    const dateObj = new Date(isoValue);
+    if (Number.isNaN(dateObj.getTime())) return '';
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 // Parse user input like "1:30 PM", "13:30", "1:30PM", "130pm" → "HH:MM" (24h)
 const parseTimeInput = (input) => {
     if (!input) return null;
     const s = input.trim().toLowerCase().replace(/\s+/g, '');
-    // Try "HH:MM" 24-hour
     let match = s.match(/^(\d{1,2}):(\d{2})$/);
     if (match) {
         const h = parseInt(match[1]), m = parseInt(match[2]);
         if (h >= 0 && h < 24 && m >= 0 && m < 60)
             return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     }
-    // Try "H:MMam/pm" or "H:MM am/pm"
     match = s.match(/^(\d{1,2}):(\d{2})(am|pm)$/);
     if (match) {
         let h = parseInt(match[1]);
@@ -80,7 +105,6 @@ const parseTimeInput = (input) => {
         if (h >= 0 && h < 24 && m >= 0 && m < 60)
             return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     }
-    // Try "HMMam/pm" (no colon, e.g. "130pm")
     match = s.match(/^(\d{1,2})(\d{2})(am|pm)$/);
     if (match) {
         let h = parseInt(match[1]);
@@ -94,14 +118,13 @@ const parseTimeInput = (input) => {
     return null;
 };
 
-// ─── Custom TimePicker: editable input + dropdown ──────
+// ─── Custom TimePicker: editable input + dropdown (UI from HEAD) ──────
 const TimePicker = ({ value, onChange, startTimeRef }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [inputText, setInputText] = useState('');
     const containerRef = useRef(null);
     const inputRef = useRef(null);
 
-    // Sync display text when value changes externally
     useEffect(() => {
         if (!isOpen) {
             setInputText(value ? formatTimeDisplay(value) : '');
@@ -123,7 +146,6 @@ const TimePicker = ({ value, onChange, startTimeRef }) => {
         if (isOpen) {
             inputRef.current?.focus();
             inputRef.current?.select();
-            // Scroll to selected item
             setTimeout(() => {
                 const selected = containerRef.current?.querySelector('[data-selected="true"]');
                 if (selected) selected.scrollIntoView({ block: 'center' });
@@ -136,7 +158,6 @@ const TimePicker = ({ value, onChange, startTimeRef }) => {
         if (parsed) {
             onChange(parsed);
         } else {
-            // Reset to current value
             setInputText(value ? formatTimeDisplay(value) : '');
         }
     };
@@ -161,7 +182,6 @@ const TimePicker = ({ value, onChange, startTimeRef }) => {
 
     return (
         <div className="relative" ref={containerRef}>
-            {/* Closed state: chip button */}
             {!isOpen ? (
                 <button
                     type="button"
@@ -172,7 +192,6 @@ const TimePicker = ({ value, onChange, startTimeRef }) => {
                     {value ? formatTimeDisplay(value) : '—'}
                 </button>
             ) : (
-                /* Open state: editable input */
                 <input
                     ref={inputRef}
                     type="text"
@@ -185,7 +204,6 @@ const TimePicker = ({ value, onChange, startTimeRef }) => {
                 />
             )}
 
-            {/* Dropdown */}
             {isOpen && (
                 <div
                     className="absolute top-full left-0 mt-1.5 w-[220px] max-h-[200px] overflow-y-auto
@@ -221,7 +239,7 @@ const TimePicker = ({ value, onChange, startTimeRef }) => {
     );
 };
 
-// ─── Custom Select Dropdown ──────
+// ─── Custom Select Dropdown (UI from HEAD) ──────
 const CustomSelect = ({ value, onChange, options }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef(null);
@@ -281,34 +299,56 @@ const CustomSelect = ({ value, onChange, options }) => {
 };
 
 // ─── Main EventModal ───────────────────────────────────
+// UI: HEAD (CustomSelect, TimePicker, layout)
+// Logic: Incoming (endDate, isTaskLinkedEvent, calendarOwnerName, async onSave/onDelete, reminder enums)
 const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, prefillRange }) => {
     const [title, setTitle] = useState('');
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
     const [endTime, setEndTime] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [isAllDay, setIsAllDay] = useState(false);
     const [description, setDescription] = useState('');
     const [location, setLocation] = useState('');
     const [color, setColor] = useState(EVENT_COLORS[0].value);
     const [type, setType] = useState('event');
-    const [reminder, setReminder] = useState('30_min');
+    const [reminder, setReminder] = useState('NONE');
     const [showConfirmDelete, setShowConfirmDelete] = useState(false);
     const [showProfilePopup, setShowProfilePopup] = useState(false);
     const [status, setStatus] = useState('busy');
     const [visibility, setVisibility] = useState('default');
+
+    // Logic from incoming: detect task-linked events
+    const isTaskLinkedEvent = Boolean(event?.endAt);
+
+    // Logic from incoming: resolve calendar owner name
+    const calendarOwnerName = useMemo(() => {
+        if (event?.calendarOwner && typeof event.calendarOwner === 'string') {
+            return event.calendarOwner;
+        }
+        try {
+            const storedUser = localStorage.getItem('user');
+            if (!storedUser) return 'Lịch cá nhân';
+            const parsedUser = JSON.parse(storedUser);
+            return parsedUser?.fullName || parsedUser?.name || parsedUser?.email || 'Lịch cá nhân';
+        } catch {
+            return 'Lịch cá nhân';
+        }
+    }, [event]);
 
     useEffect(() => {
         if (event) {
             setTitle(event.title || '');
             setDate(event.date || '');
             setTime(event.time || '');
-            setEndTime(event.endTime || '');
-            setIsAllDay(event.isAllDay || false);
+            setEndTime(event.endTime || toHHMM(event.endAt));
+            setEndDate(event.endDate || toDateOnly(event.endAt) || event.date || '');
+            setIsAllDay(isTaskLinkedEvent ? false : (event.isAllDay || false));
             setDescription(event.description || '');
             setLocation(event.location || '');
             setColor(event.color || EVENT_COLORS[0].value);
             setType(event.type || 'event');
-            setReminder(event.reminder || '30_min');
+            setReminder(event.reminder || 'NONE');
             setShowConfirmDelete(false);
         } else if (selectedDate) {
             setTitle('');
@@ -319,6 +359,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
             if (prefillRange) {
                 setTime(prefillRange.startTime || '');
                 setEndTime(prefillRange.endTime || '');
+                setEndDate(`${y}-${m}-${d}`);
                 setIsAllDay(false);
             } else {
                 const now = new Date();
@@ -328,32 +369,42 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                 const defaultEnd = `${String(endH).padStart(2, '0')}:00`;
                 setTime(defaultStart);
                 setEndTime(defaultEnd);
+                setEndDate(`${y}-${m}-${d}`);
                 setIsAllDay(false);
             }
             setDescription('');
             setLocation('');
             setColor(EVENT_COLORS[0].value);
             setType('event');
-            setReminder('30_min');
+            setReminder('NONE');
             setShowConfirmDelete(false);
         }
-    }, [event, selectedDate, isOpen, prefillRange]);
+    }, [event, selectedDate, isOpen, prefillRange, isTaskLinkedEvent]);
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e) => {
+    // Logic from incoming: async submit with endDate, endAt
+    const handleSubmit = async (e) => {
         e.preventDefault();
         if (!title.trim() || !date) return;
-        if (!isAllDay && time && endTime && endTime <= time) {
+
+        const resolvedEndDate = endDate || date;
+        const startAt = !isAllDay && time ? new Date(`${date}T${time}:00`) : null;
+        const endAt = !isAllDay && endTime ? new Date(`${resolvedEndDate}T${endTime}:00`) : null;
+
+        if (startAt && endAt && !Number.isNaN(startAt.getTime()) && !Number.isNaN(endAt.getTime()) && endAt <= startAt) {
             alert('Giờ kết thúc phải lớn hơn giờ bắt đầu!');
             return;
         }
-        onSave({
+
+        const didSave = await onSave({
             id: event?.id || Date.now(),
             title: title.trim(),
             date,
             time: isAllDay ? null : (time || null),
             endTime: isAllDay ? null : (endTime || null),
+            endDate: isAllDay ? null : resolvedEndDate,
+            endAt: (isAllDay || !endAt || Number.isNaN(endAt.getTime())) ? null : endAt.toISOString(),
             isAllDay,
             description: description.trim(),
             location: location.trim(),
@@ -361,7 +412,10 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
             type,
             reminder,
         });
-        onClose();
+
+        if (didSave !== false) {
+            onClose();
+        }
     };
 
     const handleStartTimeChange = (newTime) => {
@@ -374,6 +428,19 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
             }
         }
     };
+
+    // Logic from incoming: separate start/end date handlers
+    const handleStartDateChange = (newDate) => {
+        setDate(newDate);
+        setEndDate((prev) => prev || newDate);
+    };
+
+    const handleEndDateChange = (newDate) => {
+        setEndDate(newDate);
+    };
+
+    const resolvedEndDateForUi = endDate || date;
+    const isSameDayRange = Boolean(date) && Boolean(resolvedEndDateForUi) && date === resolvedEndDateForUi;
 
     const isEditing = !!event;
 
@@ -438,42 +505,80 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                         <div className="flex items-start gap-4">
                             <Clock size={18} className="text-text-tertiary mt-2 shrink-0" />
                             <div className="flex-1 flex flex-col gap-2.5">
-                                {/* Row 1: Date + Times */}
+                                {/* Row 1: Start Date + Start Time */}
                                 <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="w-[76px] text-[13px] font-medium text-text-secondary">
+                                        Bắt đầu:
+                                    </span>
                                     <div className="relative">
                                         <button
                                             type="button"
                                             className="px-3 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer
                                                        bg-bg-hover text-text-primary hover:bg-bg-active transition-colors border-none"
-                                            onClick={() => document.getElementById('gc-date-input').showPicker?.()}
+                                            onClick={() => document.getElementById('gc-start-date-input').showPicker?.()}
                                         >
                                             {formatDateVN(date) || 'Chọn ngày'}
                                         </button>
                                         <input
-                                            id="gc-date-input"
+                                            id="gc-start-date-input"
                                             type="date"
                                             value={date}
-                                            onChange={(e) => setDate(e.target.value)}
+                                            onChange={(e) => handleStartDateChange(e.target.value)}
                                             className="absolute inset-0 opacity-0 cursor-pointer"
                                             tabIndex={-1}
                                         />
                                     </div>
 
                                     {!isAllDay && (
-                                        <>
-                                            <TimePicker value={time} onChange={handleStartTimeChange} />
-                                            <span className="text-text-tertiary text-xs">–</span>
-                                            <TimePicker value={endTime} onChange={setEndTime} startTimeRef={time} />
-                                        </>
+                                        <TimePicker value={time} onChange={handleStartTimeChange} />
                                     )}
                                 </div>
 
-                                {/* Row 2: All-day + Timezone */}
+                                {/* Row 2: End Date + End Time (logic from incoming) */}
+                                {!isAllDay && (
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="w-[76px] text-[13px] font-medium text-text-secondary">
+                                            Kết thúc:
+                                        </span>
+                                        <div className="relative">
+                                            <button
+                                                type="button"
+                                                className="px-3 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer
+                                                           bg-bg-hover text-text-primary hover:bg-bg-active transition-colors border-none"
+                                                onClick={() => document.getElementById('gc-end-date-input').showPicker?.()}
+                                            >
+                                                {formatDateVN(resolvedEndDateForUi) || 'Chọn ngày'}
+                                            </button>
+                                            <input
+                                                id="gc-end-date-input"
+                                                type="date"
+                                                value={resolvedEndDateForUi}
+                                                onChange={(e) => handleEndDateChange(e.target.value)}
+                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                tabIndex={-1}
+                                            />
+                                        </div>
+
+                                        <TimePicker
+                                            value={endTime}
+                                            onChange={setEndTime}
+                                            startTimeRef={isSameDayRange ? time : null}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Row 3: All-day + Timezone */}
                                 <div className="flex items-center gap-4">
                                     <label className="flex items-center gap-2 cursor-pointer select-none">
                                         <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors
-                                            ${isAllDay ? 'bg-text-primary border-text-primary' : 'bg-transparent border-text-tertiary'}`}
-                                            onClick={(e) => { e.preventDefault(); setIsAllDay(!isAllDay); }}
+                                            ${isAllDay ? 'bg-text-primary border-text-primary' : 'bg-transparent border-text-tertiary'}
+                                            ${isTaskLinkedEvent ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                if (!isTaskLinkedEvent) {
+                                                    setIsAllDay(!isAllDay);
+                                                }
+                                            }}
                                         >
                                             {isAllDay && (
                                                 <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
@@ -485,6 +590,12 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                     </label>
                                     <span className="text-[13px] text-accent-primary cursor-pointer hover:underline">Múi giờ</span>
                                 </div>
+
+                                {isTaskLinkedEvent && (
+                                    <p className="text-[11px] text-text-tertiary">
+                                        Sự kiện này tạo từ task, nên không dùng chế độ Cả ngày.
+                                    </p>
+                                )}
                             </div>
                         </div>
 
@@ -526,7 +637,6 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                     value={description}
                                     onChange={(e) => {
                                         setDescription(e.target.value);
-                                        // Auto-grow
                                         e.target.style.height = 'auto';
                                         e.target.style.height = e.target.scrollHeight + 'px';
                                     }}
@@ -542,13 +652,12 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                             <div className="flex items-start gap-4">
                                 <CalendarIcon size={18} className="text-text-tertiary shrink-0 mt-0.5" />
                                 <div className="flex-1 flex flex-col gap-1.5">
-                                    {/* Collapsed: clickable summary */}
                                     <button
                                         type="button"
                                         onClick={() => setShowProfilePopup(!showProfilePopup)}
                                         className="flex items-center gap-2 cursor-pointer bg-transparent border-none p-0 text-left w-full group"
                                     >
-                                        <span className="text-[13px] text-text-primary font-medium">Thành Luân Nguyễn</span>
+                                        <span className="text-[13px] text-text-primary font-medium">{calendarOwnerName}</span>
                                         <span
                                             className="w-2.5 h-2.5 rounded-full shrink-0"
                                             style={{ backgroundColor: color }}
@@ -558,11 +667,11 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
 
                                     {!showProfilePopup && (
                                         <span className="text-[11px] text-text-tertiary leading-tight">
-                                            {status === 'busy' ? 'Bận' : 'Rảnh'} • {visibility === 'default' ? 'Chế độ hiển thị mặc định' : 'Riêng tư'} • Thông báo {reminder === '10_min' ? '10 phút' : reminder === '30_min' ? '30 phút' : reminder === '1_hour' ? '1 giờ' : reminder === '1_day' ? '1 ngày' : 'không'} trước
+                                            {status === 'busy' ? 'Bận' : 'Rảnh'} • {visibility === 'default' ? 'Chế độ hiển thị mặc định' : 'Riêng tư'} • Thông báo {getReminderLabel(reminder)} trước
                                         </span>
                                     )}
 
-                                    {/* Expanded popup */}
+                                    {/* Expanded popup (UI from HEAD with CustomSelect) */}
                                     {showProfilePopup && (
                                         <div className="flex flex-col gap-3 mt-2 p-3 bg-bg-hover/50 rounded-xl border border-border-subtle">
                                             {/* Color picker */}
@@ -608,18 +717,17 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                                 />
                                             </div>
 
-                                            {/* Notification */}
+                                            {/* Notification (with incoming enum values) */}
                                             <div className="flex items-center gap-3">
                                                 <Bell size={16} className="text-text-tertiary shrink-0" />
                                                 <CustomSelect
                                                     value={reminder}
                                                     onChange={setReminder}
                                                     options={[
-                                                        { value: "none", label: "Không nhắc" },
-                                                        { value: "10_min", label: "10 phút trước" },
-                                                        { value: "30_min", label: "30 phút trước" },
-                                                        { value: "1_hour", label: "1 giờ trước" },
-                                                        { value: "1_day", label: "1 ngày trước" }
+                                                        { value: "NONE", label: "Không nhắc" },
+                                                        { value: "MINUTES_5", label: "5 phút trước" },
+                                                        { value: "MINUTES_15", label: "15 phút trước" },
+                                                        { value: "HOUR_1", label: "1 giờ trước" }
                                                     ]}
                                                 />
                                             </div>
@@ -668,7 +776,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                 </form>
             </div>
 
-            {/* ─── Delete Confirmation ─── */}
+            {/* ─── Delete Confirmation (logic from incoming: async onDelete) ─── */}
             {showConfirmDelete && (
                 <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center">
                     <div className="bg-bg-main rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-border-subtle">
@@ -685,10 +793,12 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                             </button>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    onDelete(event.id);
+                                onClick={async () => {
+                                    const didDelete = await onDelete(event.id);
                                     setShowConfirmDelete(false);
-                                    onClose();
+                                    if (didDelete !== false) {
+                                        onClose();
+                                    }
                                 }}
                                 className="px-4 py-1.5 text-[13px] font-medium rounded-lg text-white bg-red-600
                                            hover:bg-red-700 transition-colors border-none cursor-pointer"

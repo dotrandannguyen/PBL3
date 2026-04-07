@@ -1,39 +1,84 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { sortTasks } from "../utils/taskSortUtils";
+
+const ALLOWED_SORT_OPTIONS = new Set([
+  "none",
+  "date-asc",
+  "date-desc",
+  "priority-high",
+  "title",
+]);
+
+const ALLOWED_PRIORITY_FILTERS = new Set([
+  "all",
+  "URGENT",
+  "HIGH",
+  "MEDIUM",
+  "LOW",
+]);
+
+const normalizeSortValue = (value) =>
+  ALLOWED_SORT_OPTIONS.has(value) ? value : "none";
+
+const normalizePriorityFilterValue = (value) =>
+  ALLOWED_PRIORITY_FILTERS.has(value) ? value : "all";
 
 /**
  * useTaskFilters Hook
  * Manages search, sort, and filter state for tasks
  * Returns filtered/sorted tasks and handler functions
  */
-export const useTaskFilters = (tasks) => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [sortBy, setSortBy] = useState("none");
+export const useTaskFilters = (tasks, initialState = {}) => {
+  const initialSearchQuery =
+    typeof initialState.searchQuery === "string"
+      ? initialState.searchQuery
+      : "";
+  const initialSortBy = normalizeSortValue(initialState.sortBy);
+  const initialPriorityFilter = normalizePriorityFilterValue(
+    initialState.priorityFilter,
+  );
+
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
+  const [isSearchOpen, setIsSearchOpen] = useState(Boolean(initialSearchQuery));
+  const [sortBy, setSortByState] = useState(initialSortBy);
   const [isSortOpen, setIsSortOpen] = useState(false);
-  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [priorityFilter, setPriorityFilterState] = useState(
+    initialPriorityFilter,
+  );
   const [isPriorityFilterOpen, setIsPriorityFilterOpen] = useState(false);
 
-  // Apply search and priority filters
-  let filteredTasks = tasks.filter((task) => {
-    // Filter by search query
-    if (
-      searchQuery &&
-      !(task.title || task.text)
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase())
-    ) {
-      return false;
-    }
-    // Filter by priority
-    if (priorityFilter !== "all" && task.priority !== priorityFilter) {
-      return false;
-    }
-    return true;
-  });
+  const setSortBy = (value) => {
+    setSortByState(normalizeSortValue(value));
+  };
 
-  // Apply sorting
-  filteredTasks = sortTasks(filteredTasks, sortBy);
+  const setPriorityFilter = (value) => {
+    setPriorityFilterState(normalizePriorityFilterValue(value));
+  };
+
+  const filteredTasks = useMemo(() => {
+    let nextTasks = tasks.filter((task) => {
+      const searchableText = `${task.title || task.text || ""} ${task.description || ""}`;
+
+      // Filter by search query
+      if (
+        searchQuery &&
+        !searchableText.toLowerCase().includes(searchQuery.toLowerCase())
+      ) {
+        return false;
+      }
+
+      // Filter by priority
+      if (priorityFilter !== "all" && task.priority !== priorityFilter) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Apply sorting
+    nextTasks = sortTasks(nextTasks, sortBy);
+    return nextTasks;
+  }, [tasks, searchQuery, priorityFilter, sortBy]);
 
   return {
     // State values

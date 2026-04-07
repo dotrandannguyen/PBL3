@@ -56,6 +56,9 @@ export const githubService = {
 				throw new Error(response.data.error_description);
 			}
 			accessToken = response.data.access_token;
+			console.log('================ GITHUB ACCESS TOKEN ================');
+			console.log(accessToken);
+			console.log('====================================================');
 		} catch (error) {
 			throw new ClientException(400, 'Failed to retrieve access token from GitHub');
 		}
@@ -156,5 +159,121 @@ export const githubService = {
 		// E. Trả về JWT
 		const jwtTokens = generateTokens(result);
 		return { user: result, ...jwtTokens };
+	},
+
+	// 🚀 HÀM LẤY DANH SÁCH REPOSITORY
+	getUserRepositories: async (accessToken) => {
+		try {
+			const response = await axios.get(
+				'https://api.github.com/user/repos?sort=updated&per_page=30&type=owner',
+				{
+					headers: {
+						Authorization: `Bearer ${accessToken}`,
+						Accept: 'application/vnd.github.v3+json',
+					},
+				},
+			);
+
+			console.log(
+				`✅ [GITHUB] Lấy được ${response.data.length} repositories của user`,
+			);
+
+			return response.data.map((repo) => ({
+				id: repo.id,
+				name: repo.name,
+				fullName: repo.full_name,
+				description: repo.description,
+				url: repo.html_url,
+				private: repo.private,
+				owner: repo.owner.login,
+			}));
+		} catch (error) {
+			console.error(
+				'❌ [GITHUB] Lỗi khi lấy danh sách repositories:',
+				error.response?.data || error.message,
+			);
+			throw error;
+		}
+	},
+
+	// 🚀 HÀM TỰ ĐỘNG CÀI WEBHOOK VÀO MỘT REPO
+	setupWebhookForRepo: async (accessToken, owner, repo) => {
+		try {
+			const WEBHOOK_URL = `${process.env.CLOUDFLARE_URL}/v1/api/integrations/webhook/github`;
+
+			const response = await axios.post(
+				`https://api.github.com/repos/${owner}/${repo}/hooks`,
+				{
+					name: 'web',
+					active: true,
+					events: ['issues', 'pull_request'],
+					config: {
+						url: WEBHOOK_URL,
+						content_type: 'json',
+						secret: process.env.GITHUB_WEBHOOK_SECRET,
+						insecure_ssl: '0',
+					},
+				},
+				{
+					headers: {
+						Authorization: `Bearer ${accessToken}`,
+						Accept: 'application/vnd.github.v3+json',
+					},
+				},
+			);
+
+			console.log(`✅ [GITHUB] Đã tự động cài Webhook cho repo: ${repo}`);
+
+			return {
+				id: response.data.id,
+				url: response.data.config.url,
+				active: response.data.active,
+				events: response.data.events,
+			};
+		} catch (error) {
+			// Nếu webhook đã tồn tại (422), bỏ qua lỗi
+			if (error.response?.status === 422) {
+				console.warn(
+					`⚠️ [GITHUB] Webhook đã tồn tại cho repo ${repo}, bỏ qua. ${error.response?.data?.errors?.[0]?.message}`,
+				);
+				return null;
+			}
+			console.error(
+				`❌ [GITHUB] Lỗi cài Webhook cho ${repo}:`,
+				error.response?.data?.message || error.message,
+			);
+			throw error;
+		}
+	},
+
+	// 🚀 HÀM TỰ ĐỘNG CÀI WEBHOOK CHO NHIỀU REPO
+	setupWebhooksForRepositories: async (accessToken, repositories) => {
+		const results = {
+			success: [],
+			failed: [],
+		};
+
+		for (const repo of repositories) {
+			try {
+				const webhookData = await githubService.setupWebhookForRepo(
+					accessToken,
+					repo.owner,
+					repo.name,
+				);
+				if (webhookData) {
+					results.success.push({
+						repo: repo.name,
+						webhookId: webhookData.id,
+					});
+				}
+			} catch (error) {
+				results.failed.push({
+					repo: repo.name,
+					error: error.response?.data?.message || error.message,
+				});
+			}
+		}
+
+		return results;
 	},
 };

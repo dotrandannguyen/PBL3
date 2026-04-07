@@ -1,10 +1,10 @@
-import { Mail, Github } from "lucide-react";
+import { Mail, Github, CheckCircle } from "lucide-react";
 import { formatTimeAgo } from "../utils/formatTimeAgo";
 
 /**
  * @component RecentItemCard
  * Card hiển thị tin nhắn/issue mới nhất theo kiểu Notion
- * @param {Object} item - Dữ liệu tin nhắn { id, source, sender, subject, preview, time, link, ... }
+ * @param {Object} item - Dữ liệu tin nhắn { id, source, sender, subject, preview, time, link, isConverted, ... }
  * @param {Function} onClick - Callback khi click vào card
  */
 export function RecentItemCard({ item, onClick }) {
@@ -16,6 +16,14 @@ export function RecentItemCard({ item, onClick }) {
       onClick={() => onClick(item)}
       className="w-56 h-40 flex-shrink-0 flex flex-col bg-bg-sidebar border border-border-subtle rounded-xl overflow-hidden cursor-pointer hover:border-text-tertiary hover:shadow-lg transition-all duration-200 group relative"
     >
+      {/* ✅ Badge nếu đã convert */}
+      {item.isConverted && (
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 text-xs font-semibold text-green-500 bg-green-500/20 rounded-md">
+          <CheckCircle size={12} />
+          Đã thêm
+        </div>
+      )}
+
       {/* Nửa trên: Cover / Visual */}
       <div
         className={`h-16 flex items-center px-4 relative overflow-hidden ${

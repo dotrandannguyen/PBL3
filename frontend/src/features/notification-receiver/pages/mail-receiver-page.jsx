@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { useIntegrations } from "../hooks/useIntegrations";
+import useInboxSocket from "../hooks/useInboxSocket";
 import useAuth from "../../auth/hooks/useAuth";
 import { getGoogleAuthUrl, getGithubAuthUrl } from "../../auth/api/auth.api";
+import { toast } from "sonner";
 import {
   InboxHeader,
   ConnectionAlert,
@@ -12,9 +14,53 @@ import {
 
 export function MailReceiverPage() {
   const { user } = useAuth();
-  const { data, loading, error, connected, refetch } = useIntegrations();
+  const { data, setData, loading, error, connected, refetch } =
+    useIntegrations();
   const [filter, setFilter] = useState("all");
   const [selectedItem, setSelectedItem] = useState(null);
+
+  /**
+   * 👉 Xử lý khi click "Thêm vào Task" thành công
+   * Cập nhật UI ngay lập tức:
+   * 1. Update danh sách data ở ngoài (set isConverted = true)
+   * 2. Update data trong Modal (nếu modal đang mở) để modal sync
+   */
+  const handleStatusChange = (taskId, newStatus) => {
+    // 1. Cập nhật list data ở main page
+    if (setData) {
+      setData((prevData) =>
+        prevData.map((item) =>
+          item.id === taskId
+            ? { ...item, status: newStatus, isConverted: true }
+            : item,
+        ),
+      );
+    }
+
+    // 2. Cập nhật luôn data trong Modal (nếu modal đang mở)
+    if (selectedItem && selectedItem.id === taskId) {
+      setSelectedItem({
+        ...selectedItem,
+        status: newStatus,
+        isConverted: true,
+      });
+    }
+  };
+
+  // ✅ Setup real-time socket listener: Khi có inbox item mới -> refetch tự động
+  useInboxSocket(user?.id, (newItemData) => {
+    console.log("📥 Có tin nhắn mới! Đang refetch inbox...", newItemData);
+
+    // Gọi refetch để cập nhật danh sách inbox
+    refetch();
+
+    // Hiển thị toast notification (non-intrusive)
+    toast.success(newItemData.message || "Bạn có tin nhắn mới! 📬", {
+      position: "bottom-right",
+      duration: 4000,
+      description: newItemData.task?.title || "Inbox updated with new item",
+    });
+  });
 
   // Lấy 5 tin nhắn mới nhất để hiển thị trên phần "Truy cập nhanh"
   const recentItems = data.slice(0, 5);
@@ -68,6 +114,7 @@ export function MailReceiverPage() {
           isLoading={loading}
           error={error}
           onItemClick={setSelectedItem}
+          onStatusChange={handleStatusChange}
         />
       </div>
 
@@ -75,6 +122,7 @@ export function MailReceiverPage() {
       <ItemDetailModal
         item={selectedItem}
         onClose={() => setSelectedItem(null)}
+        onStatusChange={handleStatusChange}
       />
     </div>
   );

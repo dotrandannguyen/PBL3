@@ -29,6 +29,7 @@ import { useTasksContext } from "../context/TasksContext";
  *   removeTask,   // Xóa task
  *   toggleTask,   // Toggle completed status
  *   updateTaskData, // Update task data
+ *   scheduleTaskData, // Schedule task start time
  *   setFilter,    // Đổi active filter
  * } = useTasks();
  */
@@ -49,6 +50,7 @@ export function useTasks() {
     removeTask: context.removeTask,
     toggleTask: context.toggleTask,
     updateTaskData: context.updateTaskData,
+    scheduleTaskData: context.scheduleTaskData,
     setFilter: context.setFilter,
   };
 }

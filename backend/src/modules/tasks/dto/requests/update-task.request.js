@@ -2,11 +2,11 @@
  * Update Task Request DTO
  *
  * PATCH /tasks/:id
- * Body: { title?: string, completed?: boolean, priority?: 'LOW'|'MEDIUM'|'HIGH', dueDate?: date, description?: string }
+ * Body: { title?: string, description?: string, priority?: 'LOW'|'MEDIUM'|'HIGH'|'URGENT', dueDate?: date, status?: TaskStatus }
  *
  * Cho phép update:
  * - title: sửa tiêu đề
- * - completed: toggle trạng thái (check/uncheck)
+ * - status: cập nhật trạng thái task
  * - priority: thay đổi độ ưu tiên
  * - dueDate: thay đổi ngày hết hạn
  * - description: thay đổi mô tả
@@ -21,11 +21,12 @@ export const updateTaskSchema = {
 				.min(1, 'Title không được để trống')
 				.max(255, 'Title không được vượt quá 255 ký tự')
 				.optional(),
-			completed: z.boolean().optional(),
-			priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+			description: z.string().max(1000).optional().nullable(),
+			priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
 			dueDate: z.string().date().or(z.string().datetime()).optional().nullable(),
-			description: z.string().max(1000).optional(),
+			status: z.enum(['PENDING', 'IN_PROGRESS', 'DONE', 'ARCHIVED']).optional(),
 		})
+		.strict()
 		.refine((data) => Object.values(data).some((v) => v !== undefined), {
 			message: 'Phải cung cấp ít nhất một trường để update',
 		}),

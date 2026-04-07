@@ -18,6 +18,7 @@ export function InboxTabsContainer({
   isLoading,
   error,
   onItemClick,
+  onStatusChange,
 }) {
   // Lọc dữ liệu theo tab
   const filteredData = data.filter((item) => {
@@ -93,6 +94,7 @@ export function InboxTabsContainer({
                 key={`list-${item.id}`}
                 item={item}
                 onClick={onItemClick}
+                onStatusChange={onStatusChange}
               />
             ))}
           </div>
