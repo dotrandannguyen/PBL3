@@ -63,10 +63,7 @@ const resolveTone = (notification = {}) => {
   const normalizedPhase = `${notification.phase || ""}`.toUpperCase();
   const normalizedMessage = `${notification.content || ""}`.toLowerCase();
 
-  if (
-    normalizedPhase === "OVERDUE" ||
-    normalizedMessage.includes("quá hạn")
-  ) {
+  if (normalizedPhase === "OVERDUE" || normalizedMessage.includes("quá hạn")) {
     return {
       label: "Khẩn",
       duration: 12000,
@@ -186,13 +183,19 @@ const DeadlineToastBridge = () => {
                 >
                   {tone.label}
                 </span>
-                <span className="text-[11px] text-text-tertiary">{createdTime}</span>
+                <span className="text-[11px] text-text-tertiary">
+                  {createdTime}
+                </span>
               </div>
               <tone.Icon size={16} className={tone.iconClass} />
             </div>
 
-            <p className="line-clamp-1 text-sm font-semibold text-text-primary">{title}</p>
-            <p className="mt-1 line-clamp-2 text-xs text-text-secondary">{message}</p>
+            <p className="line-clamp-1 text-sm font-semibold text-text-primary">
+              {title}
+            </p>
+            <p className="mt-1 line-clamp-2 text-xs text-text-secondary">
+              {message}
+            </p>
 
             <div className="mt-3 flex items-center justify-between gap-2">
               <span className="text-[11px] text-text-tertiary">

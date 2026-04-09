@@ -55,10 +55,7 @@ export const useNotificationCenter = (options = {}) => {
           ? fetchNotifications({ page: 1, limit: pageSize })
           : fetchUnreadNotifications(1, pageSize);
 
-      await Promise.all([
-        syncListPromise,
-        fetchUnreadCount({ silent: true }),
-      ]);
+      await Promise.all([syncListPromise, fetchUnreadCount({ silent: true })]);
     } finally {
       isSyncingRef.current = false;
     }

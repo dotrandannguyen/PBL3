@@ -73,7 +73,9 @@ const formatDeadlineHint = (dueDate) => {
     return "Hạn chót không hợp lệ";
   }
 
-  const diffMinutes = Math.round((parsedDate.getTime() - Date.now()) / (60 * 1000));
+  const diffMinutes = Math.round(
+    (parsedDate.getTime() - Date.now()) / (60 * 1000),
+  );
 
   if (diffMinutes < 0) {
     const overdueMinutes = Math.abs(diffMinutes);
@@ -101,10 +103,7 @@ const resolveNotificationTone = (notification = {}) => {
   const normalizedPhase = `${notification.phase || ""}`.toUpperCase();
   const normalizedContent = `${notification.content || ""}`.toLowerCase();
 
-  if (
-    normalizedPhase === "OVERDUE" ||
-    normalizedContent.includes("quá hạn")
-  ) {
+  if (normalizedPhase === "OVERDUE" || normalizedContent.includes("quá hạn")) {
     return {
       label: "Khẩn",
       icon: AlertTriangle,
@@ -113,10 +112,7 @@ const resolveNotificationTone = (notification = {}) => {
     };
   }
 
-  if (
-    normalizedPhase === "ON_TIME" ||
-    normalizedContent.includes("bắt đầu")
-  ) {
+  if (normalizedPhase === "ON_TIME" || normalizedContent.includes("bắt đầu")) {
     return {
       label: "Cảnh báo",
       icon: BellRing,
@@ -176,7 +172,9 @@ const InboxPanel = ({ isOpen, onClose }) => {
   const notificationItems = useMemo(() => {
     const sorted = [...notifications].sort((left, right) => {
       const leftTime = new Date(left.createdAt || left.sentAt || 0).getTime();
-      const rightTime = new Date(right.createdAt || right.sentAt || 0).getTime();
+      const rightTime = new Date(
+        right.createdAt || right.sentAt || 0,
+      ).getTime();
       return rightTime - leftTime;
     });
 
@@ -282,7 +280,10 @@ const InboxPanel = ({ isOpen, onClose }) => {
       }
 
       const keyword =
-        notification.task?.title || notification.title || notification.content || "";
+        notification.task?.title ||
+        notification.title ||
+        notification.content ||
+        "";
       const query = new URLSearchParams();
 
       if (keyword) {
@@ -457,9 +458,12 @@ const InboxPanel = ({ isOpen, onClose }) => {
                 notificationItems.map((notification) => {
                   const tone = resolveNotificationTone(notification);
                   const ToneIcon = tone.icon;
-                  const createdAt = notification.createdAt || notification.sentAt;
+                  const createdAt =
+                    notification.createdAt || notification.sentAt;
                   const title =
-                    notification.task?.title || notification.title || "Thông báo";
+                    notification.task?.title ||
+                    notification.title ||
+                    "Thông báo";
                   const content = notification.content || "Không có nội dung";
                   const deadlineHint = formatDeadlineHint(
                     notification.dueDate || notification.task?.dueDate,
