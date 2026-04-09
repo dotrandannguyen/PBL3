@@ -10,6 +10,7 @@
  * - priority: thay đổi độ ưu tiên
  * - dueDate: thay đổi ngày hết hạn
  * - description: thay đổi mô tả
+ * - reminderAt: thay đổi thời gian nhắc nhở
  */
 import { z } from 'zod';
 
@@ -25,6 +26,7 @@ export const updateTaskSchema = {
 			priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
 			dueDate: z.string().date().or(z.string().datetime()).optional().nullable(),
 			status: z.enum(['PENDING', 'IN_PROGRESS', 'DONE', 'ARCHIVED']).optional(),
+			reminderAt: z.string().datetime().optional().nullable(),
 		})
 		.strict()
 		.refine((data) => Object.values(data).some((v) => v !== undefined), {

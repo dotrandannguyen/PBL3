@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import socketService from "../../../shared/api/socket.service";
 
 /**
@@ -17,33 +17,39 @@ import socketService from "../../../shared/api/socket.service";
  *                               Nhận parameter: { message, task }
  */
 export const useInboxSocket = (userId, onNewItem) => {
+  const onNewItemRef = useRef(onNewItem);
+
+  useEffect(() => {
+    onNewItemRef.current = onNewItem;
+  }, [onNewItem]);
+
   useEffect(() => {
     if (!userId) {
-      console.warn(
-        "⚠️ [useInboxSocket] userId is empty, skipping socket setup",
-      );
+      console.warn("[useInboxSocket] userId is empty, skipping socket setup");
       return;
     }
 
-    console.log(`🔌 [useInboxSocket] Setting up socket for userId: ${userId}`);
+    console.log(`[useInboxSocket] Setting up socket for userId: ${userId}`);
 
-    // ✅ 1. Join vào room của user này
+    // 1. Join vào room của user này
     socketService.joinUserRoom(userId);
 
-    // ✅ 2. Lắng nghe sự kiện NEW_INBOX_ITEM
-    socketService.onNewInboxItem((data) => {
-      console.log("📢 [useInboxSocket] New inbox item received:", data);
-      if (onNewItem && typeof onNewItem === "function") {
-        onNewItem(data);
+    const handleNewInboxItem = (data) => {
+      console.log("[useInboxSocket] New inbox item received:", data);
+      if (typeof onNewItemRef.current === "function") {
+        onNewItemRef.current(data);
       }
-    });
-
-    // ✅ 3. Cleanup: Bỏ lắng nghe khi component unmount
-    return () => {
-      console.log("🧹 [useInboxSocket] Cleaning up socket listeners");
-      socketService.offNewInboxItem();
     };
-  }, [userId, onNewItem]);
+
+    // 2. Lắng nghe sự kiện NEW_INBOX_ITEM
+    socketService.onEvent("NEW_INBOX_ITEM", handleNewInboxItem);
+
+    // 3. Cleanup: Bỏ đúng handler đã đăng ký
+    return () => {
+      console.log("[useInboxSocket] Cleaning up socket listeners");
+      socketService.offEvent("NEW_INBOX_ITEM", handleNewInboxItem);
+    };
+  }, [userId]);
 };
 
 export default useInboxSocket;

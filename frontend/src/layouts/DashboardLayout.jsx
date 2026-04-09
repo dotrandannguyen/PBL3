@@ -1,6 +1,7 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "@/features/workspace/components/Sidebar";
+import DeadlineToastBridge from "@/features/workspace/components/DeadlineToastBridge";
 import {
   WorkspaceProvider,
   useWorkspace,
@@ -22,6 +23,7 @@ function DashboardContent() {
 
   return (
     <div className="flex w-screen h-screen overflow-hidden bg-bg-main text-text-primary font-sans">
+      <DeadlineToastBridge />
       <Sidebar
         pages={pages}
         activePage={activePage}

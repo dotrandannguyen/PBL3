@@ -39,7 +39,7 @@ export const googleService = {
 		return url;
 	},
 
-	// 🚀 HÀM TỰ ĐỘNG ĐĂNG KÝ WATCH CHO GMAIL
+	// HÀM TỰ ĐỘNG ĐĂNG KÝ WATCH CHO GMAIL
 	registerGmailWatch: async (accessToken) => {
 		try {
 			const PROJECT_ID = process.env.GOOGLE_PROJECT_ID;
@@ -63,7 +63,7 @@ export const googleService = {
 				},
 			);
 
-			console.log('✅ [GMAIL] Tự động đăng ký Watch thành công:', {
+			console.log('[GMAIL] Tự động đăng ký Watch thành công:', {
 				expiration: response.data.expiration,
 				historyId: response.data.historyId,
 			});
@@ -179,7 +179,7 @@ export const googleService = {
 			return user;
 		});
 
-		// 🚀 TỰ ĐỘNG ĐĂNG KÝ GMAIL WATCH NGAY SAU KHI LƯU INTEGRATION THÀNH CÔNG
+		// TỰ ĐỘNG ĐĂNG KÝ GMAIL WATCH NGAY SAU KHI LƯU INTEGRATION THÀNH CÔNG
 		try {
 			const watchData = await googleService.registerGmailWatch(tokens.access_token);
 

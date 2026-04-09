@@ -210,13 +210,45 @@ const parseDueDateForCompare = (value) => {
     return null;
   }
 
-  const dateObj = new Date(`${value}T23:59:59`);
+  // If it's a date-only string, append end of day
+  if (isDateOnlyValue(value)) {
+    const dateObj = new Date(`${value}T23:59:59`);
+    return Number.isNaN(dateObj.getTime()) ? null : dateObj;
+  }
+
+  const dateObj = new Date(value);
   return Number.isNaN(dateObj.getTime()) ? null : dateObj;
 };
 
 /**
  * TaskList - Hiển thị danh sách tasks từ API
+ *
+ * Converts reminder preset (MINUTES_5, MINUTES_15, HOUR_1, NONE) to ISO datetime
+ * relative to the task's dueDate.
  */
+const REMINDER_OFFSETS = {
+  NONE: null,
+  MINUTES_5: -5,
+  MINUTES_15: -15,
+  HOUR_1: -60,
+};
+
+const computeReminderAt = (preset, dueValue) => {
+  if (!preset || preset === "NONE") return null;
+  if (!dueValue) return null;
+
+  const offset = REMINDER_OFFSETS[preset];
+  if (offset == null) return null;
+
+  const dueDate = new Date(dueValue);
+  if (Number.isNaN(dueDate.getTime())) return null;
+
+  const reminderDate = new Date(dueDate.getTime() + offset * 60 * 1000);
+  if (reminderDate.getTime() <= Date.now()) return null;
+
+  return reminderDate.toISOString();
+};
+
 const TaskList = ({ title = "Danh sách công việc" }) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -281,7 +313,9 @@ const TaskList = ({ title = "Danh sách công việc" }) => {
   const [editScheduledAt, setEditScheduledAt] = useState("");
   const [editOriginalScheduledAt, setEditOriginalScheduledAt] = useState("");
   const [editPriority, setEditPriority] = useState("");
+  const [editReminder, setEditReminder] = useState(undefined);
   const [newTaskPriority, setNewTaskPriority] = useState("MEDIUM");
+  const [newTaskReminder, setNewTaskReminder] = useState("NONE");
   const [schedulingId, setSchedulingId] = useState(null);
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState(readCollapsedGroups);
@@ -523,6 +557,7 @@ const TaskList = ({ title = "Danh sách công việc" }) => {
       dueDate: resolvedDueAt,
       startAt: parsedStartAt ? parsedStartAt.toISOString() : null,
       priority: newTaskPriority,
+      reminderAt: computeReminderAt(newTaskReminder, resolvedDueAtInput),
     });
 
     if (!createdTask) {
@@ -536,6 +571,7 @@ const TaskList = ({ title = "Danh sách công việc" }) => {
     setNewTaskEndAt("");
     setIsCreateScheduleOpen(false);
     setNewTaskPriority("MEDIUM");
+    setNewTaskReminder("NONE");
     setNewTaskError("");
   };
 
@@ -554,11 +590,7 @@ const TaskList = ({ title = "Danh sách công việc" }) => {
     setEditPriority(task.priority || "MEDIUM");
 
     if (task.dueDate) {
-      const dateObj = new Date(task.dueDate);
-      const year = dateObj.getFullYear();
-      const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-      const day = String(dateObj.getDate()).padStart(2, "0");
-      setEditDate(`${year}-${month}-${day}`);
+      setEditDate(toDateTimeLocal(task.dueDate));
     } else {
       setEditDate("");
     }
@@ -576,6 +608,7 @@ const TaskList = ({ title = "Danh sách công việc" }) => {
     setEditScheduledAt("");
     setEditOriginalScheduledAt("");
     setEditPriority("");
+    setEditReminder(undefined);
   };
 
   const handleSaveEdit = async () => {
@@ -598,6 +631,7 @@ const TaskList = ({ title = "Danh sách công việc" }) => {
       description: editDescription.trim() || null,
       priority: editPriority || "MEDIUM",
       dueDate: normalizedEditDueAt,
+      reminderAt: editReminder !== undefined ? computeReminderAt(editReminder, editDate) : undefined,
     });
 
     if (!didUpdateTask) {
@@ -767,6 +801,20 @@ const TaskList = ({ title = "Danh sách công việc" }) => {
 
         handlePriorityChange(task.id, priority);
       }}
+      onReminderChange={(presetValue) => {
+        if (editingId === task.id) {
+          setEditReminder(presetValue);
+          return;
+        }
+
+        const reminderAt = computeReminderAt(presetValue, task.dueDate || task.date);
+        updateTaskData(task.id, { reminderAt });
+      }}
+      editReminder={
+        editingId === task.id
+          ? editReminder
+          : undefined
+      }
       isDeleting={false}
       isScheduling={schedulingId === task.id}
     />
@@ -881,7 +929,7 @@ const TaskList = ({ title = "Danh sách công việc" }) => {
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <input
-                type="date"
+                type="datetime-local"
                 className={`rounded border bg-white/10 px-2 py-1 text-xs ${
                   hasDueStartConflict || hasDueEndConflict
                     ? "border-red-400 text-red-200"
@@ -987,6 +1035,20 @@ const TaskList = ({ title = "Danh sách công việc" }) => {
                   </div>
                 )}
               </div>
+
+              <select
+                className={`cursor-pointer rounded border border-border-subtle bg-white/5 px-2 py-1 text-xs transition-colors hover:bg-white/10 focus:border-accent-primary focus:outline-none ${
+                  newTaskReminder !== "NONE" ? "text-amber-400" : "text-text-secondary"
+                }`}
+                value={newTaskReminder}
+                onChange={(e) => setNewTaskReminder(e.target.value)}
+                title="Nhắc nhở"
+              >
+                <option value="NONE">Không nhắc</option>
+                <option value="MINUTES_5">Nhắc 5 phút trước</option>
+                <option value="MINUTES_15">Nhắc 15 phút trước</option>
+                <option value="HOUR_1">Nhắc 1 giờ trước</option>
+              </select>
 
               {newTaskDueAt && (
                 <button

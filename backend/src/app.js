@@ -6,9 +6,10 @@ import { errorHandlerMiddleware } from './common/middleware/errorHandler.Middlew
 import taskRouter from './modules/tasks/task.router.js';
 import integrationRouter from './modules/integrations/integration.router.js';
 import eventRouter from './modules/events/event.router.js';
+import notificationRouter from './modules/notifications/notification.router.js';
 const app = express();
 
-// ✅ CORS Configuration - match with Socket.io CORS
+// CORS Configuration - match with Socket.io CORS
 app.use(
 	cors({
 		origin: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -31,6 +32,7 @@ app.use('/v1/api/tasks', taskRouter);
 app.use('/v1/api/integrations', integrationRouter);
 app.use('/v1/api/events', eventRouter);
 app.use('/v1/api/calendar/events', eventRouter);
+app.use('/v1/api/notifications', notificationRouter);
 
 app.get('/health', (req, res) => {
 	res.json({ status: 'OK' });

@@ -32,7 +32,7 @@ export const integrationController = {
 		}
 	},
 
-	// 🚀 LẤY DANH SÁCH REPOSITORIES
+	// LấY DANH SÁCH REPOSITORIES
 	getGithubRepositories: async (req, res, next) => {
 		try {
 			const userId = req.user.id;
@@ -48,7 +48,7 @@ export const integrationController = {
 		}
 	},
 
-	// 🚀 CÀI WEBHOOK CHO CÁC REPOSITORIES
+	// CÀI WEBHOOK CHO CÁC REPOSITORIES
 	setupGithubWebhooks: async (req, res, next) => {
 		try {
 			const userId = req.user.id;

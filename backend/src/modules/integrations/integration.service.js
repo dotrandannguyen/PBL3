@@ -81,7 +81,7 @@ export const integrationService = {
 				'GMAIL',
 			);
 
-			// ✅ Match emails với saved tasks by sourceId (email.id)
+			// Match emails với saved tasks by sourceId (email.id)
 			const emailsWithTaskIds = detailedMessages.map((email) => {
 				const savedTask = tasksBySourceId[email.id];
 				return {
@@ -145,7 +145,7 @@ export const integrationService = {
 				'GITHUB',
 			);
 
-			// ✅ Match issues với saved tasks by sourceId (issue.id)
+			// Match issues với saved tasks by sourceId (issue.id)
 			const issuesWithTaskIds = formattedIssues.map((issue) => {
 				const savedTask = tasksBySourceId[String(issue.id)];
 				return {
@@ -189,7 +189,7 @@ export const integrationService = {
 
 			const historyRecords = historyResponse.data.history || [];
 			if (historyRecords.length === 0) {
-				console.log('📭 [GMAIL] Không có history mới.');
+				console.log('[GMAIL] Không có history mới.');
 				return [];
 			}
 
@@ -204,10 +204,10 @@ export const integrationService = {
 				}
 			});
 
-			console.log(`📬 [GMAIL] Tìm thấy ${messageIds.length} email mới từ history.`);
+			console.log(`[GMAIL] Tìm thấy ${messageIds.length} email mới từ history.`);
 			return messageIds;
 		} catch (error) {
-			console.error('❌ Lỗi lấy Gmail history:', error);
+			console.error('Lỗi lấy Gmail history:', error);
 			throw error;
 		}
 	},
@@ -291,7 +291,7 @@ export const integrationService = {
 				link: `https://mail.google.com/mail/u/0/#inbox/${messageId}`,
 			};
 		} catch (error) {
-			console.error(`❌ Lỗi lấy chi tiết email ${messageId}:`, error);
+			console.error(`Lỗi lấy chi tiết email ${messageId}:`, error);
 			throw error;
 		}
 	},
@@ -310,18 +310,18 @@ export const integrationService = {
 			const hasTaskKeyword = searchText.includes('task');
 
 			if (hasTaskKeyword) {
-				console.log(`✅ [GMAIL] Email "${email.subject}" chứa từ "task"`);
+				console.log(`[GMAIL] Email "${email.subject}" chứa từ "task"`);
 				return true;
 			} else {
 				console.log(
-					`⏭️ [GMAIL] Email "${email.subject}" không chứa từ "task" - bỏ qua`,
+					`[GMAIL] Email "${email.subject}" không chứa từ "task" - bỏ qua`,
 				);
 				return false;
 			}
 		});
 
 		console.log(
-			`✨ [GMAIL] Kết quả: ${filteredEmails.length}/${emails.length} emails đáp ứng điều kiện`,
+			`[GMAIL] Kết quả: ${filteredEmails.length}/${emails.length} emails đáp ứng điều kiện`,
 		);
 		return filteredEmails;
 	},
@@ -433,7 +433,7 @@ export const integrationService = {
 				});
 
 				console.log(
-					`✅ [GITHUB] Đã lưu webhook data cho ${setupResult.success.length} repositories`,
+					`[GITHUB] Đã lưu webhook data cho ${setupResult.success.length} repositories`,
 				);
 			}
 

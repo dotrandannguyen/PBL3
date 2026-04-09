@@ -57,12 +57,12 @@ export const webhookController = {
 				if (integration) {
 					console.log('====================================');
 					console.log('🎉 [WEBHOOK] GITHUB VỪA BẮN DATA VỀ!');
-					console.log('📌 Tiêu đề:', issue.title);
-					console.log('👤 Người xử lý:', targetUser.login);
+					console.log('Tiêu đề:', issue.title);
+					console.log('Người xử lý:', targetUser.login);
 					console.log('====================================');
 
 					// 5. Lưu thẳng vào bảng Tasks (INBOX - chờ duyệt)
-					// ✅ Dùng upsert để tránh duplicate khi re-sync
+					// Dùng upsert để tránh duplicate khi re-sync
 					const taskData = {
 						title: `[GitHub] ${issue.title}`,
 						description: issue.body || 'Không có mô tả chi tiết.',
@@ -77,9 +77,9 @@ export const webhookController = {
 						taskData,
 					);
 
-					console.log('✅ [WEBHOOK] Đồng bộ thành Task mới thành công!');
+					console.log('[WEBHOOK] Đồng bộ thành Task mới thành công!');
 
-					// ✅ 6. EMIT SOCKET.IO EVENT CHO USER
+					// 6. EMIT SOCKET.IO EVENT CHO USER
 					try {
 						const io = req.app.get('socketio');
 						if (io) {
@@ -88,23 +88,23 @@ export const webhookController = {
 								task: newTask,
 							});
 							console.log(
-								`📡 [SOCKET.IO] Đã gửi sự kiện tới user ${integration.userId}`,
+								`[SOCKET.IO] Đã gửi sự kiện tới user ${integration.userId}`,
 							);
 						}
 					} catch (socketError) {
 						console.error(
-							'⚠️ [SOCKET.IO] Lỗi khi emit event:',
+							'[SOCKET.IO] Lỗi khi emit event:',
 							socketError.message,
 						);
 					}
 				} else {
 					console.log(
-						`⚠️ [WEBHOOK] Bỏ qua: User GitHub ID ${targetUser.id} chưa liên kết với tài khoản nào trên App.`,
+						`[WEBHOOK] Bỏ qua: User GitHub ID ${targetUser.id} chưa liên kết với tài khoản nào trên App.`,
 					);
 				}
 			}
 		} catch (error) {
-			console.error('❌ Lỗi xử lý Webhook GitHub:', error);
+			console.error('Lỗi xử lý Webhook GitHub:', error);
 		}
 	},
 	handleGmail: async (req, res) => {
@@ -125,9 +125,9 @@ export const webhookController = {
 			const historyId = payload.historyId;
 
 			console.log('====================================');
-			console.log('📬 [GMAIL WEBHOOK] TÀI KHOẢN VỪA CÓ SỰ THAY ĐỔI!');
-			console.log('📧 Email:', emailAddress);
-			console.log('🔢 History ID:', historyId);
+			console.log('[GMAIL WEBHOOK] TÀI KHOẢN Vừa CÓ Sự THAY ĐỔI!');
+			console.log('Email:', emailAddress);
+			console.log('History ID:', historyId);
 			console.log('====================================');
 
 			// 4. Tìm user có email này trong DB
@@ -138,7 +138,7 @@ export const webhookController = {
 
 			if (!integration) {
 				console.log(
-					`⚠️ [WEBHOOK] Email ${emailAddress} chưa liên kết với tài khoản nào trên App.`,
+					`[WEBHOOK] Email ${emailAddress} chưa liên kết với tài khoản nào trên App.`,
 				);
 				return;
 			}
@@ -157,7 +157,7 @@ export const webhookController = {
 			);
 
 			if (messageIds.length === 0) {
-				console.log('📭 [GMAIL] Không có email mới để xử lý.');
+				console.log('[GMAIL] Không có email mới để xử lý.');
 				return;
 			}
 
@@ -174,12 +174,12 @@ export const webhookController = {
 			);
 
 			if (filteredEmails.length === 0) {
-				console.log('📭 [GMAIL] Không có email nào đáp ứng điều kiện lọc.');
+				console.log('[GMAIL] Không có email nào đáp ứng điều kiện lọc.');
 				return;
 			}
 
 			// 10. Lưu mỗi email đó vào bảng Tasks (INBOX - chờ duyệt)
-			// ✅ Dùng upsert để tránh duplicate khi re-sync
+			// Dùng upsert để tránh duplicate khi re-sync
 			for (const email of filteredEmails) {
 				const taskData = {
 					title: `[Gmail] ${email.subject}`,
@@ -202,9 +202,9 @@ export const webhookController = {
 					taskData,
 				);
 
-				console.log(`✅ [GMAIL] Đã lưu email "${email.subject}" thành Task.`);
+				console.log(`[GMAIL] Đã lưu email "${email.subject}" thành Task.`);
 
-				// ✅ EMIT SOCKET.IO EVENT CHO USER
+				// EMIT SOCKET.IO EVENT CHO USER
 				try {
 					const io = req.app.get('socketio');
 					if (io) {
@@ -225,10 +225,10 @@ export const webhookController = {
 			}
 
 			console.log(
-				`✨ [GMAIL WEBHOOK] Đồng bộ ${filteredEmails.length} email thành công!`,
+				`[GMAIL WEBHOOK] Đồng bộ ${filteredEmails.length} email thành công!`,
 			);
 		} catch (error) {
-			console.error('❌ Lỗi xử lý Webhook Gmail:', error);
+			console.error('Lỗi xử lý Webhook Gmail:', error);
 		}
 	},
 };

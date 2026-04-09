@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import http from 'http';
 import { Server } from 'socket.io';
 import { connection } from './config/database.js';
+import { setIO } from './common/realtime/socket.gateway.js';
 
 dotenv.config();
 
@@ -12,10 +13,10 @@ const startServer = async () => {
 	try {
 		await connection();
 
-		// ✅ Tạo HTTP server từ Express app
+		// Tạo HTTP server từ Express app
 		const server = http.createServer(app);
 
-		// ✅ Khởi tạo Socket.io với CORS config
+		// Khởi tạo Socket.io với CORS config
 		const io = new Server(server, {
 			cors: {
 				origin: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -23,27 +24,37 @@ const startServer = async () => {
 			},
 		});
 
-		// ✅ Socket.io event listeners
+		// Khởi tạo Socket Gateway để BullMQ Worker có thể gửi event
+		setIO(io);
+
+		// Socket.io event listeners
 		io.on('connection', (socket) => {
-			console.log(`🟢 Client connected: ${socket.id}`);
+			console.log(`Client connected: ${socket.id}`);
 
 			// Cho phép client join vào một "room" mang tên chính User ID của họ
 			socket.on('join_user_room', (userId) => {
+				if (!userId || typeof userId !== 'string') {
+					console.warn(`Invalid join_user_room payload from ${socket.id}`);
+					return;
+				}
+
+				if (socket.rooms.has(userId)) {
+					console.log(`Socket ${socket.id} already in room ${userId}`);
+					return;
+				}
+
 				socket.join(userId);
-				console.log(`👤 User ${userId} joined room`);
+				console.log(`User ${userId} joined room`);
 			});
 
 			socket.on('disconnect', () => {
-				console.log(`🔴 Client disconnected: ${socket.id}`);
+				console.log(`Client disconnected: ${socket.id}`);
 			});
 		});
 
-		// ✅ Gắn io vào app để các Controller có thể lấy ra dùng
-		app.set('socketio', io);
-
-		// ✅ Server listen trên HTTP port
+		// Server listen trên HTTP port
 		server.listen(PORT, () => {
-			console.log(`🚀 Server is running on port ${PORT}`);
+			console.log(`Server is running on port ${PORT}`);
 		});
 	} catch (error) {
 		console.error('Failed to start server:', error);

@@ -320,8 +320,8 @@ model SyncLog {
 
 model Notification {
   id          String      @id @default(uuid())
-  userId      String      @map("user_id") // Int -> String
-  taskId      String?     @map("task_id") // Int -> String
+  userId      String      @map("user_id")
+  taskId      String?     @map("task_id")
   
   type        NotifType
   title       String?
@@ -331,12 +331,14 @@ model Notification {
   sentAt      DateTime?   @map("sent_at")
   status      NotifStatus @default(PENDING)
   retryCount  Int         @default(0) @map("retry_count")
+  isRead      Boolean     @default(false) @map("is_read")
   
   createdAt   DateTime    @default(now()) @map("created_at")
 
   user User  @relation(fields: [userId], references: [id])
   task Task? @relation(fields: [taskId], references: [id])
 
+  @@index([userId, isRead])
   @@index([status, scheduledAt])
   @@map("notifications")
 }

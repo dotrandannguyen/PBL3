@@ -161,7 +161,7 @@ export const githubService = {
 		return { user: result, ...jwtTokens };
 	},
 
-	// 🚀 HÀM LẤY DANH SÁCH REPOSITORY
+	// HÀM LẤY DANH SÁCH REPOSITORY
 	getUserRepositories: async (accessToken) => {
 		try {
 			const response = await axios.get(
@@ -175,7 +175,7 @@ export const githubService = {
 			);
 
 			console.log(
-				`✅ [GITHUB] Lấy được ${response.data.length} repositories của user`,
+				`[GITHUB] Lấy được ${response.data.length} repositories của user`,
 			);
 
 			return response.data.map((repo) => ({
@@ -196,7 +196,7 @@ export const githubService = {
 		}
 	},
 
-	// 🚀 HÀM TỰ ĐỘNG CÀI WEBHOOK VÀO MỘT REPO
+	// HÀM TỰ ĐỘNG CÀI WEBHOOK VÀO MỘT REPO
 	setupWebhookForRepo: async (accessToken, owner, repo) => {
 		try {
 			const WEBHOOK_URL = `${process.env.CLOUDFLARE_URL}/v1/api/integrations/webhook/github`;
@@ -222,7 +222,7 @@ export const githubService = {
 				},
 			);
 
-			console.log(`✅ [GITHUB] Đã tự động cài Webhook cho repo: ${repo}`);
+			console.log(`[GITHUB] Đã tự động cài Webhook cho repo: ${repo}`);
 
 			return {
 				id: response.data.id,
@@ -246,7 +246,7 @@ export const githubService = {
 		}
 	},
 
-	// 🚀 HÀM TỰ ĐỘNG CÀI WEBHOOK CHO NHIỀU REPO
+	// HÀM TỰ ĐỘNG CÀI WEBHOOK CHO NHIỀU REPO
 	setupWebhooksForRepositories: async (accessToken, repositories) => {
 		const results = {
 			success: [],

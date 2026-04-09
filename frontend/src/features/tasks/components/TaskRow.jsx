@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Trash2, Loader, Calendar, Clock3 } from "lucide-react";
+import { Trash2, Loader, Calendar, Clock3, Bell } from "lucide-react";
 import TaskCheckbox from "./TaskCheckbox";
-import { formatDate, formatDateToISO } from "../utils/dateUtils";
 import { getPriorityColor } from "../utils/priorityUtils";
 
 /**
@@ -23,20 +22,24 @@ const TaskRow = ({
   onDateChange,
   onScheduleChange,
   onPriorityChange,
+  onReminderChange,
   onEditSave,
   onEditCancel,
   onEditKeyDown,
   onDelete,
   isDeleting,
   isScheduling,
+  editReminder,
 }) => {
   const [isDateOpen, setIsDateOpen] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [isPriorityOpen, setIsPriorityOpen] = useState(false);
+  const [isReminderOpen, setIsReminderOpen] = useState(false);
 
   const datePickerRef = useRef(null);
   const schedulePickerRef = useRef(null);
   const priorityRef = useRef(null);
+  const reminderRef = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -57,14 +60,18 @@ const TaskRow = ({
       if (priorityRef.current && !priorityRef.current.contains(event.target)) {
         setIsPriorityOpen(false);
       }
+
+      if (reminderRef.current && !reminderRef.current.contains(event.target)) {
+        setIsReminderOpen(false);
+      }
     }
 
-    if (isDateOpen || isScheduleOpen || isPriorityOpen) {
+    if (isDateOpen || isScheduleOpen || isPriorityOpen || isReminderOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [isDateOpen, isScheduleOpen, isPriorityOpen]);
+  }, [isDateOpen, isScheduleOpen, isPriorityOpen, isReminderOpen]);
 
   const toDateTimeLocal = (value) => {
     if (!value) return "";
@@ -81,10 +88,8 @@ const TaskRow = ({
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
-  const dueDateValue = formatDateToISO(
-    isEditing ? editDate : task.dueDate || task.date,
-  );
   const dueDateLabelSource = isEditing ? editDate : task.dueDate || task.date;
+  const dueDateValue = dueDateLabelSource ? toDateTimeLocal(dueDateLabelSource) : "";
   const scheduleLabelSource = isEditing ? editScheduledAt : task.scheduledAt;
   const scheduleEndAtValue = dueDateLabelSource
     ? toDateTimeLocal(dueDateLabelSource)
@@ -93,6 +98,22 @@ const TaskRow = ({
   const currentPriority = isEditing
     ? editPriority || task.priority
     : task.priority;
+
+  const currentReminder = isEditing
+    ? (editReminder !== undefined ? editReminder : task.reminderAt)
+    : task.reminderAt;
+
+  const getReminderLabel = (reminderAt) => {
+    if (!reminderAt) return "Nhắc nhở";
+    const d = new Date(reminderAt);
+    if (Number.isNaN(d.getTime())) return "Nhắc nhở";
+    return d.toLocaleString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
+    });
+  };
 
   const formatDateTime = (value) => {
     if (!value) return "";
@@ -263,7 +284,7 @@ const TaskRow = ({
               <Calendar size={12} />
               <span>
                 {dueDateLabelSource
-                  ? `Due At ${formatDate(dueDateLabelSource)}`
+                  ? `Due At ${formatDateTime(dueDateLabelSource)}`
                   : "Due At"}
               </span>
             </button>
@@ -271,7 +292,7 @@ const TaskRow = ({
             {isDateOpen && (
               <div className="absolute top-full right-0 mt-1 z-10 bg-bg-sidebar border border-border-subtle rounded shadow-lg p-2">
                 <input
-                  type="date"
+                  type="datetime-local"
                   className="px-2 py-1 rounded bg-white/10 border border-border-subtle text-text-primary text-xs"
                   value={dueDateValue}
                   onChange={(e) => {
@@ -349,6 +370,51 @@ const TaskRow = ({
                     Bỏ lịch
                   </button>
                 )}
+              </div>
+            )}
+          </div>
+
+          <div ref={reminderRef} className="relative">
+            <button
+              type="button"
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors whitespace-nowrap ${
+                currentReminder
+                  ? "text-amber-400 hover:bg-amber-500/10"
+                  : "text-text-tertiary hover:bg-white/5"
+              }`}
+              onClick={() => setIsReminderOpen(!isReminderOpen)}
+              title="Nhắc nhở"
+            >
+              <Bell size={12} />
+              <span>{getReminderLabel(currentReminder)}</span>
+            </button>
+
+            {isReminderOpen && (
+              <div className="absolute top-full right-0 mt-1 z-10 w-48 bg-bg-sidebar border border-border-subtle rounded shadow-lg p-2 space-y-1">
+                <p className="text-[10px] text-text-tertiary px-2 mb-1 uppercase tracking-wider">Nhắc trước Due At</p>
+                {[
+                  { label: "Không nhắc", value: "NONE" },
+                  { label: "5 phút trước", value: "MINUTES_5" },
+                  { label: "15 phút trước", value: "MINUTES_15" },
+                  { label: "1 giờ trước", value: "HOUR_1" },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`block w-full text-left px-3 py-1.5 rounded text-xs hover:bg-white/5 ${
+                      (opt.value === "NONE" && !currentReminder) ||
+                      (opt.value !== "NONE" && currentReminder)
+                        ? ""
+                        : ""
+                    }`}
+                    onClick={() => {
+                      onReminderChange(opt.value);
+                      setIsReminderOpen(false);
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
             )}
           </div>

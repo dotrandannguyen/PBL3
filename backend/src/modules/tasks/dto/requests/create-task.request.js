@@ -7,7 +7,8 @@
  *   description?: string,
  *   priority?: 'LOW'|'MEDIUM'|'HIGH'|'URGENT',
  *   dueDate?: date,
- *   startAt?: ISO datetime | null
+ *   startAt?: ISO datetime | null,
+ *   reminderAt?: ISO datetime | null
  * }
  */
 import { z } from 'zod';
@@ -23,6 +24,7 @@ export const createTaskSchema = {
 			priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
 			dueDate: z.string().date().or(z.string().datetime()).optional().nullable(),
 			startAt: z.string().datetime().optional().nullable(),
+			reminderAt: z.string().datetime().optional().nullable(),
 		})
 		.strict(),
 };
