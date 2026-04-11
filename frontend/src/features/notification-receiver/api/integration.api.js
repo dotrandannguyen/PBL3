@@ -9,4 +9,24 @@ export const integrationAPI = {
     const response = await apiClient.get("/v1/api/integrations/preview/github");
     return response.data;
   },
+  getGithubRepositories: async () => {
+    const response = await apiClient.get(
+      "/v1/api/integrations/github/repositories",
+    );
+    return response.data;
+  },
+  setupGithubWebhooks: async (repositoryIds) => {
+    const response = await apiClient.post(
+      "/v1/api/integrations/github/setup-webhooks",
+      { repositoryIds },
+    );
+    return response.data;
+  },
+  disableGithubWebhook: async (repositoryId) => {
+    const response = await apiClient.delete(
+      "/v1/api/integrations/github/webhooks",
+      { data: { repositoryId } },
+    );
+    return response.data;
+  },
 };
