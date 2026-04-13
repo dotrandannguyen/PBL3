@@ -228,7 +228,11 @@ export const taskService = {
 				`[TaskService] Cancelling jobs for task ${updatedTask.id} (status=DONE)`,
 			);
 			await cancelAllForTarget('TASK', updatedTask.id);
-		} else if ((scheduleChanged || reopened) && hasScheduleSource(updatedTask)) {
+		} else if (
+			(scheduleChanged || reopened) &&
+			hasScheduleSource(updatedTask) &&
+			updatedTask.status !== 'DONE'
+		) {
 			console.log(
 				`[TaskService] Rescheduling task ${updatedTask.id} due to scheduling changes`,
 			);
@@ -287,10 +291,10 @@ export const taskService = {
 
 		const updatedTask = await taskRepository.findById(userId, taskId);
 		// Reschedule notification jobs khi markTaskScheduled
-		if (nextScheduledAt && hasScheduleSource(updatedTask)) {
+		if (updatedTask.status !== 'DONE' && hasScheduleSource(updatedTask)) {
 			await rescheduleTask(updatedTask);
 		} else {
-			// Hủy job nếu unschedule
+			// Hủy job nếu task DONE hoặc không còn nguồn schedule
 			await cancelAllForTarget('TASK', updatedTask.id);
 		}
 		return mapTask(updatedTask);

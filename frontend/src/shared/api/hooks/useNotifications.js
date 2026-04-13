@@ -35,7 +35,7 @@ export const useNotifications = () => {
       if (!silent) {
         setLoading(true);
       }
-      const response = await apiClient.get("/notifications/count");
+      const response = await apiClient.get("/v1/api/notifications/count");
       const payload = unwrapApiData(response);
       setUnreadCount(payload?.unreadCount || 0);
     } catch (err) {
@@ -53,7 +53,7 @@ export const useNotifications = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.get("/notifications/unread", {
+      const response = await apiClient.get("/v1/api/notifications/unread", {
         params: { page, limit },
       });
       const payload = unwrapApiData(response) || {};
@@ -77,7 +77,7 @@ export const useNotifications = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.get("/notifications", {
+      const response = await apiClient.get("/v1/api/notifications", {
         params: query,
       });
       const payload = unwrapApiData(response) || {};
@@ -99,7 +99,7 @@ export const useNotifications = () => {
       try {
         const socketId = socketService.getSocket()?.id || null;
         const response = await apiClient.patch(
-          `/notifications/${notificationId}`,
+          `/v1/api/notifications/${notificationId}`,
           {
             socketId,
           },
@@ -132,7 +132,7 @@ export const useNotifications = () => {
   const markAllAsRead = useCallback(async () => {
     try {
       const socketId = socketService.getSocket()?.id || null;
-      const response = await apiClient.patch("/notifications/bulk/read", {
+      const response = await apiClient.patch("/v1/api/notifications/bulk/read", {
         socketId,
       });
       const payload = unwrapApiData(response) || {};
@@ -150,7 +150,7 @@ export const useNotifications = () => {
     async (notificationId) => {
       try {
         const response = await apiClient.delete(
-          `/notifications/${notificationId}`,
+          `/v1/api/notifications/${notificationId}`,
         );
         setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
         await fetchUnreadCount({ silent: true });
@@ -166,7 +166,7 @@ export const useNotifications = () => {
   // Delete tất cả notifications
   const deleteAllNotifications = useCallback(async () => {
     try {
-      const response = await apiClient.delete("/notifications/all");
+      const response = await apiClient.delete("/v1/api/notifications/all");
       setNotifications([]);
       await fetchUnreadCount({ silent: true });
       return unwrapApiData(response);

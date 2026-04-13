@@ -4,6 +4,11 @@ import http from 'http';
 import { Server } from 'socket.io';
 import { connection } from './config/database.js';
 import { setIO } from './common/realtime/socket.gateway.js';
+import './modules/notifications/notification.worker.js';
+import {
+	recoverPendingNotifications,
+	processMissedNotifications,
+} from './modules/notifications/notification.recovery.js';
 
 dotenv.config();
 
@@ -26,6 +31,7 @@ const startServer = async () => {
 
 		// Khởi tạo Socket Gateway để BullMQ Worker có thể gửi event
 		setIO(io);
+		app.set('socketio', io);
 
 		// Socket.io event listeners
 		io.on('connection', (socket) => {
@@ -53,8 +59,20 @@ const startServer = async () => {
 		});
 
 		// Server listen trên HTTP port
-		server.listen(PORT, () => {
+		server.listen(PORT, async () => {
 			console.log(`Server is running on port ${PORT}`);
+
+			// Startup Recovery: Re-queue notification jobs cho tasks có thời gian tương lai
+			// Chạy SAU khi server đã listen (không block startup)
+			try {
+				console.log('[Startup] Running notification recovery...');
+				await recoverPendingNotifications();
+				await processMissedNotifications();
+				console.log('[Startup] Notification recovery complete');
+			} catch (recoveryError) {
+				// Recovery failure should NOT crash the server
+				console.error('[Startup] Notification recovery failed:', recoveryError.message);
+			}
 		});
 	} catch (error) {
 		console.error('Failed to start server:', error);

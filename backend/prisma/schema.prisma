@@ -83,6 +83,9 @@ enum SyncResource {
 enum NotifType {
   EMAIL_REMINDER
   SYSTEM_ALERT
+  TASK_REMINDER  // Nhắc nhở trước deadline
+  TASK_DUE       // Đúng lúc deadline
+  TASK_START     // Đúng lúc bắt đầu
 
   @@map("notif_type")
 }
@@ -326,6 +329,7 @@ model Notification {
   type        NotifType
   title       String?
   content     String?     @db.Text
+  notifKey    String?     @unique @map("notif_key") // Deterministic key for idempotency: "task:{id}:{phase}:{offset}"
   
   scheduledAt DateTime    @map("scheduled_at")
   sentAt      DateTime?   @map("sent_at")

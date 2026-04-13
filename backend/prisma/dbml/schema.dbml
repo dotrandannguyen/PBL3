@@ -168,10 +168,12 @@ Table notifications {
   type NotifType [not null]
   title String
   content String
+  notifKey String [unique]
   scheduledAt DateTime [not null]
   sentAt DateTime
   status NotifStatus [not null, default: 'PENDING']
   retryCount Int [not null, default: 0]
+  isRead Boolean [not null, default: false]
   createdAt DateTime [default: `now()`, not null]
   user users [not null]
   task tasks
@@ -238,6 +240,9 @@ Enum SyncResource {
 Enum NotifType {
   EMAIL_REMINDER
   SYSTEM_ALERT
+  TASK_REMINDER
+  TASK_DUE
+  TASK_START
 }
 
 Enum NotifStatus {

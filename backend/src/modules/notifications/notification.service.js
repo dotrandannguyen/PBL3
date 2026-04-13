@@ -154,7 +154,7 @@ export const notificationService = {
 			select: {
 				id: true,
 				isRead: true,
-				updatedAt: true,
+				createdAt: true,
 			},
 		});
 
@@ -184,7 +184,7 @@ export const notificationService = {
 			select: {
 				id: true,
 				isRead: true,
-				updatedAt: true,
+				createdAt: true,
 			},
 		});
 
