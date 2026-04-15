@@ -7,6 +7,9 @@ import {
 	scheduleForTask,
 	cancelAllForTarget,
 	rescheduleTask,
+	scheduleTaskV2,
+	rescheduleTaskV2,
+	cancelTaskJobsV2,
 } from '../notifications/notification.schedule.js';
 
 const DEFAULT_TASK_EVENT_COLOR = '#2383e2';
@@ -42,6 +45,14 @@ const isSameInstant = (a, b) => {
 
 const hasScheduleSource = (task) =>
 	Boolean(task?.dueDate || task?.scheduledAt || task?.reminderAt);
+
+/**
+ * Resolve TaskType từ task data
+ * - Có scheduledAt (startAt) -> SCHEDULED
+ * - Không có -> TODO
+ */
+const resolveTaskType = (task) =>
+	task?.scheduledAt ? 'SCHEDULED' : 'TODO';
 
 const hasSchedulingChange = (beforeTask, afterTask) =>
 	!isSameInstant(beforeTask?.dueDate, afterTask?.dueDate) ||
@@ -129,6 +140,7 @@ export const taskService = {
 			reminderAt,
 			scheduledAt,
 			status: 'PENDING',
+			type: scheduledAt ? 'SCHEDULED' : 'TODO',
 		};
 
 		const task = await taskRepository.create(userId, taskData);
@@ -151,18 +163,19 @@ export const taskService = {
 		const createdTask = await taskRepository.findById(userId, task.id);
 
 		if (hasScheduleSource(createdTask)) {
-			await scheduleForTask(createdTask);
+			// v2: schedule theo type
+			await scheduleTaskV2(createdTask);
 		}
 
 		return mapTask(createdTask);
 	},
 
 	/**
-	 * Cập nhật task (title, description, priority, dueDate, status)
+	 * Cập nhật task (title, description, priority, dueDate, startAt, status, type)
 	 *
 	 * @param {String} userId
 	 * @param {String} taskId
-	 * @param {Object} data - { title?, description?, priority?, dueDate?, status? }
+	 * @param {Object} data - v2: { title?, description?, priority?, dueDate?, startAt?, reminderAt?, status?, type? }
 	 */
 	updateTask: async (userId, taskId, data) => {
 		const existingTask = await taskRepository.findById(userId, taskId);
@@ -184,6 +197,10 @@ export const taskService = {
 		if (data.dueDate !== undefined) {
 			updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
 		}
+		// v2: startAt là alias của scheduledAt
+		if (data.startAt !== undefined) {
+			updateData.scheduledAt = data.startAt ? new Date(data.startAt) : null;
+		}
 		if (data.reminderAt !== undefined) {
 			const nextReminderAt = parseDateValue(data.reminderAt);
 			if (nextReminderAt && nextReminderAt.getTime() <= Date.now()) {
@@ -204,13 +221,25 @@ export const taskService = {
 			}
 		}
 
+		// v2: type — FE có thể gửi tường minh, hoặc auto-resolve từ scheduledAt
+		if (data.type !== undefined) {
+			updateData.type = data.type;
+		} else if (updateData.scheduledAt !== undefined) {
+			// Auto-resolve type từ scheduledAt nếu FE không gửi type
+			updateData.type = updateData.scheduledAt ? 'SCHEDULED' : 'TODO';
+		}
+
 		await taskRepository.update(userId, taskId, updateData);
 		const updatedTask = await taskRepository.findById(userId, taskId);
 
-		if (
-			updatedTask?.scheduledAt &&
-			(data.title !== undefined || data.description !== undefined)
-		) {
+		// Sync linked Calendar Event nếu task đã có scheduledAt
+		// (title/description thay đổi hoặc startAt/dueDate thay đổi)
+		const scheduleTimingChanged =
+			data.startAt !== undefined || data.dueDate !== undefined;
+		const metadataChanged =
+			data.title !== undefined || data.description !== undefined;
+
+		if (updatedTask?.scheduledAt && (scheduleTimingChanged || metadataChanged)) {
 			await upsertScheduledTaskEvent(
 				userId,
 				updatedTask,
@@ -224,24 +253,20 @@ export const taskService = {
 		const scheduleChanged = hasSchedulingChange(existingTask, updatedTask);
 
 		if (becameDone) {
-			console.log(
-				`[TaskService] Cancelling jobs for task ${updatedTask.id} (status=DONE)`,
-			);
-			await cancelAllForTarget('TASK', updatedTask.id);
+			console.log(`[TaskService] Cancelling jobs for task ${updatedTask.id} (status=DONE)`);
+			await cancelTaskJobsV2(updatedTask.id);
+			await cancelAllForTarget('TASK', updatedTask.id); // legacy
 		} else if (
 			(scheduleChanged || reopened) &&
 			hasScheduleSource(updatedTask) &&
 			updatedTask.status !== 'DONE'
 		) {
-			console.log(
-				`[TaskService] Rescheduling task ${updatedTask.id} due to scheduling changes`,
-			);
-			await rescheduleTask(updatedTask);
+			console.log(`[TaskService] Rescheduling task ${updatedTask.id}`);
+			await rescheduleTaskV2(updatedTask);
 		} else if (scheduleChanged && !hasScheduleSource(updatedTask)) {
-			console.log(
-				`[TaskService] Cancelling jobs for task ${updatedTask.id} (no schedule source)`,
-			);
-			await cancelAllForTarget('TASK', updatedTask.id);
+			console.log(`[TaskService] Cancelling jobs for task ${updatedTask.id} (no schedule)`);
+			await cancelTaskJobsV2(updatedTask.id);
+			await cancelAllForTarget('TASK', updatedTask.id); // legacy
 		}
 
 		return mapTask(updatedTask);
@@ -290,12 +315,12 @@ export const taskService = {
 		}
 
 		const updatedTask = await taskRepository.findById(userId, taskId);
-		// Reschedule notification jobs khi markTaskScheduled
+		// Reschedule v2
 		if (updatedTask.status !== 'DONE' && hasScheduleSource(updatedTask)) {
-			await rescheduleTask(updatedTask);
+			await rescheduleTaskV2(updatedTask);
 		} else {
-			// Hủy job nếu task DONE hoặc không còn nguồn schedule
-			await cancelAllForTarget('TASK', updatedTask.id);
+			await cancelTaskJobsV2(updatedTask.id);
+			await cancelAllForTarget('TASK', updatedTask.id); // legacy
 		}
 		return mapTask(updatedTask);
 	},
@@ -317,7 +342,8 @@ export const taskService = {
 		}
 
 		// Hủy tất cả notification jobs liên quan tới task này
-		await cancelAllForTarget('TASK', taskId);
+		await cancelTaskJobsV2(taskId);
+		await cancelAllForTarget('TASK', taskId); // legacy
 
 		const isExternalTask =
 			task.sourceType === 'GMAIL' || task.sourceType === 'GITHUB';
@@ -444,7 +470,7 @@ export const taskService = {
 
 		// Schedule notification jobs khi confirm INBOX task
 		if (hasScheduleSource(updatedTask)) {
-			await scheduleForTask(updatedTask);
+			await scheduleTaskV2(updatedTask);
 		}
 
 		return mapTask(updatedTask);
@@ -484,6 +510,11 @@ function buildTaskEventPayload(task, scheduledAt) {
 		description: task.description ?? null,
 		repeat: 'NONE',
 		reminder: 'NONE',
+		// v2: timestamp fields + link back to task
+		startAt: scheduledAt,
+		endAt: task.dueDate ? new Date(task.dueDate) : null,
+		reminderAt: task.reminderAt ? new Date(task.reminderAt) : null,
+		linkedTaskId: task.id,  // Rule D: event dẫn xuất từ task
 	};
 }
 
@@ -561,6 +592,7 @@ function mapTask(task) {
 	return {
 		id: task.id,
 		title: task.title,
+		type: task.type || 'TODO',
 		status: task.status,
 		description: task.description,
 		completed: task.status === 'DONE',

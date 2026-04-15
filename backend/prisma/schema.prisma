@@ -80,12 +80,29 @@ enum SyncResource {
   @@map("sync_resource")
 }
 
+enum TaskType {
+  TODO
+  SCHEDULED
+
+  @@map("task_type")
+}
+
+enum NotifSource {
+  TASK
+  EVENT
+
+  @@map("notif_source")
+}
+
 enum NotifType {
   EMAIL_REMINDER
   SYSTEM_ALERT
-  TASK_REMINDER  // Nhắc nhở trước deadline
-  TASK_DUE       // Đúng lúc deadline
-  TASK_START     // Đúng lúc bắt đầu
+  TASK_REMINDER    // Nhắc nhở trước deadline
+  TASK_DUE         // Đúng lúc deadline
+  TASK_START       // Đúng lúc bắt đầu
+  EVENT_START      // Sự kiện bắt đầu
+  EVENT_END        // Sự kiện kết thúc
+  EVENT_REMINDER   // Nhắc trước sự kiện
 
   @@map("notif_type")
 }
@@ -202,13 +219,17 @@ model Integration {
 
 model Task {
   id             String       @id @default(uuid())
-  userId         String       @map("user_id") // Int -> String
+  userId         String       @map("user_id")
   
   title          String
   description    String?      @db.Text
   status         TaskStatus   @default(PENDING)
   priority       TaskPriority @default(MEDIUM)
   
+  // v2: Task type — TODO (chỉ dueDate) | SCHEDULED (có startAt + endAt)
+  type           TaskType     @default(TODO)
+  
+  // Legacy fields — giữ để backward compat, alias: startAt=scheduledAt, endAt=dueDate
   dueDate        DateTime?    @map("due_date")
   reminderAt     DateTime?    @map("reminder_at")
   completedAt    DateTime?    @map("completed_at")
@@ -223,37 +244,53 @@ model Task {
   updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at")
   deletedAt      DateTime?    @map("deleted_at")
 
-  user          User           @relation(fields: [userId], references: [id])
-  taskTags      TaskTag[]
-  activities    TaskActivity[]
-  notifications Notification[]
+  user            User           @relation(fields: [userId], references: [id])
+  taskTags        TaskTag[]
+  activities      TaskActivity[]
+  notifications   Notification[]
+  linkedEvents    Event[]        // Events dẫn xuất từ task này
 
   @@index([userId])
   @@index([status])
+  @@index([type])
   @@index([userId, dueDate])
   @@index([userId, scheduledAt])
   @@map("tasks")
 }
 
 model Event {
-  id          String        @id @default(uuid())
-  userId      String        @map("user_id")
+  id           String        @id @default(uuid())
+  userId       String        @map("user_id")
 
-  title       String
-  date        DateTime      @db.Date
-  time        String
-  color       String        @default("#3b82f6")
-  location    String?
-  description String?       @db.Text
-  repeat      EventRepeat   @default(NONE)
-  reminder    EventReminder @default(NONE)
+  title        String
+  
+  // Legacy fields — giữ để backward compat
+  date         DateTime      @db.Date
+  time         String
+  color        String        @default("#3b82f6")
+  location     String?
+  description  String?       @db.Text
+  repeat       EventRepeat   @default(NONE)
+  reminder     EventReminder @default(NONE)
 
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at")
+  // v2: Timestamp đầy đủ cho scheduler
+  startAt      DateTime?     @map("start_at")      // Thời điểm bắt đầu sự kiện
+  endAt        DateTime?     @map("end_at")        // Thời điểm kết thúc sự kiện
+  reminderAt   DateTime?     @map("reminder_at")  // Thời điểm nhắc nhở
+  
+  // v2: Link tới Task nếu Event này dẫn xuất từ Task SCHEDULED
+  // Rule: linkedTaskId != null → Event Scheduler SKIP, Task Scheduler chịu trách nhiệm
+  linkedTaskId String?       @map("linked_task_id")
 
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedTask   Task?         @relation(fields: [linkedTaskId], references: [id], onDelete: SetNull)
 
   @@index([userId, date])
+  @@index([userId, startAt])
+  @@index([linkedTaskId])
   @@map("events")
 }
 
@@ -322,28 +359,38 @@ model SyncLog {
 }
 
 model Notification {
-  id          String      @id @default(uuid())
-  userId      String      @map("user_id")
-  taskId      String?     @map("task_id")
+  id          String       @id @default(uuid())
+  userId      String       @map("user_id")
+  
+  // v2: source + sourceId thay thế taskId cứng nhắc
+  source      NotifSource? // TASK | EVENT (nullable để backward compat)
+  sourceId    String?      @map("source_id")   // ID của task hoặc event
+  
+  // Legacy — giữ để không gãy code cũ
+  taskId      String?      @map("task_id")
   
   type        NotifType
   title       String?
-  content     String?     @db.Text
-  notifKey    String?     @unique @map("notif_key") // Deterministic key for idempotency: "task:{id}:{phase}:{offset}"
+  content     String?      @db.Text
   
-  scheduledAt DateTime    @map("scheduled_at")
-  sentAt      DateTime?   @map("sent_at")
-  status      NotifStatus @default(PENDING)
-  retryCount  Int         @default(0) @map("retry_count")
-  isRead      Boolean     @default(false) @map("is_read")
+  // notifKey v2 format: "notif:{source}:{sourceId}:{type}"
+  // notifKey v1 format (legacy): "task:{id}:{phase}:{offset}"
+  notifKey    String?      @unique @map("notif_key")
   
-  createdAt   DateTime    @default(now()) @map("created_at")
+  scheduledAt DateTime     @map("scheduled_at")
+  sentAt      DateTime?    @map("sent_at")
+  status      NotifStatus  @default(PENDING)
+  retryCount  Int          @default(0) @map("retry_count")
+  isRead      Boolean      @default(false) @map("is_read")
+  
+  createdAt   DateTime     @default(now()) @map("created_at")
 
   user User  @relation(fields: [userId], references: [id])
   task Task? @relation(fields: [taskId], references: [id])
 
   @@index([userId, isRead])
   @@index([status, scheduledAt])
+  @@index([source, sourceId, type, createdAt])
   @@map("notifications")
 }
 

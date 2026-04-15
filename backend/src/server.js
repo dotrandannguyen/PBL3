@@ -8,6 +8,7 @@ import './modules/notifications/notification.worker.js';
 import {
 	recoverPendingNotifications,
 	processMissedNotifications,
+	recoverPendingEventNotifications,
 } from './modules/notifications/notification.recovery.js';
 
 dotenv.config();
@@ -68,10 +69,13 @@ const startServer = async () => {
 				console.log('[Startup] Running notification recovery...');
 				await recoverPendingNotifications();
 				await processMissedNotifications();
+				await recoverPendingEventNotifications();
 				console.log('[Startup] Notification recovery complete');
 			} catch (recoveryError) {
-				// Recovery failure should NOT crash the server
-				console.error('[Startup] Notification recovery failed:', recoveryError.message);
+				console.error(
+					'[Startup] Notification recovery failed:',
+					recoveryError.message,
+				);
 			}
 		});
 	} catch (error) {

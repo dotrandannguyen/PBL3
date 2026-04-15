@@ -25,5 +25,9 @@ export const createEventSchema = {
 		description: z.string().max(10000).optional().nullable(),
 		repeat: z.enum(repeatValues).optional().default('NONE'),
 		reminder: z.enum(reminderValues).optional().default('NONE'),
+		startAt: z.string().datetime().optional().nullable(),
+		endAt: z.string().datetime().optional().nullable(),
+		reminderAt: z.string().datetime().optional().nullable(),
+		linkedTaskId: z.string().uuid().optional().nullable(),
 	}),
 };

@@ -3,8 +3,10 @@ import { TaskStatus } from '@prisma/client';
 
 const taskSelect = {
 	id: true,
+	userId: true,
 	title: true,
 	description: true,
+	type: true,
 	status: true,
 	priority: true,
 	dueDate: true,
@@ -127,6 +129,7 @@ export const taskRepository = {
 				description: taskData.description ?? null,
 				status: taskData.status ?? 'PENDING',
 				priority: taskData.priority ?? 'MEDIUM',
+				type: taskData.type ?? 'TODO',
 				dueDate: taskData.dueDate ?? null,
 				reminderAt: taskData.reminderAt ?? null,
 				scheduledAt: taskData.scheduledAt ?? null,

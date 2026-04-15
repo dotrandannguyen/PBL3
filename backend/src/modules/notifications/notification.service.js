@@ -36,6 +36,76 @@ const parsePaginationQuery = (query = {}) => {
 	};
 };
 
+const notificationSelect = {
+	id: true,
+	source: true,
+	sourceId: true,
+	taskId: true,
+	type: true,
+	title: true,
+	content: true,
+	isRead: true,
+	sentAt: true,
+	createdAt: true,
+	task: {
+		select: {
+			id: true,
+			title: true,
+			dueDate: true,
+			sourceMetadata: true,
+		},
+	},
+};
+
+const enrichEventNotifications = async (notifications = []) => {
+	const eventIds = [
+		...new Set(
+			notifications
+				.filter(
+					(notification) =>
+						notification?.source === 'EVENT' &&
+						typeof notification?.sourceId === 'string' &&
+						notification.sourceId.length > 0,
+				)
+				.map((notification) => notification.sourceId),
+		),
+	];
+
+	if (eventIds.length === 0) {
+		return notifications;
+	}
+
+	const events = await prisma.event.findMany({
+		where: {
+			id: {
+				in: eventIds,
+			},
+		},
+		select: {
+			id: true,
+			title: true,
+			date: true,
+			time: true,
+			startAt: true,
+			endAt: true,
+			reminderAt: true,
+		},
+	});
+
+	const eventMap = new Map(events.map((event) => [event.id, event]));
+
+	return notifications.map((notification) => {
+		if (notification?.source !== 'EVENT') {
+			return notification;
+		}
+
+		return {
+			...notification,
+			event: eventMap.get(notification.sourceId) || null,
+		};
+	});
+};
+
 export const notificationService = {
 	/**
 	 * Lấy danh sách notifications chưa đọc (mới nhất trước)
@@ -47,7 +117,7 @@ export const notificationService = {
 	getUnreadNotifications: async (userId, query = {}) => {
 		const { page, limit, skip } = parsePaginationQuery(query);
 
-		const [notifications, totalItems] = await Promise.all([
+		const [rawNotifications, totalItems] = await Promise.all([
 			prisma.notification.findMany({
 				where: {
 					userId,
@@ -56,22 +126,7 @@ export const notificationService = {
 				orderBy: { createdAt: 'desc' },
 				skip,
 				take: limit,
-				select: {
-					id: true,
-					taskId: true,
-					type: true,
-					title: true,
-					content: true,
-					sentAt: true,
-					createdAt: true,
-					task: {
-						select: {
-							id: true,
-							title: true,
-							dueDate: true,
-						},
-					},
-				},
+				select: notificationSelect,
 			}),
 			prisma.notification.count({
 				where: {
@@ -80,6 +135,8 @@ export const notificationService = {
 				},
 			}),
 		]);
+
+		const notifications = await enrichEventNotifications(rawNotifications);
 
 		return {
 			data: notifications,
@@ -103,32 +160,18 @@ export const notificationService = {
 			...(isRead !== undefined && { isRead }),
 		};
 
-		const [notifications, totalItems] = await Promise.all([
+		const [rawNotifications, totalItems] = await Promise.all([
 			prisma.notification.findMany({
 				where: whereClause,
 				orderBy: { createdAt: 'desc' },
 				skip,
 				take: limit,
-				select: {
-					id: true,
-					taskId: true,
-					type: true,
-					title: true,
-					content: true,
-					isRead: true,
-					sentAt: true,
-					createdAt: true,
-					task: {
-						select: {
-							id: true,
-							title: true,
-							dueDate: true,
-						},
-					},
-				},
+				select: notificationSelect,
 			}),
 			prisma.notification.count({ where: whereClause }),
 		]);
+
+		const notifications = await enrichEventNotifications(rawNotifications);
 
 		return {
 			data: notifications,

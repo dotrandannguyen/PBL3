@@ -23,7 +23,7 @@
  */
 
 import prisma from '../../config/database.js';
-import { scheduleForTask } from './notification.schedule.js';
+import { scheduleTaskV2, scheduleEventV2 } from './notification.schedule.js';
 
 /**
  * Scan và re-queue notification jobs cho tất cả tasks cần thông báo
@@ -38,13 +38,10 @@ export const recoverPendingNotifications = async () => {
 	try {
 		const now = new Date();
 
-		// Lấy tất cả tasks có thời gian trong tương lai và chưa DONE/ARCHIVED
 		const pendingTasks = await prisma.task.findMany({
 			where: {
 				deletedAt: null,
-				status: {
-					notIn: ['DONE', 'ARCHIVED'],
-				},
+				status: { notIn: ['DONE', 'ARCHIVED'] },
 				OR: [
 					{ dueDate: { gt: now } },
 					{ scheduledAt: { gt: now } },
@@ -55,6 +52,7 @@ export const recoverPendingNotifications = async () => {
 				id: true,
 				userId: true,
 				title: true,
+				type: true,
 				dueDate: true,
 				scheduledAt: true,
 				reminderAt: true,
@@ -64,7 +62,7 @@ export const recoverPendingNotifications = async () => {
 		});
 
 		if (pendingTasks.length === 0) {
-			console.log('[Recovery] No pending tasks found, nothing to recover');
+			console.log('[Recovery] No pending tasks found');
 			return { recovered: 0, duration: Date.now() - startTime };
 		}
 
@@ -75,7 +73,8 @@ export const recoverPendingNotifications = async () => {
 
 		for (const task of pendingTasks) {
 			try {
-				await scheduleForTask(task);
+				// v2: schedule theo type
+				await scheduleTaskV2(task);
 				recoveredCount++;
 			} catch (error) {
 				errorCount++;
@@ -88,13 +87,11 @@ export const recoverPendingNotifications = async () => {
 
 		const duration = Date.now() - startTime;
 		console.log(
-			`[Recovery] Recovery complete: ${recoveredCount} tasks scheduled, ${errorCount} errors, ${duration}ms`,
+			`[Recovery] Done: ${recoveredCount} tasks, ${errorCount} errors, ${duration}ms`,
 		);
-
 		return { recovered: recoveredCount, errors: errorCount, duration };
 	} catch (error) {
-		console.error('[Recovery] Fatal error during recovery:', error);
-		// Don't throw — recovery failure should not prevent server startup
+		console.error('[Recovery] Fatal error:', error);
 		return { recovered: 0, errors: 1, duration: Date.now() - startTime };
 	}
 };
@@ -112,27 +109,15 @@ export const processMissedNotifications = async () => {
 
 	try {
 		const now = new Date();
-		// Lookback window: 24 giờ qua
 		const lookbackStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-		// Tìm tasks có dueDate trong 24h qua nhưng chưa DONE
 		const missedTasks = await prisma.task.findMany({
 			where: {
 				deletedAt: null,
-				status: {
-					notIn: ['DONE', 'ARCHIVED'],
-				},
-				dueDate: {
-					gte: lookbackStart,
-					lte: now,
-				},
+				status: { notIn: ['DONE', 'ARCHIVED'] },
+				dueDate: { gte: lookbackStart, lte: now },
 			},
-			select: {
-				id: true,
-				userId: true,
-				title: true,
-				dueDate: true,
-			},
+			select: { id: true, userId: true, title: true, dueDate: true },
 		});
 
 		if (missedTasks.length === 0) {
@@ -143,28 +128,28 @@ export const processMissedNotifications = async () => {
 		let processedCount = 0;
 
 		for (const task of missedTasks) {
-			// Kiểm tra xem đã có notification cho task này chưa
 			const existingNotif = await prisma.notification.findFirst({
 				where: {
-					taskId: task.id,
-					notifKey: {
-						startsWith: `task:${task.id}:`,
-					},
+					OR: [
+						// v2 notifKey
+						{ notifKey: `notif:task:${task.id}:TASK_DUE` },
+						// v1 notifKey legacy
+						{ notifKey: { startsWith: `task:${task.id}:` } },
+					],
 				},
 			});
 
-			if (existingNotif) {
-				continue; // Đã có notification → skip
-			}
+			if (existingNotif) continue;
 
-			// Tạo notification "đã quá hạn"
-			const notifKey = `task:${task.id}:OVERDUE:0`;
+			const notifKey = `notif:task:${task.id}:TASK_DUE`;
 
 			try {
 				await prisma.notification.upsert({
 					where: { notifKey },
 					create: {
 						userId: task.userId,
+						source: 'TASK',
+						sourceId: task.id,
 						taskId: task.id,
 						type: 'TASK_DUE',
 						title: task.title,
@@ -174,13 +159,15 @@ export const processMissedNotifications = async () => {
 						sentAt: now,
 						status: 'SENT',
 					},
-					update: {}, // No-op if already exists
+					update: {},
 				});
 				processedCount++;
 			} catch (error) {
-				// Unique constraint → already exists, skip
 				if (error?.code !== 'P2002') {
-					console.error(`[Recovery] Error creating missed notification for task ${task.id}:`, error.message);
+					console.error(
+						`[Recovery] Error creating missed notif for task ${task.id}:`,
+						error.message,
+					);
 				}
 			}
 		}
@@ -190,5 +177,78 @@ export const processMissedNotifications = async () => {
 	} catch (error) {
 		console.error('[Recovery] Error processing missed notifications:', error);
 		return { processed: 0 };
+	}
+};
+
+/**
+ * Recovery cho Event notifications (v2)
+ * Scan events có startAt/endAt/reminderAt trong tương lai và chưa có linkedTaskId
+ */
+export const recoverPendingEventNotifications = async () => {
+	const startTime = Date.now();
+	console.log('[Recovery] Starting event notification recovery...');
+
+	try {
+		const now = new Date();
+		const todayStart = new Date(now);
+		todayStart.setHours(0, 0, 0, 0);
+
+		const pendingEvents = await prisma.event.findMany({
+			where: {
+				linkedTaskId: null, // Chỉ recover events độc lập (không phải event dẫn xuất)
+				OR: [
+					{ startAt: { gt: now } },
+					{ endAt: { gt: now } },
+					{ reminderAt: { gt: now } },
+					{ date: { gte: todayStart } },
+				],
+			},
+			select: {
+				id: true,
+				userId: true,
+				title: true,
+				startAt: true,
+				endAt: true,
+				reminderAt: true,
+				linkedTaskId: true,
+				date: true,
+				time: true,
+				reminder: true,
+			},
+		});
+
+		if (pendingEvents.length === 0) {
+			console.log('[Recovery] No pending events found');
+			return { recovered: 0, duration: Date.now() - startTime };
+		}
+
+		console.log(
+			`[Recovery] Found ${pendingEvents.length} events with future timestamps`,
+		);
+
+		let recoveredCount = 0;
+		let errorCount = 0;
+
+		for (const event of pendingEvents) {
+			try {
+				await scheduleEventV2(event);
+				recoveredCount++;
+			} catch (error) {
+				errorCount++;
+				console.error(
+					`[Recovery] Error scheduling event ${event.id}:`,
+					error.message,
+				);
+			}
+		}
+
+		const duration = Date.now() - startTime;
+		console.log(
+			`[Recovery] Events done: ${recoveredCount} recovered, ${errorCount} errors, ${duration}ms`,
+		);
+		return { recovered: recoveredCount, errors: errorCount, duration };
+	} catch (error) {
+		console.error('[Recovery] Fatal error during event recovery:', error);
+		return { recovered: 0, errors: 1, duration: Date.now() - startTime };
 	}
 };

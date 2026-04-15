@@ -1,16 +1,16 @@
 /**
- * Update Task Request DTO
+ * Update Task Request DTO - v2
  *
  * PATCH /tasks/:id
- * Body: { title?: string, description?: string, priority?: 'LOW'|'MEDIUM'|'HIGH'|'URGENT', dueDate?: date, status?: TaskStatus }
- *
- * Cho phép update:
+ * Body (tất cả optional, ít nhất 1 field):
  * - title: sửa tiêu đề
- * - status: cập nhật trạng thái task
- * - priority: thay đổi độ ưu tiên
- * - dueDate: thay đổi ngày hết hạn
  * - description: thay đổi mô tả
+ * - priority: thay đổi độ ưu tiên
+ * - status: cập nhật trạng thái task
+ * - dueDate: thay đổi ngày hết hạn (endAt alias)
+ * - startAt: thay đổi thời điểm bắt đầu (scheduledAt alias, null = unschedule)
  * - reminderAt: thay đổi thời gian nhắc nhở
+ * - type: v2 - cập nhật loại task (TODO|SCHEDULED); thường auto-resolved từ startAt
  */
 import { z } from 'zod';
 
@@ -24,9 +24,13 @@ export const updateTaskSchema = {
 				.optional(),
 			description: z.string().max(1000).optional().nullable(),
 			priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
-			dueDate: z.string().date().or(z.string().datetime()).optional().nullable(),
 			status: z.enum(['PENDING', 'IN_PROGRESS', 'DONE', 'ARCHIVED']).optional(),
+			dueDate: z.string().date().or(z.string().datetime()).optional().nullable(),
+			// v2: startAt alias cho scheduledAt — null = unschedule task
+			startAt: z.string().datetime().optional().nullable(),
 			reminderAt: z.string().datetime().optional().nullable(),
+			// v2: type tường minh (nếu không gửi sẽ auto-resolve từ startAt)
+			type: z.enum(['TODO', 'SCHEDULED']).optional(),
 		})
 		.strict()
 		.refine((data) => Object.values(data).some((v) => v !== undefined), {
