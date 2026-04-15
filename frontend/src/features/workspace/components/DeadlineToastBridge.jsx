@@ -4,11 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import useAuth from "../../auth/hooks/useAuth";
 import socketService from "../../../shared/api/socket.service";
-import { useNotificationListener } from "../../../shared/api/hooks";
+import { useNotificationCenter } from "../../../shared/api/hooks";
 
 const TOAST_CACHE_MS = 10 * 60 * 1000;
+const TOAST_RECENT_WINDOW_MS = 10 * 60 * 1000;
 
-const formatDeadlineHint = (dueDate) => {
+const formatTaskDeadlineHint = (dueDate) => {
   if (!dueDate) {
     return null;
   }
@@ -43,6 +44,130 @@ const formatDeadlineHint = (dueDate) => {
   return `Đến hạn sau ${hours} giờ`;
 };
 
+const isEventNotification = (notification = {}) => {
+  const source = `${notification.source || ""}`.toUpperCase();
+  const type =
+    `${notification.type || notification.eventType || ""}`.toUpperCase();
+
+  return source === "EVENT" || type.startsWith("EVENT_");
+};
+
+const getLinkedEventId = (notification = {}) => {
+  if (!notification || typeof notification !== "object") {
+    return null;
+  }
+
+  if (
+    `${notification.source || ""}`.toUpperCase() === "EVENT" &&
+    typeof notification.sourceId === "string" &&
+    notification.sourceId.length > 0
+  ) {
+    return notification.sourceId;
+  }
+
+  if (
+    typeof notification.event?.id === "string" &&
+    notification.event.id.length > 0
+  ) {
+    return notification.event.id;
+  }
+
+  const metadata = notification.task?.sourceMetadata;
+  if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
+    const calendarMetadata = metadata.calendar;
+    if (
+      calendarMetadata &&
+      typeof calendarMetadata === "object" &&
+      typeof calendarMetadata.eventId === "string" &&
+      calendarMetadata.eventId.length > 0
+    ) {
+      return calendarMetadata.eventId;
+    }
+
+    if (typeof metadata.eventId === "string" && metadata.eventId.length > 0) {
+      return metadata.eventId;
+    }
+  }
+
+  return null;
+};
+
+const parseEventStartAt = (notification = {}) => {
+  const direct =
+    notification.event?.startAt ||
+    notification.startAt ||
+    notification.eventStartAt;
+
+  if (direct) {
+    const parsed = new Date(direct);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+
+  const eventDate = notification.event?.date;
+  const eventTime = notification.event?.time;
+
+  if (!eventDate || typeof eventTime !== "string") {
+    return null;
+  }
+
+  const datePart =
+    eventDate instanceof Date
+      ? eventDate.toISOString().slice(0, 10)
+      : `${eventDate}`.slice(0, 10);
+
+  const parsed = new Date(`${datePart}T${eventTime}:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatEventHint = (notification = {}) => {
+  const type =
+    `${notification.type || notification.eventType || ""}`.toUpperCase();
+  const startAt = parseEventStartAt(notification);
+
+  if (type === "EVENT_END") {
+    return "Sự kiện đã kết thúc";
+  }
+
+  if (type === "EVENT_START") {
+    return "Sự kiện đang diễn ra";
+  }
+
+  if (!startAt) {
+    return type === "EVENT_REMINDER"
+      ? "Sự kiện sắp diễn ra"
+      : "Thông báo sự kiện";
+  }
+
+  const diffMinutes = Math.round((startAt.getTime() - Date.now()) / 60000);
+  if (diffMinutes > 0 && type === "EVENT_REMINDER") {
+    if (diffMinutes < 60) {
+      return `Sự kiện bắt đầu sau ${diffMinutes} phút`;
+    }
+
+    const hours = Math.round(diffMinutes / 60);
+    return `Sự kiện bắt đầu sau ${hours} giờ`;
+  }
+
+  return `Bắt đầu lúc ${startAt.toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+  })}`;
+};
+
+const resolveNotificationHint = (notification = {}) => {
+  if (isEventNotification(notification)) {
+    return formatEventHint(notification);
+  }
+
+  return formatTaskDeadlineHint(
+    notification.dueDate || notification.task?.dueDate,
+  );
+};
+
 const formatEventTime = (createdAt) => {
   if (!createdAt) {
     return "Vừa xong";
@@ -61,6 +186,8 @@ const formatEventTime = (createdAt) => {
 
 const resolveTone = (notification = {}) => {
   const normalizedPhase = `${notification.phase || ""}`.toUpperCase();
+  const normalizedType =
+    `${notification.type || notification.eventType || ""}`.toUpperCase();
   const normalizedMessage = `${notification.content || ""}`.toLowerCase();
 
   if (normalizedPhase === "OVERDUE" || normalizedMessage.includes("quá hạn")) {
@@ -83,6 +210,18 @@ const resolveTone = (notification = {}) => {
         "border-amber-300/45 bg-gradient-to-br from-amber-400/18 via-amber-400/8 to-bg-sidebar",
       badgeClass: "border-amber-200/45 bg-amber-400/20 text-amber-100",
       iconClass: "text-amber-200",
+      Icon: BellRing,
+    };
+  }
+
+  if (normalizedType === "EVENT_REMINDER") {
+    return {
+      label: "Sự kiện",
+      duration: 9000,
+      cardClass:
+        "border-indigo-300/35 bg-gradient-to-br from-indigo-500/16 via-indigo-500/8 to-bg-sidebar",
+      badgeClass: "border-indigo-200/40 bg-indigo-500/18 text-indigo-100",
+      iconClass: "text-indigo-200",
       Icon: BellRing,
     };
   }
@@ -116,7 +255,12 @@ const buildDedupKey = (notification = {}) => {
 const DeadlineToastBridge = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { notifications } = useNotificationCenter({
+    feed: "unread",
+    pageSize: 30,
+  });
   const seenToastRef = useRef(new Map());
+  const hasHydratedRef = useRef(false);
 
   useEffect(() => {
     if (!user?.id) {
@@ -128,8 +272,20 @@ const DeadlineToastBridge = () => {
 
   const handleViewTask = useCallback(
     (notification) => {
+      const linkedEventId = getLinkedEventId(notification);
+      if (linkedEventId) {
+        const eventQuery = new URLSearchParams();
+        eventQuery.set("eventId", linkedEventId);
+        navigate(`/calendar?${eventQuery.toString()}`);
+        return;
+      }
+
       const query = new URLSearchParams();
-      const keyword = notification?.title || "";
+      const keyword =
+        notification?.event?.title ||
+        notification?.task?.title ||
+        notification?.title ||
+        "";
 
       if (keyword) {
         query.set("q", keyword);
@@ -143,7 +299,7 @@ const DeadlineToastBridge = () => {
 
   const handleIncomingReminder = useCallback(
     (notification) => {
-      if (!notification || !user?.id) {
+      if (!notification) {
         return;
       }
 
@@ -166,13 +322,20 @@ const DeadlineToastBridge = () => {
       seenToastRef.current.set(dedupKey, now);
 
       const tone = resolveTone(notification);
-      const hint = formatDeadlineHint(notification.dueDate);
+      const hint = resolveNotificationHint(notification);
       const createdTime = formatEventTime(notification.createdAt);
-      const title = notification.title || "Task reminder";
+      const title =
+        notification.event?.title ||
+        notification.task?.title ||
+        notification.title ||
+        "Task reminder";
       const message = notification.content || "Bạn có việc cần chú ý";
+      const actionLabel = getLinkedEventId(notification)
+        ? "View Event"
+        : "View Task";
 
       toast.custom(
-        (toastId) => (
+        (t) => (
           <div
             className={`pointer-events-auto w-[min(92vw,24rem)] rounded-2xl border p-3 shadow-2xl backdrop-blur ${tone.cardClass}`}
           >
@@ -205,7 +368,7 @@ const DeadlineToastBridge = () => {
                 <button
                   type="button"
                   className="rounded-md border border-border-subtle px-2 py-1 text-[11px] text-text-secondary hover:bg-white/5"
-                  onClick={() => toast.dismiss(toastId)}
+                  onClick={() => toast.dismiss(t.id)}
                 >
                   Đóng
                 </button>
@@ -213,11 +376,11 @@ const DeadlineToastBridge = () => {
                   type="button"
                   className="rounded-md bg-accent-primary px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-accent-hover"
                   onClick={() => {
-                    toast.dismiss(toastId);
+                    toast.dismiss(t.id);
                     handleViewTask(notification);
                   }}
                 >
-                  View Task
+                  {actionLabel}
                 </button>
               </div>
             </div>
@@ -230,10 +393,56 @@ const DeadlineToastBridge = () => {
         },
       );
     },
-    [handleViewTask, user?.id],
+    [handleViewTask],
   );
 
-  useNotificationListener(handleIncomingReminder);
+  useEffect(() => {
+    if (!Array.isArray(notifications)) {
+      return;
+    }
+
+    const now = Date.now();
+    const unreadNotifications = notifications.filter(
+      (notification) => notification && !notification.isRead,
+    );
+
+    if (!hasHydratedRef.current) {
+      unreadNotifications.forEach((notification) => {
+        const dedupKey = buildDedupKey(notification);
+        if (dedupKey) {
+          seenToastRef.current.set(dedupKey, now);
+        }
+      });
+      hasHydratedRef.current = true;
+      return;
+    }
+
+    const sorted = [...unreadNotifications].sort((left, right) => {
+      const leftTime = new Date(left.createdAt || left.sentAt || 0).getTime();
+      const rightTime = new Date(
+        right.createdAt || right.sentAt || 0,
+      ).getTime();
+      return leftTime - rightTime;
+    });
+
+    sorted.forEach((notification) => {
+      const createdMs = new Date(
+        notification.createdAt || notification.sentAt || 0,
+      ).getTime();
+      const isOldNotification =
+        Number.isFinite(createdMs) && now - createdMs > TOAST_RECENT_WINDOW_MS;
+
+      if (isOldNotification) {
+        const dedupKey = buildDedupKey(notification);
+        if (dedupKey) {
+          seenToastRef.current.set(dedupKey, now);
+        }
+        return;
+      }
+
+      handleIncomingReminder(notification);
+    });
+  }, [handleIncomingReminder, notifications]);
 
   return null;
 };

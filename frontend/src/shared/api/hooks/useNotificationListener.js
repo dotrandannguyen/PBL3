@@ -2,15 +2,51 @@
  * useNotificationListener - Custom hook để listen socket events từ server
  *
  * Features:
- * - Listen "TASK_EVENT_REMINDER" event
+ * - Listen "NOTIFICATION_CREATED" event (v2)
+ * - Listen "TASK_EVENT_REMINDER" event (legacy fallback)
  * - Listen "NOTIFICATION_READ" event
  * - Listen "NOTIFICATIONS_MARKED_ALL_READ" event
  * - Real-time update notifications list
- * - Auto-increment/decrement unread count
  */
 
 import { useEffect, useRef } from "react";
 import socketService from "../socket.service";
+
+const DEDUP_TTL_MS = 2 * 60 * 1000;
+
+const buildFallbackId = (data = {}) =>
+  [
+    data?.id,
+    data?.source,
+    data?.sourceId,
+    data?.taskId,
+    data?.type,
+    data?.phase,
+    data?.offset,
+    data?.createdAt,
+  ]
+    .filter((part) => part !== undefined && part !== null && part !== "")
+    .join(":");
+
+const normalizeIncomingNotification = (data = {}) => {
+  const normalizedId = data?.id || buildFallbackId(data);
+
+  return {
+    id: normalizedId,
+    taskId: data?.taskId || null,
+    source: data?.source || (data?.taskId ? "TASK" : null),
+    sourceId: data?.sourceId || data?.taskId || null,
+    type: data?.type || "SYSTEM_ALERT",
+    title: data?.title || data?.taskTitle || data?.message || "Thông báo",
+    content: data?.content || data?.message || "",
+    isRead: false,
+    phase: data?.phase || null,
+    offset: data?.offset ?? null,
+    dueDate: data?.dueDate || null,
+    sentAt: data?.createdAt || new Date().toISOString(),
+    createdAt: data?.createdAt || new Date().toISOString(),
+  };
+};
 
 export const useNotificationListener = (
   onNewNotification,
@@ -20,6 +56,7 @@ export const useNotificationListener = (
   const onNewNotificationRef = useRef(onNewNotification);
   const onNotificationReadRef = useRef(onNotificationRead);
   const onAllReadRef = useRef(onAllRead);
+  const seenNotificationRef = useRef(new Map());
   const socket = socketService.getSocket();
 
   useEffect(() => {
@@ -41,38 +78,58 @@ export const useNotificationListener = (
 
     console.log("[useNotificationListener] Setting up listeners");
 
+    const isDuplicate = (notificationId) => {
+      if (!notificationId) {
+        return false;
+      }
+
+      const now = Date.now();
+      for (const [id, ts] of seenNotificationRef.current.entries()) {
+        if (now - ts > DEDUP_TTL_MS) {
+          seenNotificationRef.current.delete(id);
+        }
+      }
+
+      if (seenNotificationRef.current.has(notificationId)) {
+        return true;
+      }
+
+      seenNotificationRef.current.set(notificationId, now);
+      return false;
+    };
+
+    const emitNewNotification = (rawData, sourceEventName) => {
+      const notification = normalizeIncomingNotification(rawData);
+
+      if (isDuplicate(notification.id)) {
+        console.log(
+          `[useNotificationListener] Skip duplicate notification from ${sourceEventName}:`,
+          notification.id,
+        );
+        return;
+      }
+
+      if (onNewNotificationRef.current) {
+        onNewNotificationRef.current(notification);
+      }
+    };
+
+    const handleNotificationCreated = (data) => {
+      console.log(
+        "[useNotificationListener] Received NOTIFICATION_CREATED:",
+        data,
+      );
+
+      emitNewNotification(data, "NOTIFICATION_CREATED");
+    };
+
     const handleTaskEventReminder = (data) => {
       console.log(
         "[useNotificationListener] Received TASK_EVENT_REMINDER:",
         data,
       );
 
-      const generatedId = [
-        data?.taskId,
-        data?.phase,
-        data?.offset,
-        data?.createdAt,
-      ]
-        .filter(Boolean)
-        .join(":");
-
-      const notification = {
-        id: data?.id || generatedId,
-        taskId: data?.taskId || null,
-        type: data?.type || "SYSTEM_ALERT",
-        title: data?.taskTitle || data?.title || data?.message || "Thông báo",
-        content: data?.message || "",
-        isRead: false,
-        phase: data?.phase || null,
-        offset: data?.offset ?? null,
-        dueDate: data?.dueDate || null,
-        sentAt: data?.createdAt || new Date().toISOString(),
-        createdAt: data?.createdAt || new Date().toISOString(),
-      };
-
-      if (onNewNotificationRef.current) {
-        onNewNotificationRef.current(notification);
-      }
+      emitNewNotification(data, "TASK_EVENT_REMINDER");
     };
 
     const handleNotificationRead = (data) => {
@@ -97,11 +154,13 @@ export const useNotificationListener = (
       }
     };
 
+    socket.on("NOTIFICATION_CREATED", handleNotificationCreated);
     socket.on("TASK_EVENT_REMINDER", handleTaskEventReminder);
     socket.on("NOTIFICATION_READ", handleNotificationRead);
     socket.on("NOTIFICATIONS_MARKED_ALL_READ", handleAllMarkedRead);
 
     return () => {
+      socket.off("NOTIFICATION_CREATED", handleNotificationCreated);
       socket.off("TASK_EVENT_REMINDER", handleTaskEventReminder);
       socket.off("NOTIFICATION_READ", handleNotificationRead);
       socket.off("NOTIFICATIONS_MARKED_ALL_READ", handleAllMarkedRead);

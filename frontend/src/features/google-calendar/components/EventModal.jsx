@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import {
   X,
   Clock,
@@ -23,41 +29,27 @@ const EVENT_COLORS = [
   { name: "Gray", value: "#787774" },
 ];
 
-// Generate time slots every 15 minutes
-const generateTimeSlots = () => {
-  const slots = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      const hh = String(h).padStart(2, "0");
-      const mm = String(m).padStart(2, "0");
-      slots.push(`${hh}:${mm}`);
-    }
+const normalizeTimeValue = (timeValue) => {
+  if (!timeValue || typeof timeValue !== "string") {
+    return "";
   }
-  return slots;
-};
 
-const TIME_SLOTS = generateTimeSlots();
+  const [hourPart, minutePart] = timeValue.split(":");
+  const hours = Number(hourPart);
+  const minutes = Number(minutePart);
 
-// Format time display: "13:30" → "1:30 PM"
-const formatTimeDisplay = (timeStr) => {
-  if (!timeStr) return "";
-  const [h, m] = timeStr.split(":").map(Number);
-  const period = h >= 12 ? "PM" : "AM";
-  const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${displayH}:${String(m).padStart(2, "0")} ${period}`;
-};
+  if (
+    Number.isNaN(hours) ||
+    Number.isNaN(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return "";
+  }
 
-// Calculate duration label
-const getDurationLabel = (startTime, endTimeStr) => {
-  if (!startTime || !endTimeStr) return "";
-  const [sh, sm] = startTime.split(":").map(Number);
-  const [eh, em] = endTimeStr.split(":").map(Number);
-  const diffMins = eh * 60 + em - (sh * 60 + sm);
-  if (diffMins <= 0) return "";
-  if (diffMins < 60) return `${diffMins} phút`;
-  const hours = diffMins / 60;
-  if (Number.isInteger(hours)) return `${hours} giờ`;
-  return `${hours.toFixed(1).replace(".", ",")} giờ`;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 };
 
 // Format date in Vietnamese
@@ -111,175 +103,35 @@ const toDateOnly = (isoValue) => {
   return `${year}-${month}-${day}`;
 };
 
-// Parse user input like "1:30 PM", "13:30", "1:30PM", "130pm" → "HH:MM" (24h)
-const parseTimeInput = (input) => {
-  if (!input) return null;
-  const s = input.trim().toLowerCase().replace(/\s+/g, "");
-  // Try "HH:MM" 24-hour
-  let match = s.match(/^(\d{1,2}):(\d{2})$/);
-  if (match) {
-    const h = parseInt(match[1]),
-      m = parseInt(match[2]);
-    if (h >= 0 && h < 24 && m >= 0 && m < 60)
-      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+const addDaysToDateString = (dateString, days) => {
+  if (!dateString) {
+    return dateString;
   }
-  // Try "H:MMam/pm" or "H:MM am/pm"
-  match = s.match(/^(\d{1,2}):(\d{2})(am|pm)$/);
-  if (match) {
-    let h = parseInt(match[1]);
-    const m = parseInt(match[2]);
-    const ampm = match[3];
-    if (ampm === "pm" && h < 12) h += 12;
-    if (ampm === "am" && h === 12) h = 0;
-    if (h >= 0 && h < 24 && m >= 0 && m < 60)
-      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+
+  const parsedDate = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return dateString;
   }
-  // Try "HMMam/pm" (no colon, e.g. "130pm")
-  match = s.match(/^(\d{1,2})(\d{2})(am|pm)$/);
-  if (match) {
-    let h = parseInt(match[1]);
-    const m = parseInt(match[2]);
-    const ampm = match[3];
-    if (ampm === "pm" && h < 12) h += 12;
-    if (ampm === "am" && h === 12) h = 0;
-    if (h >= 0 && h < 24 && m >= 0 && m < 60)
-      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-  }
-  return null;
+
+  parsedDate.setDate(parsedDate.getDate() + days);
+  const year = parsedDate.getFullYear();
+  const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+  const day = String(parsedDate.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
-// ─── Custom TimePicker: editable input + dropdown ──────
-const TimePicker = ({ value, onChange, startTimeRef }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [inputText, setInputText] = useState("");
-  const containerRef = useRef(null);
-  const inputRef = useRef(null);
-
-  // Sync display text when value changes externally
-  useEffect(() => {
-    if (!isOpen) {
-      setInputText(value ? formatTimeDisplay(value) : "");
-    }
-  }, [value, isOpen]);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        commitInput();
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [inputText]);
-
-  useEffect(() => {
-    if (isOpen) {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-      // Scroll to selected item
-      setTimeout(() => {
-        const selected = containerRef.current?.querySelector(
-          '[data-selected="true"]',
-        );
-        if (selected) selected.scrollIntoView({ block: "center" });
-      }, 50);
-    }
-  }, [isOpen]);
-
-  const commitInput = () => {
-    const parsed = parseTimeInput(inputText);
-    if (parsed) {
-      onChange(parsed);
-    } else {
-      // Reset to current value
-      setInputText(value ? formatTimeDisplay(value) : "");
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      commitInput();
-      setIsOpen(false);
-    }
-    if (e.key === "Escape") {
-      setInputText(value ? formatTimeDisplay(value) : "");
-      setIsOpen(false);
-    }
-  };
-
-  const handleSelect = (slot) => {
-    onChange(slot);
-    setInputText(formatTimeDisplay(slot));
-    setIsOpen(false);
-  };
-
+const TimePicker = ({ value, onChange, minTime = null }) => {
   return (
-    <div className="relative" ref={containerRef}>
-      {/* Closed state: chip button */}
-      {!isOpen ? (
-        <button
-          type="button"
-          onClick={() => setIsOpen(true)}
-          className="px-3 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer border border-transparent
-                               bg-bg-hover text-text-primary hover:bg-bg-active transition-all duration-150"
-        >
-          {value ? formatTimeDisplay(value) : "—"}
-        </button>
-      ) : (
-        /* Open state: editable input */
-        <input
-          ref={inputRef}
-          type="text"
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="w-[100px] px-3 py-1.5 rounded-lg text-[13px] font-medium border border-accent-primary/40
-                               bg-accent-primary/10 text-accent-primary focus:outline-none"
-          placeholder="7:00 PM"
-        />
-      )}
-
-      {/* Dropdown */}
-      {isOpen && (
-        <div
-          className="absolute top-full left-0 mt-1.5 w-[220px] max-h-[200px] overflow-y-auto
-                               bg-bg-sidebar border border-border-subtle rounded-xl shadow-2xl z-[60]"
-          style={{ scrollbarWidth: "thin" }}
-        >
-          {TIME_SLOTS.map((slot) => {
-            const duration = startTimeRef
-              ? getDurationLabel(startTimeRef, slot)
-              : "";
-            if (startTimeRef && slot <= startTimeRef) return null;
-            const isSelected = slot === value;
-
-            return (
-              <button
-                key={slot}
-                type="button"
-                data-selected={isSelected ? "true" : "false"}
-                onClick={() => handleSelect(slot)}
-                className={`w-full text-left px-4 py-2 text-[13px] cursor-pointer border-none transition-colors
-                                    ${
-                                      isSelected
-                                        ? "bg-accent-primary/15 text-accent-primary font-semibold"
-                                        : "bg-transparent text-text-primary hover:bg-bg-hover"
-                                    }`}
-              >
-                {formatTimeDisplay(slot)}
-                {duration && (
-                  <span className="text-text-tertiary ml-1.5 font-normal">
-                    ({duration})
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <input
+      type="time"
+      step={60}
+      value={normalizeTimeValue(value)}
+      min={minTime || undefined}
+      onChange={(e) => onChange(e.target.value)}
+      className="px-3 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer
+                               bg-bg-hover text-text-primary hover:bg-bg-active transition-colors
+                               border border-border-subtle focus:outline-none focus:border-accent-primary"
+    />
   );
 };
 
@@ -308,7 +160,24 @@ const EventModal = ({
   const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [status, setStatus] = useState("busy");
   const [visibility, setVisibility] = useState("default");
-  const isTaskLinkedEvent = Boolean(event?.endAt);
+  const startDateInputRef = useRef(null);
+  const endDateInputRef = useRef(null);
+  const isTaskLinkedEvent = Boolean(event?.linkedTaskId);
+
+  const openNativeDatePicker = useCallback((inputRef) => {
+    const input = inputRef?.current;
+    if (!input) {
+      return;
+    }
+
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+      return;
+    }
+
+    input.focus();
+    input.click();
+  }, []);
 
   const calendarOwnerName = useMemo(() => {
     if (event?.calendarOwner && typeof event.calendarOwner === "string") {
@@ -337,8 +206,8 @@ const EventModal = ({
     if (event) {
       setTitle(event.title || "");
       setDate(event.date || "");
-      setTime(event.time || "");
-      setEndTime(event.endTime || toHHMM(event.endAt));
+      setTime(normalizeTimeValue(event.time));
+      setEndTime(normalizeTimeValue(event.endTime) || toHHMM(event.endAt));
       setEndDate(event.endDate || toDateOnly(event.endAt) || event.date || "");
       setIsAllDay(isTaskLinkedEvent ? false : event.isAllDay || false);
       setDescription(event.description || "");
@@ -349,24 +218,33 @@ const EventModal = ({
       setShowConfirmDelete(false);
     } else if (selectedDate) {
       setTitle("");
-      const y = selectedDate.getFullYear();
-      const m = String(selectedDate.getMonth() + 1).padStart(2, "0");
-      const d = String(selectedDate.getDate()).padStart(2, "0");
-      setDate(`${y}-${m}-${d}`);
+
+      const pad2 = (value) => String(value).padStart(2, "0");
+
       if (prefillRange) {
-        setTime(prefillRange.startTime || "");
-        setEndTime(prefillRange.endTime || "");
+        const y = selectedDate.getFullYear();
+        const m = pad2(selectedDate.getMonth() + 1);
+        const d = pad2(selectedDate.getDate());
+
+        setDate(`${y}-${m}-${d}`);
+        setTime(normalizeTimeValue(prefillRange.startTime));
+        setEndTime(normalizeTimeValue(prefillRange.endTime));
         setEndDate(`${y}-${m}-${d}`);
         setIsAllDay(false);
       } else {
         const now = new Date();
-        const currentH = now.getHours();
-        const defaultStart = `${String(currentH).padStart(2, "0")}:00`;
-        const endH = currentH + 1 < 24 ? currentH + 1 : 23;
-        const defaultEnd = `${String(endH).padStart(2, "0")}:00`;
+        const end = new Date(now.getTime() + 60 * 60 * 1000);
+
+        const startDateStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+        const endDateStr = `${end.getFullYear()}-${pad2(end.getMonth() + 1)}-${pad2(end.getDate())}`;
+
+        const defaultStart = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+        const defaultEnd = `${pad2(end.getHours())}:${pad2(end.getMinutes())}`;
+
+        setDate(startDateStr);
         setTime(defaultStart);
         setEndTime(defaultEnd);
-        setEndDate(`${y}-${m}-${d}`);
+        setEndDate(endDateStr);
         setIsAllDay(false);
       }
       setDescription("");
@@ -428,14 +306,32 @@ const EventModal = ({
 
   const handleStartTimeChange = (newTime) => {
     setTime(newTime);
+
+    if (!newTime || !date) {
+      return;
+    }
+
     if (newTime) {
       const [h, m] = newTime.split(":").map(Number);
-      const endH = h + 1;
-      if (endH < 24) {
-        setEndTime(
-          `${String(endH).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
-        );
-      }
+      const nextTotalMinutes = h * 60 + m + 60;
+      const nextHour = Math.floor(nextTotalMinutes / 60) % 24;
+      const nextMinute = nextTotalMinutes % 60;
+
+      setEndTime(
+        `${String(nextHour).padStart(2, "0")}:${String(nextMinute).padStart(2, "0")}`,
+      );
+
+      setEndDate((previousEndDate) => {
+        if (nextTotalMinutes >= 24 * 60) {
+          if (!previousEndDate || previousEndDate === date) {
+            return addDaysToDateString(date, 1);
+          }
+
+          return previousEndDate;
+        }
+
+        return previousEndDate || date;
+      });
     }
   };
 
@@ -550,20 +446,16 @@ const EventModal = ({
                       type="button"
                       className="px-3 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer
                                                        bg-bg-hover text-text-primary hover:bg-bg-active transition-colors border-none"
-                      onClick={() =>
-                        document
-                          .getElementById("gc-start-date-input")
-                          .showPicker?.()
-                      }
+                      onClick={() => openNativeDatePicker(startDateInputRef)}
                     >
                       {formatDateVN(date) || "Chọn ngày"}
                     </button>
                     <input
-                      id="gc-start-date-input"
+                      ref={startDateInputRef}
                       type="date"
                       value={date}
                       onChange={(e) => handleStartDateChange(e.target.value)}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      className="absolute inset-0 opacity-0 pointer-events-none"
                       tabIndex={-1}
                     />
                   </div>
@@ -583,20 +475,16 @@ const EventModal = ({
                         type="button"
                         className="px-3 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer
                                                        bg-bg-hover text-text-primary hover:bg-bg-active transition-colors border-none"
-                        onClick={() =>
-                          document
-                            .getElementById("gc-end-date-input")
-                            .showPicker?.()
-                        }
+                        onClick={() => openNativeDatePicker(endDateInputRef)}
                       >
                         {formatDateVN(resolvedEndDateForUi) || "Chọn ngày"}
                       </button>
                       <input
-                        id="gc-end-date-input"
+                        ref={endDateInputRef}
                         type="date"
                         value={resolvedEndDateForUi}
                         onChange={(e) => handleEndDateChange(e.target.value)}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        className="absolute inset-0 opacity-0 pointer-events-none"
                         tabIndex={-1}
                       />
                     </div>
@@ -604,7 +492,7 @@ const EventModal = ({
                     <TimePicker
                       value={endTime}
                       onChange={setEndTime}
-                      startTimeRef={isSameDayRange ? time : null}
+                      minTime={isSameDayRange ? time : null}
                     />
                   </div>
                 )}

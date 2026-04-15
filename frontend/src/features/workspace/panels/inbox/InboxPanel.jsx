@@ -63,7 +63,7 @@ const formatDateTime = (dateStr) => {
   });
 };
 
-const formatDeadlineHint = (dueDate) => {
+const formatTaskDeadlineHint = (dueDate) => {
   if (!dueDate) {
     return "Không có hạn chót";
   }
@@ -99,8 +99,89 @@ const formatDeadlineHint = (dueDate) => {
   return `Đến hạn sau ${hours} giờ`;
 };
 
+const isEventNotification = (notification = {}) => {
+  const source = `${notification.source || ""}`.toUpperCase();
+  const type =
+    `${notification.type || notification.eventType || ""}`.toUpperCase();
+
+  return source === "EVENT" || type.startsWith("EVENT_");
+};
+
+const parseEventStartAt = (notification = {}) => {
+  const direct =
+    notification.event?.startAt ||
+    notification.startAt ||
+    notification.eventStartAt;
+
+  if (direct) {
+    const parsed = new Date(direct);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+
+  const eventDate = notification.event?.date;
+  const eventTime = notification.event?.time;
+
+  if (!eventDate || typeof eventTime !== "string") {
+    return null;
+  }
+
+  const datePart =
+    eventDate instanceof Date
+      ? eventDate.toISOString().slice(0, 10)
+      : `${eventDate}`.slice(0, 10);
+
+  const parsed = new Date(`${datePart}T${eventTime}:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatEventHint = (notification = {}) => {
+  const type =
+    `${notification.type || notification.eventType || ""}`.toUpperCase();
+  const startAt = parseEventStartAt(notification);
+
+  if (type === "EVENT_END") {
+    return "Sự kiện đã kết thúc";
+  }
+
+  if (type === "EVENT_START") {
+    return "Sự kiện đang diễn ra";
+  }
+
+  if (!startAt) {
+    return type === "EVENT_REMINDER"
+      ? "Sự kiện sắp diễn ra"
+      : "Thông báo sự kiện";
+  }
+
+  const diffMinutes = Math.round((startAt.getTime() - Date.now()) / 60000);
+  if (diffMinutes > 0 && type === "EVENT_REMINDER") {
+    if (diffMinutes < 60) {
+      return `Sự kiện bắt đầu sau ${diffMinutes} phút`;
+    }
+
+    const hours = Math.round(diffMinutes / 60);
+    return `Sự kiện bắt đầu sau ${hours} giờ`;
+  }
+
+  return `Bắt đầu lúc ${formatDateTime(startAt.toISOString())}`;
+};
+
+const resolveNotificationHint = (notification = {}) => {
+  if (isEventNotification(notification)) {
+    return formatEventHint(notification);
+  }
+
+  return formatTaskDeadlineHint(
+    notification.dueDate || notification.task?.dueDate,
+  );
+};
+
 const resolveNotificationTone = (notification = {}) => {
   const normalizedPhase = `${notification.phase || ""}`.toUpperCase();
+  const normalizedType =
+    `${notification.type || notification.eventType || ""}`.toUpperCase();
   const normalizedContent = `${notification.content || ""}`.toLowerCase();
 
   if (normalizedPhase === "OVERDUE" || normalizedContent.includes("quá hạn")) {
@@ -118,6 +199,15 @@ const resolveNotificationTone = (notification = {}) => {
       icon: BellRing,
       badgeClass: "border-amber-300/40 bg-amber-400/18 text-amber-200",
       iconClass: "text-amber-200",
+    };
+  }
+
+  if (normalizedType === "EVENT_REMINDER") {
+    return {
+      label: "Sự kiện",
+      icon: BellRing,
+      badgeClass: "border-indigo-300/40 bg-indigo-400/16 text-indigo-100",
+      iconClass: "text-indigo-200",
     };
   }
 
@@ -280,6 +370,7 @@ const InboxPanel = ({ isOpen, onClose }) => {
       }
 
       const keyword =
+        notification.event?.title ||
         notification.task?.title ||
         notification.title ||
         notification.content ||
@@ -458,16 +549,16 @@ const InboxPanel = ({ isOpen, onClose }) => {
                 notificationItems.map((notification) => {
                   const tone = resolveNotificationTone(notification);
                   const ToneIcon = tone.icon;
+                  const eventNotification = isEventNotification(notification);
                   const createdAt =
                     notification.createdAt || notification.sentAt;
                   const title =
+                    notification.event?.title ||
                     notification.task?.title ||
                     notification.title ||
                     "Thông báo";
                   const content = notification.content || "Không có nội dung";
-                  const deadlineHint = formatDeadlineHint(
-                    notification.dueDate || notification.task?.dueDate,
-                  );
+                  const deadlineHint = resolveNotificationHint(notification);
 
                   return (
                     <article
@@ -523,14 +614,16 @@ const InboxPanel = ({ isOpen, onClose }) => {
                             </button>
                           )}
 
-                          <button
-                            type="button"
-                            onClick={() => handleViewTask(notification)}
-                            className="inline-flex items-center gap-1 rounded-md bg-accent-primary px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-accent-hover"
-                          >
-                            <ExternalLink size={11} />
-                            View Task
-                          </button>
+                          {!eventNotification && (
+                            <button
+                              type="button"
+                              onClick={() => handleViewTask(notification)}
+                              className="inline-flex items-center gap-1 rounded-md bg-accent-primary px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-accent-hover"
+                            >
+                              <ExternalLink size={11} />
+                              View Task
+                            </button>
+                          )}
                         </div>
                       </div>
                     </article>
