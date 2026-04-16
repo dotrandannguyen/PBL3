@@ -161,11 +161,11 @@ export const githubService = {
 		return { user: result, ...jwtTokens };
 	},
 
-	// HÀM LẤY DANH SÁCH REPOSITORY
+	// 🚀 HÀM LẤY DANH SÁCH REPOSITORY
 	getUserRepositories: async (accessToken) => {
 		try {
 			const response = await axios.get(
-				'https://api.github.com/user/repos?sort=updated&per_page=30&type=owner',
+				'https://api.github.com/user/repos?sort=updated&per_page=100&type=owner',
 				{
 					headers: {
 						Authorization: `Bearer ${accessToken}`,
@@ -175,7 +175,7 @@ export const githubService = {
 			);
 
 			console.log(
-				`[GITHUB] Lấy được ${response.data.length} repositories của user`,
+				`✅ [GITHUB] Lấy được ${response.data.length} repositories của user`,
 			);
 
 			return response.data.map((repo) => ({
@@ -196,7 +196,7 @@ export const githubService = {
 		}
 	},
 
-	// HÀM TỰ ĐỘNG CÀI WEBHOOK VÀO MỘT REPO
+	// 🚀 HÀM TỰ ĐỘNG CÀI WEBHOOK VÀO MỘT REPO
 	setupWebhookForRepo: async (accessToken, owner, repo) => {
 		try {
 			const WEBHOOK_URL = `${process.env.CLOUDFLARE_URL}/v1/api/integrations/webhook/github`;
@@ -222,7 +222,7 @@ export const githubService = {
 				},
 			);
 
-			console.log(`[GITHUB] Đã tự động cài Webhook cho repo: ${repo}`);
+			console.log(`✅ [GITHUB] Đã tự động cài Webhook cho repo: ${repo}`);
 
 			return {
 				id: response.data.id,
@@ -246,7 +246,37 @@ export const githubService = {
 		}
 	},
 
-	// HÀM TỰ ĐỘNG CÀI WEBHOOK CHO NHIỀU REPO
+	// 🧹 HÀM XÓA WEBHOOK TRÊN MỘT REPO
+	deleteWebhookForRepo: async (accessToken, owner, repo, hookId) => {
+		try {
+			await axios.delete(
+				`https://api.github.com/repos/${owner}/${repo}/hooks/${hookId}`,
+				{
+					headers: {
+						Authorization: `Bearer ${accessToken}`,
+						Accept: 'application/vnd.github.v3+json',
+					},
+				},
+			);
+
+			console.log(`✅ [GITHUB] Đã xóa Webhook ${hookId} cho repo: ${repo}`);
+			return true;
+		} catch (error) {
+			if (error.response?.status === 404) {
+				console.warn(
+					`⚠️ [GITHUB] Webhook ${hookId} không tồn tại cho repo ${repo}`,
+				);
+				return false;
+			}
+			console.error(
+				`❌ [GITHUB] Lỗi xóa Webhook ${hookId} cho ${repo}:`,
+				error.response?.data?.message || error.message,
+			);
+			throw error;
+		}
+	},
+
+	// 🚀 HÀM TỰ ĐỘNG CÀI WEBHOOK CHO NHIỀU REPO
 	setupWebhooksForRepositories: async (accessToken, repositories) => {
 		const results = {
 			success: [],
@@ -263,6 +293,10 @@ export const githubService = {
 				if (webhookData) {
 					results.success.push({
 						repo: repo.name,
+						repoId: repo.id,
+						owner: repo.owner,
+						name: repo.name,
+						fullName: repo.fullName,
 						webhookId: webhookData.id,
 					});
 				}

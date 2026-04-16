@@ -1,5 +1,5 @@
 import prisma from '../../config/database.js';
-import { TaskStatus } from '@prisma/client';
+import { TaskStatus, TaskSource } from '@prisma/client';
 
 const taskSelect = {
 	id: true,
@@ -27,36 +27,50 @@ const taskSelect = {
  * Clean architecture: Repository chỉ giao tiếp với database
  */
 export const taskRepository = {
+	buildTasksWhere: (userId, query = {}) => {
+		const where = {
+			userId,
+			deletedAt: null,
+			AND: [
+				{
+					OR: [{ sourceType: TaskSource.MANUAL }, { isConverted: true }],
+				},
+			],
+		};
+
+		if (query.completed !== undefined) {
+			where.AND.push({
+				status:
+					query.completed === true || query.completed === 'true'
+						? TaskStatus.DONE
+						: { in: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS] },
+			});
+		} else {
+			where.AND.push({
+				status: {
+					in: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS, TaskStatus.DONE],
+				},
+			});
+		}
+
+		if (query.search) {
+			where.AND.push({
+				title: {
+					contains: query.search,
+					mode: 'insensitive',
+				},
+			});
+		}
+
+		return where;
+	},
 	/**
 	 * Lấy danh sách tasks với pagination và filter
 	 * @param {String} userId
 	 * @param {Object} query - { completed, search, skip, take }
 	 */
 	findMany: async (userId, query = {}) => {
-		const where = {
-			userId,
-			deletedAt: null,
-		};
-
-		if (query.completed !== undefined) {
-			where.status =
-				query.completed === true || query.completed === 'true'
-					? 'DONE'
-					: { in: ['PENDING', 'IN_PROGRESS'] };
-		} else {
-			where.OR = [
-				{ status: TaskStatus.PENDING },
-				{ status: TaskStatus.IN_PROGRESS },
-				{ status: TaskStatus.DONE },
-			];
-		}
-
-		if (query.search) {
-			where.title = {
-				contains: query.search,
-				mode: 'insensitive',
-			};
-		}
+		const where = taskRepository.buildTasksWhere(userId, query);
 
 		return await prisma.task.findMany({
 			where,
@@ -75,30 +89,7 @@ export const taskRepository = {
 	 * Đếm tổng số tasks (cho pagination metadata)
 	 */
 	countTasks: async (userId, query = {}) => {
-		const where = {
-			userId,
-			deletedAt: null,
-		};
-
-		if (query.completed !== undefined) {
-			where.status =
-				query.completed === true || query.completed === 'true'
-					? 'DONE'
-					: { in: ['PENDING', 'IN_PROGRESS'] };
-		} else {
-			where.OR = [
-				{ status: TaskStatus.PENDING },
-				{ status: TaskStatus.IN_PROGRESS },
-				{ status: TaskStatus.DONE },
-			];
-		}
-
-		if (query.search) {
-			where.title = {
-				contains: query.search,
-				mode: 'insensitive',
-			};
-		}
+		const where = taskRepository.buildTasksWhere(userId, query);
 
 		return await prisma.task.count({ where });
 	},

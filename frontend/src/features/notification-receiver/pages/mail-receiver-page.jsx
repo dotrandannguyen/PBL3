@@ -11,6 +11,7 @@ import {
   InboxTabsContainer,
   ItemDetailModal,
 } from "../components";
+import SettingsPanel from "@/features/workspace/panels/settings";
 
 export function MailReceiverPage() {
   const { user } = useAuth();
@@ -18,6 +19,7 @@ export function MailReceiverPage() {
     useIntegrations();
   const [filter, setFilter] = useState("all");
   const [selectedItem, setSelectedItem] = useState(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   /**
    * 👉 Xử lý khi click "Thêm vào Task" thành công
@@ -89,7 +91,12 @@ export function MailReceiverPage() {
     <div className="flex flex-col h-full w-full bg-bg-main text-text-primary overflow-y-auto">
       <div className="flex-1 px-8 py-8 max-w-5xl w-full mx-auto flex flex-col">
         {/* HEADER */}
-        <InboxHeader user={user} onRefresh={refetch} isLoading={loading} />
+        <InboxHeader
+          user={user}
+          onRefresh={refetch}
+          isLoading={loading}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
 
         {/* CONNECTION ALERT */}
         <ConnectionAlert
@@ -123,6 +130,11 @@ export function MailReceiverPage() {
         item={selectedItem}
         onClose={() => setSelectedItem(null)}
         onStatusChange={handleStatusChange}
+      />
+
+      <SettingsPanel
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
   );

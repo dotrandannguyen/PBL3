@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Settings } from "lucide-react";
 
 /**
  * @component InboxHeader
@@ -7,7 +7,7 @@ import { RefreshCw } from "lucide-react";
  * @param {Function} onRefresh - Callback khi click nút refresh
  * @param {boolean} isLoading - Trạng thái loading
  */
-export function InboxHeader({ user, onRefresh, isLoading }) {
+export function InboxHeader({ user, onRefresh, isLoading, onOpenSettings }) {
   return (
     <div className="flex items-center justify-between mb-8">
       <div>
@@ -18,14 +18,25 @@ export function InboxHeader({ user, onRefresh, isLoading }) {
           Nơi tập trung các thông báo và công việc từ bên ngoài.
         </p>
       </div>
-      <button
-        onClick={onRefresh}
-        disabled={isLoading}
-        className="p-2.5 rounded-full hover:bg-bg-hover text-text-tertiary transition-colors flex items-center justify-center disabled:opacity-50"
-        title="Làm mới hộp thư"
-      >
-        <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
-      </button>
+      <div className="flex items-center gap-2">
+        {onOpenSettings && (
+          <button
+            onClick={onOpenSettings}
+            className="p-2.5 rounded-full hover:bg-bg-hover text-text-tertiary transition-colors flex items-center justify-center"
+            title="Cài đặt Notion Mail"
+          >
+            <Settings size={20} />
+          </button>
+        )}
+        <button
+          onClick={onRefresh}
+          disabled={isLoading}
+          className="p-2.5 rounded-full hover:bg-bg-hover text-text-tertiary transition-colors flex items-center justify-center disabled:opacity-50"
+          title="Làm mới hộp thư"
+        >
+          <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
+        </button>
+      </div>
     </div>
   );
 }

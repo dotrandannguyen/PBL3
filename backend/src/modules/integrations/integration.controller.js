@@ -79,5 +79,31 @@ export const integrationController = {
 			next(error);
 		}
 	},
+
+	// 🧹 TẮT WEBHOOK CHO MỘT REPOSITORY
+	disableGithubWebhook: async (req, res, next) => {
+		try {
+			const userId = req.user.id;
+			const { repositoryId } = req.body;
+
+			if (!repositoryId) {
+				return new HttpResponse(res).badRequest({
+					message: 'Yêu cầu repositoryId để tắt webhook',
+				});
+			}
+
+			const result = await integrationService.disableGithubWebhook(
+				userId,
+				repositoryId,
+			);
+
+			return new HttpResponse(res).success({
+				message: 'Tắt webhook thành công',
+				data: result,
+			});
+		} catch (error) {
+			next(error);
+		}
+	},
 };
 ///

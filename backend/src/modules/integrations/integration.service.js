@@ -350,7 +350,22 @@ export const integrationService = {
 		try {
 			// Gọi githubService để lấy danh sách repositories
 			const repositories = await githubService.getUserRepositories(accessToken);
-			return repositories;
+
+			const webhookData = integration.webhookData || {};
+			const githubData = webhookData.github || {};
+			const hooksByRepoId = githubData.hooks || {};
+			const hooksByRepoName = githubData.hookIds || {};
+
+			return repositories.map((repo) => {
+				const repoKey = String(repo.id);
+				const hookEntry =
+					hooksByRepoId[repoKey] || hooksByRepoName[repo.name] || null;
+				return {
+					...repo,
+					webhookEnabled: Boolean(hookEntry?.hookId),
+					webhookId: hookEntry?.hookId || null,
+				};
+			});
 		} catch (error) {
 			console.error('❌ [GITHUB] Lỗi lấy danh sách repositories:', error.message);
 			throw new UnauthorizedException(
@@ -383,9 +398,12 @@ export const integrationService = {
 			// Lấy danh sách repositories của user
 			const allRepositories = await githubService.getUserRepositories(accessToken);
 
+			const repositoryIdSet = new Set(
+				repositoryIds.map((repoId) => String(repoId)),
+			);
 			// Filter chỉ lấy các repo theo repositoryIds
 			const selectedRepositories = allRepositories.filter((repo) =>
-				repositoryIds.includes(repo.id),
+				repositoryIdSet.has(String(repo.id)),
 			);
 
 			if (selectedRepositories.length === 0) {
@@ -407,16 +425,31 @@ export const integrationService = {
 				if (!currentWebhookData.github) {
 					currentWebhookData.github = {};
 				}
+				if (!currentWebhookData.github.hooks) {
+					currentWebhookData.github.hooks = {};
+				}
 				if (!currentWebhookData.github.hookIds) {
 					currentWebhookData.github.hookIds = {};
 				}
 
 				// Thêm thông tin webhook mới vào
 				setupResult.success.forEach((item) => {
-					currentWebhookData.github.hookIds[item.repo] = {
+					const repoKey = String(item.repoId);
+					currentWebhookData.github.hooks[repoKey] = {
 						hookId: item.webhookId,
-						createdAt: new Date().toISOString(),
+						repoId: item.repoId,
+						owner: item.owner,
+						name: item.name,
+						fullName: item.fullName,
+						enabledAt: new Date().toISOString(),
 					};
+
+					if (item.name) {
+						currentWebhookData.github.hookIds[item.name] = {
+							hookId: item.webhookId,
+							createdAt: new Date().toISOString(),
+						};
+					}
 				});
 
 				// Cập nhật Integration với webhook data mới
@@ -442,6 +475,91 @@ export const integrationService = {
 			console.error('❌ [GITHUB] Lỗi setup webhooks:', error.message);
 			throw error;
 		}
+	},
+
+	/**
+	 * Tắt webhook cho một repository
+	 * @param {string} userId - User ID
+	 * @param {string|number} repositoryId - Repo ID
+	 * @returns {Object} Disable result
+	 */
+	disableGithubWebhook: async (userId, repositoryId) => {
+		const integration = await integrationRepository.getIntegrationGmailPreview(
+			userId,
+			'GITHUB',
+		);
+
+		if (!integration) {
+			throw new NotFoundException('Bạn chưa kết nối với GitHub.');
+		}
+
+		const accessToken = encryptionUtils.decrypt(integration.accessTokenEncrypted);
+		const repoKey = String(repositoryId);
+
+		const webhookData = integration.webhookData || {};
+		const githubData = webhookData.github || {};
+		const hooksByRepoId = githubData.hooks || {};
+		let hookEntry = hooksByRepoId[repoKey] || null;
+
+		if (!hookEntry || !hookEntry.hookId || !hookEntry.owner || !hookEntry.name) {
+			const allRepositories = await githubService.getUserRepositories(accessToken);
+			const targetRepo = allRepositories.find(
+				(repo) => String(repo.id) === repoKey,
+			);
+
+			if (targetRepo) {
+				const fallbackHook = githubData.hookIds?.[targetRepo.name] || null;
+				if (fallbackHook?.hookId) {
+					hookEntry = {
+						hookId: fallbackHook.hookId,
+						owner: targetRepo.owner,
+						name: targetRepo.name,
+						fullName: targetRepo.fullName,
+					};
+				}
+			}
+		}
+
+		if (!hookEntry?.hookId) {
+			throw new NotFoundException('Webhook chưa được bật cho repository này.');
+		}
+
+		await githubService.deleteWebhookForRepo(
+			accessToken,
+			hookEntry.owner,
+			hookEntry.name,
+			hookEntry.hookId,
+		);
+
+		if (hooksByRepoId[repoKey]) {
+			delete hooksByRepoId[repoKey];
+		}
+		if (hookEntry.name && githubData.hookIds?.[hookEntry.name]) {
+			delete githubData.hookIds[hookEntry.name];
+		}
+
+		await prisma.integration.update({
+			where: {
+				userId_provider: {
+					userId,
+					provider: 'GITHUB',
+				},
+			},
+			data: {
+				webhookData: {
+					...webhookData,
+					github: {
+						...githubData,
+						hooks: hooksByRepoId,
+					},
+				},
+			},
+		});
+
+		return {
+			repositoryId: repoKey,
+			disabled: true,
+		};
 	},
 
 	/**

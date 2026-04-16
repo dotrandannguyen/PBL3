@@ -28,4 +28,7 @@ integrationRouter.post(
 	integrationController.setupGithubWebhooks,
 );
 
+// DELETE /integrations/github/webhooks
+integrationRouter.delete('/github/webhooks', integrationController.disableGithubWebhook);
+
 export default integrationRouter;
