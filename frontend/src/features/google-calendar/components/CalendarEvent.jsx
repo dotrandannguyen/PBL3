@@ -11,16 +11,18 @@ export const CalendarEventUI = React.forwardRef(({ event, isDragging, isOverlay,
                 onClick?.(event);
             }
         }}
-        className={`w-full h-full text-left px-2 py-1.5 rounded-[4px] text-[11px] leading-snug overflow-hidden cursor-grab active:cursor-grabbing transition-colors duration-150 block border border-border-subtle bg-white/5 hover:bg-white/10 hover:border-white/20 ${isOverlay ? 'opacity-100 ring-1 ring-white/50 scale-[1.02] shadow-xl z-50' : isDragging ? 'opacity-0' : ''} ${className || 'mb-1'}`}
+        className={`w-full h-full text-left px-2 py-1.5 rounded-[4px] text-[11px] leading-snug overflow-hidden cursor-grab active:cursor-grabbing block border border-border-subtle bg-white/5 hover:bg-white/10 hover:border-white/20 ${isOverlay ? 'ring-1 ring-white/40 shadow-2xl z-50' : isDragging ? 'opacity-30 scale-[0.98]' : ''} ${className || 'mb-1'}`}
         style={{
             ...style,
-            borderLeft: `3px solid ${event.color || '#2383e2'}`
+            borderLeft: `3px solid ${event.color || '#2383e2'}`,
+            willChange: isDragging || isOverlay ? 'transform, opacity' : 'auto',
+            transition: 'opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease',
         }}
         {...props}
     >
         <div className="flex flex-col">
             <span className="font-medium truncate text-text-primary">{event.title}</span>
-            {event.time && <span className="text-text-tertiary text-[10px] truncate mt-0.5">{event.time}</span>}
+            {event.time && <span className="text-text-tertiary text-[10px] truncate mt-0.5">{event.time}{event.endTime ? ` – ${event.endTime}` : ''}</span>}
         </div>
     </button>
 ));

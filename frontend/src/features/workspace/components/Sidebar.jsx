@@ -8,7 +8,7 @@ import {
   SectionHeader,
 } from "../../../components/shared";
 import { InboxPanel, InvitePanel, UserMenu } from "../panels";
-import { MAIN_NAV_ITEMS, NOTION_APPS, BOTTOM_NAV_ITEMS } from "../constants";
+import { MAIN_NAV_ITEMS, NEXUS_APPS, BOTTOM_NAV_ITEMS } from "../constants";
 
 // ============================================
 // MAIN COMPONENT
@@ -99,13 +99,13 @@ const Sidebar = ({
           <NavItem icon={Plus} label="Start collaborating" />
         </section>
 
-        {/* Notion Apps Section */}
+        {/* Nexus Apps Section */}
         <section className="py-1 mb-2 pt-2">
-          <SectionHeader title="Notion apps" />
-          {NOTION_APPS.map((item) => {
+          <SectionHeader title="Nexus apps" />
+          {NEXUS_APPS.map((item) => {
             let isActive = false;
-            if (item.label === "Notion Mail") isActive = currentPath === "/mail";
-            if (item.label === "Notion Calendar") isActive = currentPath === "/calendar";
+            if (item.label === "Nexus Mail") isActive = currentPath === "/mail";
+            if (item.label === "Nexus Calendar") isActive = currentPath === "/calendar";
 
             return (
               <NavItem
@@ -114,9 +114,9 @@ const Sidebar = ({
                 label={item.label}
                 isActive={isActive}
                 onClick={() => {
-                  if (item.label === "Notion Mail") {
+                  if (item.label === "Nexus Mail") {
                     navigate("/mail");
-                  } else if (item.label === "Notion Calendar") {
+                  } else if (item.label === "Nexus Calendar") {
                     navigate("/calendar");
                   }
                 }}

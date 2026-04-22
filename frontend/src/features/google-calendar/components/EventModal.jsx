@@ -453,7 +453,10 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
             />
 
             {/* Modal */}
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+                className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                onClick={onClose}
+            >
                 <form
                     onSubmit={handleSubmit}
                     className="w-full max-w-[480px] bg-bg-main rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.35)]

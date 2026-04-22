@@ -1,6 +1,7 @@
-﻿import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   DndContext,
+  DragOverlay,
   useSensor,
   useSensors,
   PointerSensor,
@@ -12,6 +13,7 @@ import CalendarGrid from "../components/CalendarGrid";
 import CalendarWeekGrid from "../components/CalendarWeekGrid";
 import CalendarSidebar from "../components/CalendarSidebar";
 import EventModal from "../components/EventModal";
+import { CalendarEventUI } from "../components/CalendarEvent";
 import {
   getEvents,
   createEvent,
@@ -24,6 +26,18 @@ const VALID_REMINDERS = new Set(["NONE", "MINUTES_5", "MINUTES_15", "HOUR_1"]);
 
 const normalizeReminder = (value) =>
   VALID_REMINDERS.has(value) ? value : "NONE";
+
+const parseTimeToMins = (timeStr) => {
+  if (!timeStr) return 0;
+  const [h, m] = timeStr.split(":").map(Number);
+  return h * 60 + m;
+};
+
+const minsToTimeStr = (mins) => {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+};
 
 const toHHMM = (isoValue) => {
   if (!isoValue) return null;
@@ -99,7 +113,10 @@ export function CalendarPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [prefillRange, setPrefillRange] = useState(null);
+  const [activeEvent, setActiveEvent] = useState(null);
   const [viewMode, setViewMode] = useState("month");
+  const dragJustEndedRef = useRef(false);
+  const dragPointerRef = useRef({ x: 0, y: 0 });
 
   const loadEvents = useCallback(async () => {
     try {
@@ -170,53 +187,133 @@ export function CalendarPage() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5, // minimum drag distance before initiating drag
+        distance: 3, // lower threshold → quicker drag activation
       },
     }),
   );
 
+  const handleDragStart = (event) => {
+    const draggedEvent = event.active.data.current?.event;
+    setActiveEvent(draggedEvent || null);
+  };
+
+  const handleDragMove = (event) => {
+    // Track the translated position of the dragged element for smooth drop calculation
+    const translated = event.active.rect.current?.translated;
+    if (translated) {
+      dragPointerRef.current = { x: translated.left, y: translated.top };
+    }
+  };
+
+  // Compute drop time from pointer position relative to the time grid
+  const computeDropMinutes = () => {
+    const timeGrid = document.querySelector('[data-week-time-grid="true"]');
+    if (!timeGrid) return null;
+
+    const gridRect = timeGrid.getBoundingClientRect();
+    const scrollContainer = timeGrid.parentElement;
+    const scrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+
+    // pointer Y relative to grid top, accounting for scroll
+    const offsetY = dragPointerRef.current.y - gridRect.top + scrollTop;
+    // Snap to 15-minute intervals (1px = 1min)
+    const rawMins = Math.max(0, Math.min(offsetY, 24 * 60 - 1));
+    return Math.round(rawMins / 15) * 15;
+  };
+
   const handleDragEnd = async (event) => {
     const { active, over } = event;
+    setActiveEvent(null);
+
+    // Suppress the click event that fires on the drop-target cell after drag ends
+    dragJustEndedRef.current = true;
+    setTimeout(() => {
+      dragJustEndedRef.current = false;
+    }, 100);
+
     if (!over) return;
 
-    const activeEvent = active.data.current?.event;
+    const draggedEvent = active.data.current?.event;
     const newDateStr = over.data.current?.date;
 
-    if (activeEvent && newDateStr && activeEvent.date !== newDateStr) {
-      const previousEvents = events;
+    if (!draggedEvent || !newDateStr) return;
 
-      setEvents((prev) =>
-        prev.map((item) =>
-          item.id === activeEvent.id ? { ...item, date: newDateStr } : item,
-        ),
-      );
+    // Calculate new time values
+    let newTime = draggedEvent.time;
+    let newEndTime = draggedEvent.endTime;
 
-      try {
-        const response = await updateEvent(activeEvent.id, {
-          date: newDateStr,
-        });
-        const updatedEvent = extractEvent(response);
-        if (updatedEvent) {
-          const normalized = mapApiEventToUiEvent(updatedEvent);
-          setEvents((prev) =>
-            prev.map((item) =>
-              item.id === normalized.id ? { ...item, ...normalized } : item,
-            ),
-          );
-        }
-      } catch (error) {
-        setEvents(previousEvents);
-        const message = resolveCalendarError(
-          error,
-          "Không thể cập nhật ngày sự kiện.",
-        );
-        toast.error(message);
-        console.error("Update event date error:", error);
+    // Week view: compute time from pointer position (snapped to 15 min)
+    if (viewMode === "week") {
+      const dropMins = computeDropMinutes();
+      if (dropMins !== null) {
+        const oldStartMins = parseTimeToMins(draggedEvent.time);
+        const oldEndMins = draggedEvent.endTime
+          ? parseTimeToMins(draggedEvent.endTime)
+          : oldStartMins + 60;
+        const duration = oldEndMins - oldStartMins;
+
+        const newStartMins = dropMins;
+        const newEndMins = Math.min(newStartMins + duration, 24 * 60 - 1);
+
+        newTime = minsToTimeStr(newStartMins);
+        newEndTime = minsToTimeStr(newEndMins);
       }
+    }
+
+    // Check if anything actually changed
+    const hasChanged =
+      draggedEvent.date !== newDateStr ||
+      draggedEvent.time !== newTime ||
+      draggedEvent.endTime !== newEndTime;
+
+    if (!hasChanged) return;
+
+    const previousEvents = events;
+
+    // Optimistic update — preserve duration
+    setEvents((prev) =>
+      prev.map((item) =>
+        item.id === draggedEvent.id
+          ? { ...item, date: newDateStr, time: newTime, endTime: newEndTime }
+          : item,
+      ),
+    );
+
+    try {
+      const response = await updateEvent(draggedEvent.id, {
+        date: newDateStr,
+        time: newTime,
+      });
+      const updatedEvent = extractEvent(response);
+      if (updatedEvent) {
+        const normalized = mapApiEventToUiEvent({
+          ...draggedEvent,
+          ...updatedEvent,
+          endTime: newEndTime,
+        });
+        setEvents((prev) =>
+          prev.map((item) =>
+            item.id === normalized.id ? { ...item, ...normalized } : item,
+          ),
+        );
+      }
+    } catch (error) {
+      setEvents(previousEvents);
+      const message = resolveCalendarError(
+        error,
+        "Không thể cập nhật sự kiện.",
+      );
+      toast.error(message);
+      console.error("Update event date error:", error);
     }
   };
 
   const handleAddEvent = (date) => {
+    // Skip opening modal if a drag just ended (click fires on drop-target cell)
+    if (dragJustEndedRef.current) {
+      dragJustEndedRef.current = false;
+      return;
+    }
     if (date instanceof Date) {
       setSelectedDate(date);
     }
@@ -334,6 +431,8 @@ export function CalendarPage() {
           />
           <DndContext
             sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
             collisionDetection={pointerWithin}
           >
@@ -354,6 +453,22 @@ export function CalendarPage() {
                 onAddEventRange={handleAddEventRange}
               />
             )}
+            <DragOverlay
+              dropAnimation={{ duration: 150, easing: "cubic-bezier(0.25, 0.1, 0.25, 1)" }}
+              style={{ cursor: 'grabbing' }}
+            >
+              {activeEvent ? (
+                <CalendarEventUI
+                  event={activeEvent}
+                  isOverlay
+                  style={{
+                    width: 180,
+                    transition: 'box-shadow 0.15s ease',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+                  }}
+                />
+              ) : null}
+            </DragOverlay>
           </DndContext>
         </div>
 

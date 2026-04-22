@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import CalendarEvent from './CalendarEvent';
 import { useDroppable } from '@dnd-kit/core';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const SLOT_MINS = 15; // 15-minute granularity
+const SLOTS_PER_HOUR = 60 / SLOT_MINS; // 4 slots per hour
 
 const getStartOfWeek = (date) => {
     const newDate = new Date(date);
@@ -14,7 +16,7 @@ const getStartOfWeek = (date) => {
     return newDate;
 };
 
-// Calculate overlapping columns
+// Calculate overlapping columns — per-cluster so non-overlapping events get full width
 const calculateOverlaps = (dayEvents) => {
     if (!dayEvents.length) return [];
 
@@ -24,54 +26,80 @@ const calculateOverlaps = (dayEvents) => {
         return { ...e, startMin: sh * 60 + sm, endMin: eh * 60 + em };
     }).sort((a, b) => a.startMin - b.startMin);
 
-    const columns = [];
-    parsed.forEach(evt => {
-        let placed = false;
-        for (let col of columns) {
-            const lastEvent = col[col.length - 1];
-            if (lastEvent.endMin <= evt.startMin) {
-                col.push(evt);
-                placed = true;
-                break;
-            }
-        }
-        if (!placed) columns.push([evt]);
-    });
+    // 1. Group into overlap clusters
+    const clusters = [];
+    let currentCluster = [parsed[0]];
+    let clusterEnd = parsed[0].endMin;
 
-    const numCols = columns.length;
+    for (let i = 1; i < parsed.length; i++) {
+        if (parsed[i].startMin < clusterEnd) {
+            currentCluster.push(parsed[i]);
+            clusterEnd = Math.max(clusterEnd, parsed[i].endMin);
+        } else {
+            clusters.push(currentCluster);
+            currentCluster = [parsed[i]];
+            clusterEnd = parsed[i].endMin;
+        }
+    }
+    clusters.push(currentCluster);
+
+    // 2. For each cluster, assign columns
     const result = [];
-    columns.forEach((col, colIdx) => {
-        col.forEach(evt => {
-            evt.colIdx = colIdx;
+    clusters.forEach(cluster => {
+        const columns = [];
+        cluster.forEach(evt => {
+            let placed = false;
+            for (let colIdx = 0; colIdx < columns.length; colIdx++) {
+                const lastEvent = columns[colIdx][columns[colIdx].length - 1];
+                if (lastEvent.endMin <= evt.startMin) {
+                    columns[colIdx].push(evt);
+                    placed = true;
+                    evt._colIdx = colIdx;
+                    break;
+                }
+            }
+            if (!placed) {
+                evt._colIdx = columns.length;
+                columns.push([evt]);
+            }
+        });
+
+        const numCols = columns.length;
+        cluster.forEach(evt => {
+            evt.colIdx = evt._colIdx;
             evt.numCols = numCols;
+            delete evt._colIdx;
             result.push(evt);
         });
     });
+
     return result;
 };
 
-const WeekDayColumn = ({ dateKey, blockEvents, onEventClick, selectionStart, selectionCurrent, handleMouseDown, handleMouseEnter }) => {
+// Single droppable per day column — lightweight, no per-slot hooks
+const WeekDayColumn = React.memo(({ dateKey, blockEvents, onEventClick, selectionStart, selectionCurrent, handleMouseDown, handleMouseEnter }) => {
     const { setNodeRef, isOver } = useDroppable({
         id: `day-${dateKey}`,
         data: { date: dateKey },
     });
 
     return (
-        <div ref={setNodeRef} className={`relative flex flex-col border-r border-border-subtle last:border-r-0 h-full group ${isOver ? 'bg-accent-primary/10' : ''}`}>
-            {/* Clickable 30-min Cells */}
+        <div
+            ref={setNodeRef}
+            className={`relative flex flex-col border-r border-border-subtle last:border-r-0 h-full group transition-colors duration-100 ${isOver ? 'bg-accent-primary/5' : ''}`}
+        >
+            {/* Clickable 15-min Cells for selection (no dnd hooks — just mouse events) */}
             <div className="absolute inset-0 flex flex-col z-0">
                 {HOURS.map(hour => (
                     <div key={`${dateKey}-${hour}`} className="h-[60px] w-full flex flex-col">
-                        <div
-                            className="flex-1 hover:bg-bg-block-hover cursor-pointer border-r border-transparent transition-colors"
-                            onMouseDown={(e) => handleMouseDown(dateKey, hour, 0, e)}
-                            onMouseEnter={() => handleMouseEnter(dateKey, hour, 0)}
-                        />
-                        <div
-                            className="flex-1 hover:bg-bg-block-hover cursor-pointer border-r border-transparent transition-colors"
-                            onMouseDown={(e) => handleMouseDown(dateKey, hour, 1, e)}
-                            onMouseEnter={() => handleMouseEnter(dateKey, hour, 1)}
-                        />
+                        {Array.from({ length: SLOTS_PER_HOUR }, (_, slotIdx) => (
+                            <div
+                                key={slotIdx}
+                                className="flex-1 hover:bg-bg-block-hover/50 cursor-pointer transition-colors duration-75"
+                                onMouseDown={(e) => handleMouseDown(dateKey, hour, slotIdx, e)}
+                                onMouseEnter={() => handleMouseEnter(dateKey, hour, slotIdx)}
+                            />
+                        ))}
                     </div>
                 ))}
             </div>
@@ -82,12 +110,12 @@ const WeekDayColumn = ({ dateKey, blockEvents, onEventClick, selectionStart, sel
                     className="absolute pointer-events-none z-20"
                     style={{
                         top: `${Math.min(selectionStart.mins, selectionCurrent.mins)}px`,
-                        height: `${Math.abs(selectionCurrent.mins - selectionStart.mins) + 30}px`,
+                        height: `${Math.abs(selectionCurrent.mins - selectionStart.mins) + SLOT_MINS}px`,
                         left: '2px',
                         right: '8px'
                     }}
                 >
-                    <div className="w-full h-full bg-accent-primary/20 border border-accent-primary rounded-[3px] shadow-sm" />
+                    <div className="w-full h-full bg-accent-primary/20 border border-accent-primary rounded-[3px] shadow-sm backdrop-blur-[1px]" />
                 </div>
             )}
 
@@ -106,7 +134,7 @@ const WeekDayColumn = ({ dateKey, blockEvents, onEventClick, selectionStart, sel
                             className="absolute pointer-events-auto"
                             style={{
                                 top: `${event.startMin}px`,
-                                height: `${Math.max(durationMins, 20)}px`,
+                                height: `${Math.max(durationMins, 15)}px`,
                                 left: `calc(${leftPct}% + 2px)`,
                                 width: `calc(${widthPct}% - 4px)`,
                                 paddingTop: '2px',
@@ -120,7 +148,7 @@ const WeekDayColumn = ({ dateKey, blockEvents, onEventClick, selectionStart, sel
             </div>
         </div>
     );
-};
+});
 
 const CalendarWeekGrid = ({ currentDate, events = [], onDateClick, onEventClick, onAddEventRange }) => {
     const startOfWeek = getStartOfWeek(currentDate);
@@ -156,11 +184,11 @@ const CalendarWeekGrid = ({ currentDate, events = [], onDateClick, onEventClick,
         return () => clearInterval(timer);
     }, []);
 
-    const handleMouseUp = () => {
+    const handleMouseUp = useCallback(() => {
         if (selectionStart && selectionCurrent) {
             if (selectionStart.dateKey === selectionCurrent.dateKey) {
                 const startMins = Math.min(selectionStart.mins, selectionCurrent.mins);
-                const endMins = Math.max(selectionStart.mins, selectionCurrent.mins) + 30; // each block is 30 mins
+                const endMins = Math.max(selectionStart.mins, selectionCurrent.mins) + SLOT_MINS;
 
                 const d = new Date(weekDays.find(w => formatDateKey(w) === selectionStart.dateKey));
 
@@ -177,21 +205,21 @@ const CalendarWeekGrid = ({ currentDate, events = [], onDateClick, onEventClick,
             setSelectionStart(null);
             setSelectionCurrent(null);
         }
-    };
+    }, [selectionStart, selectionCurrent, weekDays, onAddEventRange]);
 
-    const handleMouseDown = (dateKey, hour, half, e) => {
+    const handleMouseDown = useCallback((dateKey, hour, slotIdx, e) => {
         if (e.button !== 0) return;
         e.preventDefault();
-        const mins = hour * 60 + (half * 30);
+        const mins = hour * 60 + (slotIdx * SLOT_MINS);
         setSelectionStart({ dateKey, mins });
         setSelectionCurrent({ dateKey, mins });
-    };
+    }, []);
 
-    const handleMouseEnter = (dateKey, hour, half) => {
+    const handleMouseEnter = useCallback((dateKey, hour, slotIdx) => {
         if (selectionStart) {
-            setSelectionCurrent({ dateKey, mins: hour * 60 + (half * 30) });
+            setSelectionCurrent({ dateKey, mins: hour * 60 + (slotIdx * SLOT_MINS) });
         }
-    };
+    }, [selectionStart]);
 
     return (
         <div
@@ -223,7 +251,7 @@ const CalendarWeekGrid = ({ currentDate, events = [], onDateClick, onEventClick,
                 </div>
 
                 {/* Week Body (Time Grid) */}
-                <div className="flex min-h-[1440px]">
+                <div className="flex min-h-[1440px]" data-week-time-grid="true">
                     {/* Time Axis */}
                     <div className="w-[60px] flex flex-col flex-shrink-0 border-r border-border-subtle bg-bg-main">
                         {HOURS.map(hour => (

@@ -18,9 +18,9 @@ const MAIN_NAV_ITEMS = [
   { icon: Inbox, label: "Inbox" },
 ];
 
-const NOTION_APPS = [
-  { icon: Mail, label: "Notion Mail" },
-  { icon: Calendar, label: "Notion Calendar" },
+const NEXUS_APPS = [
+  { icon: Mail, label: "Nexus Mail" },
+  { icon: Calendar, label: "Nexus Calendar" },
 ];
 
 const BOTTOM_NAV_ITEMS = [
@@ -28,4 +28,4 @@ const BOTTOM_NAV_ITEMS = [
   { icon: Trash2, label: "Trash" },
 ];
 
-export { MAIN_NAV_ITEMS, NOTION_APPS, BOTTOM_NAV_ITEMS };
+export { MAIN_NAV_ITEMS, NEXUS_APPS, BOTTOM_NAV_ITEMS };
