@@ -23,6 +23,7 @@ import { WorkspacePage } from "@/features/workspace";
 import { CalendarPage } from "@/features/google-calendar";
 import { MailReceiverPage } from "@/features/notification-receiver";
 import { SettingsPage } from "@/features/setting";
+import { TrashPage } from "@/features/trash";
 
 // TODO: Import routes của các tính năng khi được xây dựng
 // import { GithubRoutes } from '@/features/github';
@@ -56,6 +57,7 @@ const router = createBrowserRouter([
               { path: "/calendar", element: <CalendarPage /> },
               { path: "/mail", element: <MailReceiverPage /> },
               { path: "/settings", element: <SettingsPage /> },
+              { path: "/trash", element: <TrashPage /> },
             ],
           },
         ],

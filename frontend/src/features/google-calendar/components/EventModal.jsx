@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Clock, AlignLeft, Bell, MapPin, Users, Video, ChevronDown, GripHorizontal, Calendar as CalendarIcon } from 'lucide-react';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 const EVENT_COLORS = [
     { name: 'Blue', value: '#2383e2' },
@@ -37,34 +38,13 @@ const formatTimeDisplay = (timeStr) => {
 };
 
 // Calculate duration label
-const getDurationLabel = (startTime, endTimeStr) => {
-    if (!startTime || !endTimeStr) return '';
-    const [sh, sm] = startTime.split(':').map(Number);
-    const [eh, em] = endTimeStr.split(':').map(Number);
-    const diffMins = (eh * 60 + em) - (sh * 60 + sm);
-    if (diffMins <= 0) return '';
-    if (diffMins < 60) return `${diffMins} phút`;
-    const hours = diffMins / 60;
-    if (Number.isInteger(hours)) return `${hours} giờ`;
-    return `${hours.toFixed(1).replace('.', ',')} giờ`;
-};
+// getDurationLabel is now defined inside the component to access t()
 
 // Format date in Vietnamese
-const formatDateVN = (dateStr) => {
-    if (!dateStr) return '';
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const date = new Date(y, m - 1, d);
-    const dayNames = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
-    return `${dayNames[date.getDay()]}, ${d} tháng ${m}`;
-};
+// formatDateLocal is now defined inside the component to access t()
 
 /* ── Helpers from incoming (logic) ──────────────────────────── */
-const getReminderLabel = (reminder) => {
-    if (reminder === 'MINUTES_5') return '5 phút';
-    if (reminder === 'MINUTES_15') return '15 phút';
-    if (reminder === 'HOUR_1') return '1 giờ';
-    return 'không';
-};
+// getReminderLabel is now defined inside the component to access t()
 
 const toHHMM = (isoValue) => {
     if (!isoValue) return '';
@@ -302,6 +282,7 @@ const CustomSelect = ({ value, onChange, options }) => {
 // UI: HEAD (CustomSelect, TimePicker, layout)
 // Logic: Incoming (endDate, isTaskLinkedEvent, calendarOwnerName, async onSave/onDelete, reminder enums)
 const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, prefillRange }) => {
+    const { t } = useLanguage();
     const [title, setTitle] = useState('');
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
@@ -318,6 +299,35 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
     const [status, setStatus] = useState('busy');
     const [visibility, setVisibility] = useState('default');
 
+    // Translated helpers (need t() from context)
+    const getDurationLabel = (startTime, endTimeStr) => {
+        if (!startTime || !endTimeStr) return '';
+        const [sh, sm] = startTime.split(':').map(Number);
+        const [eh, em] = endTimeStr.split(':').map(Number);
+        const diffMins = (eh * 60 + em) - (sh * 60 + sm);
+        if (diffMins <= 0) return '';
+        if (diffMins < 60) return `${diffMins} ${t('cal.duration.minutes')}`;
+        const hours = diffMins / 60;
+        if (Number.isInteger(hours)) return `${hours} ${t('cal.duration.hours')}`;
+        return `${hours.toFixed(1)} ${t('cal.duration.hours')}`;
+    };
+
+    const formatDateLocal = (dateStr) => {
+        if (!dateStr) return '';
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const dateObj = new Date(y, m - 1, d);
+        const dayName = t(`cal.dayName.${dateObj.getDay()}`);
+        const monthWord = t('cal.dateFormat.month');
+        return monthWord ? `${dayName}, ${d} ${monthWord} ${m}` : `${dayName}, ${t(`cal.month.${m - 1}`)} ${d}`;
+    };
+
+    const getReminderLabel = (rem) => {
+        if (rem === 'MINUTES_5') return t('cal.modal.remind5').replace(` ${t('cal.modal.reminderBefore')}`, '');
+        if (rem === 'MINUTES_15') return t('cal.modal.remind15').replace(` ${t('cal.modal.reminderBefore')}`, '');
+        if (rem === 'HOUR_1') return t('cal.modal.remind60').replace(` ${t('cal.modal.reminderBefore')}`, '');
+        return t('cal.modal.noReminder');
+    };
+
     // Logic from incoming: detect task-linked events
     const isTaskLinkedEvent = Boolean(event?.endAt);
 
@@ -328,13 +338,13 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
         }
         try {
             const storedUser = localStorage.getItem('user');
-            if (!storedUser) return 'Lịch cá nhân';
+            if (!storedUser) return t('cal.modal.myCalendar');
             const parsedUser = JSON.parse(storedUser);
-            return parsedUser?.fullName || parsedUser?.name || parsedUser?.email || 'Lịch cá nhân';
+            return parsedUser?.fullName || parsedUser?.name || parsedUser?.email || t('cal.modal.myCalendar');
         } catch {
-            return 'Lịch cá nhân';
+            return t('cal.modal.myCalendar');
         }
-    }, [event]);
+    }, [event, t]);
 
     useEffect(() => {
         if (event) {
@@ -393,7 +403,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
         const endAt = !isAllDay && endTime ? new Date(`${resolvedEndDate}T${endTime}:00`) : null;
 
         if (startAt && endAt && !Number.isNaN(startAt.getTime()) && !Number.isNaN(endAt.getTime()) && endAt <= startAt) {
-            alert('Giờ kết thúc phải lớn hơn giờ bắt đầu!');
+            alert(t('cal.modal.endTimeError'));
             return;
         }
 
@@ -484,7 +494,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Thêm tiêu đề"
+                            placeholder={t('cal.modal.addTitle')}
                             autoFocus
                             className="w-full text-[22px] bg-transparent text-text-primary placeholder:text-text-tertiary
                                        border-none border-b-2 border-b-transparent focus:border-b-accent-primary
@@ -499,7 +509,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                 className="px-3.5 py-1.5 rounded-lg text-[13px] font-semibold cursor-default border-none transition-all duration-150
                                            bg-accent-primary/15 text-accent-primary"
                             >
-                                Sự kiện
+                                {t('cal.modal.event')}
                             </button>
                         </div>
 
@@ -511,7 +521,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                 {/* Row 1: Start Date + Start Time */}
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <span className="w-[76px] text-[13px] font-medium text-text-secondary">
-                                        Bắt đầu:
+                                        {t('cal.modal.start')}
                                     </span>
                                     <div className="relative">
                                         <button
@@ -520,7 +530,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                                        bg-bg-hover text-text-primary hover:bg-bg-active transition-colors border-none"
                                             onClick={() => document.getElementById('gc-start-date-input').showPicker?.()}
                                         >
-                                            {formatDateVN(date) || 'Chọn ngày'}
+                                            {formatDateLocal(date) || t('cal.modal.selectDate')}
                                         </button>
                                         <input
                                             id="gc-start-date-input"
@@ -541,7 +551,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                 {!isAllDay && (
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <span className="w-[76px] text-[13px] font-medium text-text-secondary">
-                                            Kết thúc:
+                                            {t('cal.modal.end')}
                                         </span>
                                         <div className="relative">
                                             <button
@@ -550,7 +560,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                                            bg-bg-hover text-text-primary hover:bg-bg-active transition-colors border-none"
                                                 onClick={() => document.getElementById('gc-end-date-input').showPicker?.()}
                                             >
-                                                {formatDateVN(resolvedEndDateForUi) || 'Chọn ngày'}
+                                                {formatDateLocal(resolvedEndDateForUi) || t('cal.modal.selectDate')}
                                             </button>
                                             <input
                                                 id="gc-end-date-input"
@@ -589,14 +599,14 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                                 </svg>
                                             )}
                                         </div>
-                                        <span className="text-[13px] text-text-primary">Cả ngày</span>
+                                        <span className="text-[13px] text-text-primary">{t('cal.modal.allDay')}</span>
                                     </label>
-                                    <span className="text-[13px] text-accent-primary cursor-pointer hover:underline">Múi giờ</span>
+                                    <span className="text-[13px] text-accent-primary cursor-pointer hover:underline">{t('cal.modal.timezone')}</span>
                                 </div>
 
                                 {isTaskLinkedEvent && (
                                     <p className="text-[11px] text-text-tertiary">
-                                        Sự kiện này tạo từ task, nên không dùng chế độ Cả ngày.
+                                        {t('cal.modal.taskLinkedHint')}
                                     </p>
                                 )}
                             </div>
@@ -608,7 +618,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                             <div className="flex items-center gap-4">
                                 <Users size={18} className="text-text-tertiary shrink-0" />
                                 <span className="text-[13px] text-text-secondary cursor-pointer hover:text-text-primary transition-colors">
-                                    Thêm khách
+                                    {t('cal.modal.addGuests')}
                                 </span>
                             </div>
 
@@ -616,7 +626,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                             <div className="flex items-center gap-4">
                                 <Video size={18} className="text-text-tertiary shrink-0" />
                                 <span className="text-[13px] text-text-secondary cursor-pointer hover:text-text-primary transition-colors truncate">
-                                    Thêm hội nghị truyền hình trên Google Meet
+                                    {t('cal.modal.addMeet')}
                                 </span>
                             </div>
 
@@ -627,7 +637,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                     type="text"
                                     value={location}
                                     onChange={(e) => setLocation(e.target.value)}
-                                    placeholder="Thêm vị trí"
+                                    placeholder={t('cal.modal.addLocation')}
                                     className="flex-1 bg-transparent text-text-primary text-[13px] focus:outline-none
                                                placeholder:text-text-secondary border-none py-0"
                                 />
@@ -643,7 +653,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                         e.target.style.height = 'auto';
                                         e.target.style.height = e.target.scrollHeight + 'px';
                                     }}
-                                    placeholder="Thêm mô tả hoặc tệp đính kèm"
+                                    placeholder={t('cal.modal.addDesc')}
                                     rows={1}
                                     className="flex-1 bg-transparent text-text-primary text-[13px] focus:outline-none
                                                placeholder:text-text-secondary border-none resize-none py-0 overflow-hidden"
@@ -670,7 +680,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
 
                                     {!showProfilePopup && (
                                         <span className="text-[11px] text-text-tertiary leading-tight">
-                                            {status === 'busy' ? 'Bận' : 'Rảnh'} • {visibility === 'default' ? 'Chế độ hiển thị mặc định' : 'Riêng tư'} • Thông báo {getReminderLabel(reminder)} trước
+                                            {status === 'busy' ? t('cal.modal.busy') : t('cal.modal.free')} • {visibility === 'default' ? t('cal.modal.visDefault') : t('cal.modal.visPrivate')} • {t('cal.modal.notification')} {getReminderLabel(reminder)} {t('cal.modal.reminderBefore')}
                                         </span>
                                     )}
 
@@ -698,8 +708,8 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                                     value={status}
                                                     onChange={setStatus}
                                                     options={[
-                                                        { value: "busy", label: "Bận" },
-                                                        { value: "free", label: "Rảnh" }
+                                                        { value: "busy", label: t('cal.modal.busy') },
+                                                        { value: "free", label: t('cal.modal.free') }
                                                     ]}
                                                 />
                                             </div>
@@ -713,9 +723,9 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                                     value={visibility}
                                                     onChange={setVisibility}
                                                     options={[
-                                                        { value: "default", label: "Chế độ hiển thị mặc định" },
-                                                        { value: "private", label: "Riêng tư" },
-                                                        { value: "public", label: "Công khai" }
+                                                        { value: "default", label: t('cal.modal.visDefault') },
+                                                        { value: "private", label: t('cal.modal.visPrivate') },
+                                                        { value: "public", label: t('cal.modal.visPublic') }
                                                     ]}
                                                 />
                                             </div>
@@ -727,10 +737,10 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                                     value={reminder}
                                                     onChange={setReminder}
                                                     options={[
-                                                        { value: "NONE", label: "Không nhắc" },
-                                                        { value: "MINUTES_5", label: "5 phút trước" },
-                                                        { value: "MINUTES_15", label: "15 phút trước" },
-                                                        { value: "HOUR_1", label: "1 giờ trước" }
+                                                        { value: "NONE", label: t('cal.modal.noReminder') },
+                                                        { value: "MINUTES_5", label: t('cal.modal.remind5') },
+                                                        { value: "MINUTES_15", label: t('cal.modal.remind15') },
+                                                        { value: "HOUR_1", label: t('cal.modal.remind60') }
                                                     ]}
                                                 />
                                             </div>
@@ -751,7 +761,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                     className="text-[13px] text-red-400 hover:bg-red-500/10 px-3 py-1.5 rounded-lg font-medium
                                                transition cursor-pointer border-none bg-transparent"
                                 >
-                                    Xoá
+                                    {t('cal.modal.delete')}
                                 </button>
                             ) : (
                                 <div />
@@ -764,7 +774,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                 className="text-[13px] font-medium text-accent-primary bg-transparent
                                            hover:bg-accent-primary/10 px-3 py-1.5 rounded-lg border-none cursor-pointer transition-colors"
                             >
-                                Tuỳ chọn khác
+                                {t('cal.modal.moreOptions')}
                             </button>
                             <button
                                 type="submit"
@@ -772,7 +782,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                            bg-accent-primary border-none hover:brightness-110
                                            transition-all duration-150 cursor-pointer shadow-sm"
                             >
-                                Lưu
+                                {t('cal.modal.save')}
                             </button>
                         </div>
                     </div>
@@ -783,8 +793,8 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
             {showConfirmDelete && (
                 <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center">
                     <div className="bg-bg-main rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-border-subtle">
-                        <h3 className="text-base font-semibold text-text-primary mb-2">Xoá sự kiện</h3>
-                        <p className="text-[13px] text-text-secondary mb-5">Bạn có chắc chắn muốn xoá sự kiện này không?</p>
+                        <h3 className="text-base font-semibold text-text-primary mb-2">{t('cal.modal.deleteTitle')}</h3>
+                        <p className="text-[13px] text-text-secondary mb-5">{t('cal.modal.deleteConfirm')}</p>
                         <div className="flex justify-end gap-2">
                             <button
                                 type="button"
@@ -792,7 +802,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                 className="px-4 py-1.5 text-[13px] font-medium rounded-lg text-text-secondary bg-transparent
                                            hover:bg-bg-hover transition-colors border-none cursor-pointer"
                             >
-                                Hủy
+                                {t('cal.modal.cancel')}
                             </button>
                             <button
                                 type="button"
@@ -806,7 +816,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                 className="px-4 py-1.5 text-[13px] font-medium rounded-lg text-white bg-red-600
                                            hover:bg-red-700 transition-colors border-none cursor-pointer"
                             >
-                                Xoá
+                                {t('cal.modal.delete')}
                             </button>
                         </div>
                     </div>

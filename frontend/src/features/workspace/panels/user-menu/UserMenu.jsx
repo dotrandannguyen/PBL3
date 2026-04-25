@@ -1,18 +1,25 @@
 import React from "react";
-import { ChevronDown, LogOut, User } from "lucide-react";
+import { ChevronDown, LogOut, User, Settings } from "lucide-react";
 import { UserAvatar } from "../../../../components/shared";
 import useUserMenu from "./useUserMenu";
 import useAuth from "../../../auth/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 const UserMenu = () => {
   const { user, logout } = useAuth();
   const { open, setOpen, menuRef } = useUserMenu();
+  const navigate = useNavigate();
 
   const initial =
     user?.fullName?.[0]?.toUpperCase() ||
     user?.email?.[0]?.toUpperCase() ||
     "U";
   const displayName = user?.fullName || user?.email || "User";
+
+  const handleProfileClick = () => {
+    setOpen(false);
+    navigate("/settings?section=profile");
+  };
 
   return (
     <div className="relative" ref={menuRef}>
@@ -48,23 +55,37 @@ const UserMenu = () => {
           <button
             type="button"
             className="w-full flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-white/3 text-sm transition-colors border-0 bg-transparent cursor-pointer"
-            onClick={() => setOpen(false)}
+            onClick={handleProfileClick}
           >
             <User size={14} />
-            <span>Profile</span>
+            <span>Hồ sơ & Tài khoản</span>
           </button>
 
           <button
             type="button"
-            className="w-full flex items-center gap-2 px-3 py-2 text-red-500 hover:bg-red-500/10 text-sm transition-colors border-0 bg-transparent cursor-pointer"
+            className="w-full flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-white/3 text-sm transition-colors border-0 bg-transparent cursor-pointer"
             onClick={() => {
               setOpen(false);
-              logout();
+              navigate("/settings");
             }}
           >
-            <LogOut size={14} />
-            <span>Log out</span>
+            <Settings size={14} />
+            <span>Cài đặt</span>
           </button>
+
+          <div className="border-t border-border-subtle mt-1">
+            <button
+              type="button"
+              className="w-full flex items-center gap-2 px-3 py-2 text-red-500 hover:bg-red-500/10 text-sm transition-colors border-0 bg-transparent cursor-pointer"
+              onClick={() => {
+                setOpen(false);
+                logout();
+              }}
+            >
+              <LogOut size={14} />
+              <span>Đăng xuất</span>
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -72,3 +93,5 @@ const UserMenu = () => {
 };
 
 export default UserMenu;
+
+

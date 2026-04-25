@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Trash2, Loader, Calendar, Clock3 } from "lucide-react";
 import TaskCheckbox from "./TaskCheckbox";
+import TaskTooltip from "./TaskTooltip";
 import { formatDate, formatDateToISO, getTodayDate } from "../utils/dateUtils";
 import { getPriorityColor } from "../utils/priorityUtils";
+import useAuth from "../../auth/hooks/useAuth";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 const RenderPriorityPill = ({ priority }) => {
   if (!priority) return <span>Priority</span>;
@@ -51,9 +54,13 @@ const TaskRow = ({
   onOpenDashboard,
   isScheduling,
 }) => {
+  const { user } = useAuth();
+  const { t } = useLanguage();
   const [isDateOpen, setIsDateOpen] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [isPriorityOpen, setIsPriorityOpen] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipTimeoutRef = useRef(null);
 
   const datePickerRef = useRef(null);
   const schedulePickerRef = useRef(null);
@@ -144,7 +151,18 @@ const TaskRow = ({
           autoFocus
         />
       ) : (
-        <div className="flex-1 flex items-center gap-2 overflow-hidden">
+        <div
+          className="flex-1 flex items-center gap-2 overflow-visible relative"
+          onMouseEnter={() => {
+            clearTimeout(tooltipTimeoutRef.current);
+            tooltipTimeoutRef.current = setTimeout(() => setShowTooltip(true), 400);
+          }}
+          onMouseLeave={() => {
+            clearTimeout(tooltipTimeoutRef.current);
+            setShowTooltip(false);
+          }}
+        >
+            {showTooltip && <TaskTooltip task={task} currentUser={user} />}
             <button
               type="button"
               className={`bg-transparent border-none px-0 py-1 text-sm text-left cursor-text transition-colors truncate ${task.completed === true ? "text-text-tertiary" : "text-text-primary"
@@ -157,7 +175,7 @@ const TaskRow = ({
                 type="button"
                 onClick={() => onOpenDashboard && onOpenDashboard(task)}
                 className="opacity-0 group-hover:opacity-100 p-1 flex items-center justify-center rounded-md hover:bg-white/10 text-text-tertiary hover:text-text-primary transition-all cursor-pointer border-none bg-transparent"
-                title="Mở chi tiết (Open side peek)"
+                title={t('task.row.openDetail')}
             >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>

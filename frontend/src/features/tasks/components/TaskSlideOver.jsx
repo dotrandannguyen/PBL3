@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Calendar, Flag, AlignLeft, CheckCircle2, Circle, Clock, Check, MoreVertical, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateVN, formatDateToISO } from "../utils/dateUtils";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 const PriorityIcon = ({ priority, className }) => {
   const p = typeof priority === 'string' ? priority.toUpperCase() : priority;
@@ -12,6 +13,7 @@ const PriorityIcon = ({ priority, className }) => {
 };
 
 export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
+  const { t } = useLanguage();
   const [localTitle, setLocalTitle] = useState("");
   const [localDesc, setLocalDesc] = useState("");
 
@@ -40,10 +42,8 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
 
   const handleDescBlur = async () => {
     if (task && localDesc !== (task.description || "")) {
-      // Assuming the backend has a description field or can accept it.
-      // If it doesn't, this will just gracefully be ignored by API or we add it later.
       await onUpdate(task.id, { description: localDesc });
-      toast.success("Đã lưu nháp mô tả");
+      toast.success(t('task.slideover.toast.descSaved'));
     }
   };
 
@@ -52,7 +52,6 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
   
   useEffect(() => {
     if (isOpen) {
-       // Timeout ensures the initial mount happens before applying transition class
        setTimeout(() => setIsRendered(true), 10);
     } else {
        setIsRendered(false);
@@ -89,7 +88,7 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
               ) : (
                 <div className="border border-text-tertiary rounded-sm w-[15px] h-[15px]" />
               )}
-              <span className="text-xs text-text-secondary select-none font-medium text-left">Đánh dấu hoàn thành</span>
+              <span className="text-xs text-text-secondary select-none font-medium text-left">{t('task.slideover.markDone')}</span>
             </button>
           </div>
           <div className="flex items-center gap-1">
@@ -113,14 +112,14 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                 value={localTitle}
                 onChange={(e) => setLocalTitle(e.target.value)}
                 onBlur={handleTitleBlur}
-                placeholder="Tiêu đề công việc"
+                placeholder={t('task.slideover.titlePlaceholder')}
                 className="flex-1 bg-transparent border-none text-text-primary text-[15px] outline-none placeholder-text-tertiary"
               />
               <button
                 onClick={onClose}
                 className="px-3 py-1.5 border border-border-subtle rounded-lg text-xs text-text-tertiary hover:bg-white/5 transition-colors cursor-pointer"
               >
-                Thu gọn
+                {t('task.slideover.collapse')}
               </button>
             </div>
 
@@ -130,7 +129,7 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                 value={localDesc}
                 onChange={(e) => setLocalDesc(e.target.value)}
                 onBlur={handleDescBlur}
-                placeholder="Mô tả (tùy chọn)"
+                placeholder={t('task.slideover.descPlaceholder')}
                 className="w-full bg-bg-main/30 border-none outline-none resize-none p-3 rounded-lg text-text-secondary text-sm placeholder-text-tertiary/70"
                 rows={3}
               />
@@ -151,11 +150,11 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
               <Calendar size={14} />
             </div>
 
-            {/* Created At / Ngày Tạo */}
+            {/* Created At */}
             {task?.createdAt && (
               <div className="flex items-center gap-2 px-3 py-1.5 border border-border-subtle rounded-md bg-bg-main/30 text-text-secondary text-[13px]">
                 <Clock size={14} />
-                <span>Ngày tạo: {formatDateVN(task.createdAt)}</span>
+                <span>{t('task.slideover.createdAt')}: {formatDateVN(task.createdAt)}</span>
               </div>
             )}
 
@@ -171,7 +170,7 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                 }`}
               >
                 <PriorityIcon priority={task?.priority} className={task?.priority === "HIGH" ? "text-red-500" : task?.priority === "LOW" ? "text-blue-500" : task?.priority === "MEDIUM" ? "text-yellow-500" : "text-text-tertiary"} />
-                {task?.priority === "HIGH" ? "Cao" : task?.priority === "LOW" ? "Thấp" : task?.priority === "MEDIUM" ? "Trung bình" : "Không có"}
+                {task?.priority === "HIGH" ? t('task.priority.high') : task?.priority === "LOW" ? t('task.priority.low') : task?.priority === "MEDIUM" ? t('task.priority.medium') : t('task.priority.none')}
               </button>
               
               {isPriorityOpen && (
@@ -183,7 +182,7 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                     }}
                     className="w-full text-left px-2 py-1.5 rounded-lg flex items-center gap-2 transition-colors cursor-pointer text-red-500 hover:bg-red-500/10 text-[13px] font-medium"
                   >
-                    <Flag size={14} className="text-red-500" /> Cao
+                    <Flag size={14} className="text-red-500" /> {t('task.priority.high')}
                   </button>
                   <button
                     onClick={async () => {
@@ -192,7 +191,7 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                     }}
                     className="w-full text-left px-2 py-1.5 rounded-lg flex items-center gap-2 transition-colors cursor-pointer text-yellow-500 hover:bg-yellow-500/10 text-[13px] font-medium"
                   >
-                    <Flag size={14} className="text-yellow-500" /> Trung bình
+                    <Flag size={14} className="text-yellow-500" /> {t('task.priority.medium')}
                   </button>
                   <button
                     onClick={async () => {
@@ -201,7 +200,7 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                     }}
                     className="w-full text-left px-2 py-1.5 rounded-lg flex items-center gap-2 transition-colors cursor-pointer text-blue-500 hover:bg-blue-500/10 text-[13px] font-medium"
                   >
-                    <Flag size={14} className="text-blue-500" /> Thấp
+                    <Flag size={14} className="text-blue-500" /> {t('task.priority.low')}
                   </button>
                 </div>
               )}
@@ -212,25 +211,23 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
           <div className="mt-5 border border-border-subtle rounded-xl p-4 bg-bg-sidebar shadow-md">
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-text-tertiary font-medium">Bắt đầu</label>
+                <label className="text-xs text-text-tertiary font-medium">{t('task.slideover.startDate')}</label>
                 <div className="flex items-center gap-2 px-2.5 py-1.5 bg-bg-main/50 border border-border-subtle rounded-md group hover:border-text-tertiary transition-colors">
                   <input
                     type="datetime-local"
                     className="bg-transparent border-none outline-none text-text-primary text-[13px] flex-1 min-w-0"
                     style={{ colorScheme: "dark" }}
-                    placeholder="Chọn ngày bắt đầu"
                   />
                   <Calendar size={14} className="text-text-tertiary" />
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-text-tertiary font-medium">Kết thúc</label>
+                <label className="text-xs text-text-tertiary font-medium">{t('task.slideover.endDate')}</label>
                 <div className="flex items-center gap-2 px-2.5 py-1.5 bg-bg-main/50 border border-red-500/50 rounded-md focus-within:border-red-500 transition-colors">
                   <input
                     type="datetime-local"
                     className="bg-transparent border-none outline-none text-text-primary text-[13px] flex-1 min-w-0"
                     style={{ colorScheme: "dark" }}
-                    placeholder="Chọn ngày kết thúc"
                   />
                   <Calendar size={14} className="text-text-tertiary" />
                 </div>
@@ -245,12 +242,12 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
             onClick={async () => {
                await handleTitleBlur();
                await handleDescBlur();
-               toast.success("Đã cập nhật công việc!");
+               toast.success(t('task.slideover.toast.updated'));
                onClose();
             }}
             className="w-full py-2.5 bg-[#2383E2] hover:bg-[#1D6FC0] text-white font-medium rounded-lg text-[13px] transition-colors cursor-pointer shadow-md"
           >
-            Cập nhật công việc
+            {t('task.slideover.updateBtn')}
           </button>
         </div>
       </div>

@@ -1,0 +1,617 @@
+/**
+ * Translations dictionary — Full-app UI strings
+ *
+ * Structured as: translations[langCode][key] = string
+ * Languages: 'vi' (Vietnamese), 'ja' (Japanese), 'en' (English)
+ */
+
+export const translations = {
+    // ═══════════════════════════════════════════════════════════════
+    // Vietnamese (default)
+    // ═══════════════════════════════════════════════════════════════
+    vi: {
+        // ── Settings Sidebar nav ──────────────────────────────────
+        'nav.profile': 'Tài khoản & Hồ sơ',
+        'nav.general': 'Cài đặt chung',
+        'nav.integrations': 'Tích hợp',
+        'nav.notifications': 'Thông báo',
+        'nav.language': 'Ngôn ngữ & Khu vực',
+
+        // ── Workspace Sidebar ─────────────────────────────────────
+        'sidebar.search': 'Tìm kiếm',
+        'sidebar.home': 'Trang chủ',
+        'sidebar.inbox': 'Hộp thư',
+        'sidebar.private': 'Riêng tư',
+        'sidebar.shared': 'Được chia sẻ',
+        'sidebar.nexusApps': 'Ứng dụng Nexus',
+        'sidebar.startCollaborating': 'Bắt đầu cộng tác',
+        'sidebar.noPages': 'Không có trang nào',
+        'sidebar.settings': 'Cài đặt',
+        'sidebar.trash': 'Thùng rác',
+        'sidebar.nexusMail': 'Nexus Mail',
+        'sidebar.nexusCalendar': 'Nexus Calendar',
+
+        // ── Workspace TopBar ──────────────────────────────────────
+        'topbar.share': 'Chia sẻ',
+        'topbar.edited': 'Đã chỉnh sửa',
+
+        // ── Profile ───────────────────────────────────────────────
+        'profile.title': 'Tài khoản & Hồ sơ',
+        'profile.label.fullName': 'Họ và tên',
+        'profile.label.email': 'Địa chỉ email',
+        'profile.email.hint': 'Địa chỉ email của bạn không thể thay đổi.',
+        'profile.avatar.hint': 'Nhấn để tải ảnh lên',
+        'profile.btn.save': 'Lưu thay đổi',
+        'profile.btn.saving': 'Đang lưu...',
+        'profile.toast.avatarUpdated': 'Ảnh đại diện đã được cập nhật!',
+        'profile.toast.saved': 'Cập nhật hồ sơ thành công!',
+        'profile.toast.avatarTooLarge': 'Ảnh phải nhỏ hơn 2MB',
+
+        // ── General ───────────────────────────────────────────────
+        'general.title': 'Cài đặt chung',
+        'general.theme.label': 'Giao diện',
+        'general.theme.hint': 'Chọn chế độ hiển thị ưa thích của bạn.',
+        'general.theme.default': 'Mặc định',
+        'general.theme.dark': 'Chế độ tối',
+        'general.theme.light': 'Chế độ sáng',
+        'general.datetime.label': 'Định dạng ngày & giờ',
+        'general.datetime.hint': 'Cách hiển thị ngày và giờ.',
+        'general.timezone.label': 'Múi giờ',
+        'general.timezone.hint': 'Dùng cho thông báo và sự kiện.',
+
+        // ── Notifications ─────────────────────────────────────────
+        'notif.title': 'Thông báo',
+        'notif.subtitle': 'Quản lý cách bạn nhận thông báo.',
+        'notif.email.label': 'Thông báo qua Email',
+        'notif.email.hint': 'Nhận cập nhật nhiệm vụ và nhắc nhở qua email.',
+        'notif.push.label': 'Thông báo đẩy',
+        'notif.push.hint': 'Nhận thông báo đẩy tức thì từ trình duyệt.',
+
+        // ── Language ──────────────────────────────────────────────
+        'lang.title': 'Ngôn ngữ & Khu vực',
+        'lang.subtitle': 'Chọn ngôn ngữ hiển thị của ứng dụng.',
+
+        // ── Tasks – Toolbar ───────────────────────────────────────
+        'task.filter.all': 'Tất cả',
+        'task.filter.done': 'Hoàn thành',
+        'task.filter.pending': 'Chưa làm',
+        'task.search.placeholder': 'Tìm công việc...',
+        'task.search.label': 'Tìm kiếm',
+        'task.filter.tooltip': 'Lọc theo độ ưu tiên',
+        'task.sort.tooltip': 'Sắp xếp',
+        'task.priority.all': 'Tất cả mức ưu tiên',
+        'task.priority.urgent': 'Khẩn cấp',
+        'task.priority.high': 'Cao',
+        'task.priority.medium': 'Trung bình',
+        'task.priority.low': 'Thấp',
+        'task.priority.none': 'Không có',
+        'task.sort.dateAsc': 'Hạn gần nhất trước',
+        'task.sort.dateDesc': 'Hạn xa nhất trước',
+        'task.sort.priority': 'Ưu tiên cao trước',
+        'task.sort.title': 'Tên A-Z',
+        'task.sort.none': 'Không sắp xếp',
+        'task.btn.create': 'Tạo mới',
+
+        // ── Tasks – SlideOver ─────────────────────────────────────
+        'task.slideover.markDone': 'Đánh dấu hoàn thành',
+        'task.slideover.collapse': 'Thu gọn',
+        'task.slideover.titlePlaceholder': 'Tiêu đề công việc',
+        'task.slideover.descPlaceholder': 'Mô tả (tùy chọn)',
+        'task.slideover.createdAt': 'Ngày tạo',
+        'task.slideover.startDate': 'Bắt đầu',
+        'task.slideover.endDate': 'Kết thúc',
+        'task.slideover.updateBtn': 'Cập nhật công việc',
+        'task.slideover.toast.descSaved': 'Đã lưu nháp mô tả',
+        'task.slideover.toast.updated': 'Đã cập nhật công việc!',
+
+        // ── Tasks – Row ───────────────────────────────────────────
+        'task.row.openDetail': 'Mở chi tiết',
+
+        // ── Tasks – Tooltip ───────────────────────────────────────
+        'tooltip.status.pending': 'Cần làm',
+        'tooltip.status.inProgress': 'Đang làm',
+        'tooltip.status.done': 'Hoàn thành',
+        'tooltip.label.status': 'Trạng thái',
+        'tooltip.label.assignee': 'Thực hiện',
+        'tooltip.label.priority': 'Ưu tiên',
+        'tooltip.label.due': 'Hạn',
+        'tooltip.noDueDate': 'Chưa có hạn',
+
+        // ── Calendar ──────────────────────────────────────────────
+        'cal.today': 'Hôm nay',
+        'cal.view.month': 'Tháng',
+        'cal.view.week': 'Tuần',
+        'cal.month.0': 'Tháng 1', 'cal.month.1': 'Tháng 2', 'cal.month.2': 'Tháng 3',
+        'cal.month.3': 'Tháng 4', 'cal.month.4': 'Tháng 5', 'cal.month.5': 'Tháng 6',
+        'cal.month.6': 'Tháng 7', 'cal.month.7': 'Tháng 8', 'cal.month.8': 'Tháng 9',
+        'cal.month.9': 'Tháng 10', 'cal.month.10': 'Tháng 11', 'cal.month.11': 'Tháng 12',
+        'cal.day.0': 'T2', 'cal.day.1': 'T3', 'cal.day.2': 'T4',
+        'cal.day.3': 'T5', 'cal.day.4': 'T6', 'cal.day.5': 'T7', 'cal.day.6': 'CN',
+        'cal.sidebar.eventsOn': 'Sự kiện ngày',
+        'cal.sidebar.selectDate': 'Chọn ngày',
+        'cal.sidebar.noEvents': 'Không có sự kiện',
+
+        // ── Calendar – EventModal ─────────────────────────────────
+        'cal.modal.addTitle': 'Thêm tiêu đề',
+        'cal.modal.event': 'Sự kiện',
+        'cal.modal.start': 'Bắt đầu:',
+        'cal.modal.end': 'Kết thúc:',
+        'cal.modal.selectDate': 'Chọn ngày',
+        'cal.modal.allDay': 'Cả ngày',
+        'cal.modal.timezone': 'Múi giờ',
+        'cal.modal.taskLinkedHint': 'Sự kiện này tạo từ task, nên không dùng chế độ Cả ngày.',
+        'cal.modal.addGuests': 'Thêm khách',
+        'cal.modal.addMeet': 'Thêm hội nghị truyền hình trên Google Meet',
+        'cal.modal.addLocation': 'Thêm vị trí',
+        'cal.modal.addDesc': 'Thêm mô tả hoặc tệp đính kèm',
+        'cal.modal.myCalendar': 'Lịch cá nhân',
+        'cal.modal.busy': 'Bận',
+        'cal.modal.free': 'Rảnh',
+        'cal.modal.visDefault': 'Chế độ hiển thị mặc định',
+        'cal.modal.visPrivate': 'Riêng tư',
+        'cal.modal.visPublic': 'Công khai',
+        'cal.modal.noReminder': 'Không nhắc',
+        'cal.modal.remind5': '5 phút trước',
+        'cal.modal.remind15': '15 phút trước',
+        'cal.modal.remind60': '1 giờ trước',
+        'cal.modal.reminderBefore': 'trước',
+        'cal.modal.delete': 'Xoá',
+        'cal.modal.moreOptions': 'Tuỳ chọn khác',
+        'cal.modal.save': 'Lưu',
+        'cal.modal.deleteTitle': 'Xoá sự kiện',
+        'cal.modal.deleteConfirm': 'Bạn có chắc chắn muốn xoá sự kiện này không?',
+        'cal.modal.cancel': 'Hủy',
+        'cal.modal.endTimeError': 'Giờ kết thúc phải lớn hơn giờ bắt đầu!',
+        'cal.modal.notification': 'Thông báo',
+        'cal.duration.minutes': 'phút',
+        'cal.duration.hours': 'giờ',
+        'cal.dayName.0': 'Chủ nhật', 'cal.dayName.1': 'Thứ hai', 'cal.dayName.2': 'Thứ ba',
+        'cal.dayName.3': 'Thứ tư', 'cal.dayName.4': 'Thứ năm', 'cal.dayName.5': 'Thứ sáu',
+        'cal.dayName.6': 'Thứ bảy',
+        'cal.dateFormat.month': 'tháng',
+
+        // ── Inbox ─────────────────────────────────────────────────
+        'inbox.greeting.morning': 'Chào buổi sáng',
+        'inbox.greeting.afternoon': 'Chào buổi chiều',
+        'inbox.greeting.evening': 'Chào buổi tối',
+        'inbox.greeting.fallback': 'bạn',
+        'inbox.subtitle': 'Nơi tập trung các thông báo và công việc từ bên ngoài.',
+        'inbox.refresh': 'Làm mới hộp thư',
+        'inbox.tab.all': 'Chính',
+        'inbox.loading': 'Đang đồng bộ dữ liệu...',
+        'inbox.empty.title': 'Chưa có tin nhắn nào',
+        'inbox.empty.subtitle': 'Hộp thư của bạn hiện đang trống.',
+        'inbox.modal.addToTask': 'Thêm vào Task',
+        'inbox.modal.added': '✓ Đã thêm vào task',
+        'inbox.modal.inbox': 'Hộp thư đến',
+        'inbox.modal.issue': 'Vấn đề',
+        'inbox.modal.to': 'Tới: tôi',
+        'inbox.modal.close': 'Đóng',
+        'inbox.modal.openIn': 'Mở trong',
+        'inbox.toast.addedTask': '✓ Đã đưa vào danh sách công việc!',
+        'inbox.toast.error': 'Lỗi khi chuyển thành Task',
+
+        // ── Trash ──────────────────────────────────────────────────
+        'trash.title': 'Thùng rác',
+        'trash.subtitle': 'Các công việc đã xoá sẽ được giữ lại ở đây.',
+        'trash.empty': 'Thùng rác trống',
+        'trash.emptyHint': 'Các task bạn xoá sẽ xuất hiện ở đây.',
+        'trash.itemCount': 'mục',
+        'trash.search': 'Tìm kiếm',
+        'trash.searchPlaceholder': 'Tìm trong thùng rác...',
+        'trash.noSearchResults': 'Không tìm thấy kết quả',
+        'trash.tryOtherKeyword': 'Hãy thử từ khoá khác.',
+        'trash.confirmDeleteTitle': 'Xoá vĩnh viễn',
+        'trash.confirmDeleteMessage': 'Task này sẽ bị xoá vĩnh viễn và không thể khôi phục. Bạn có chắc không?',
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // Japanese
+    // ═══════════════════════════════════════════════════════════════
+    ja: {
+        // ── Settings Sidebar nav ──────────────────────────────────
+        'nav.profile': 'アカウントとプロフィール',
+        'nav.general': '一般設定',
+        'nav.integrations': '連携',
+        'nav.notifications': '通知',
+        'nav.language': '言語と地域',
+
+        // ── Workspace Sidebar ─────────────────────────────────────
+        'sidebar.search': '検索',
+        'sidebar.home': 'ホーム',
+        'sidebar.inbox': '受信箱',
+        'sidebar.private': 'プライベート',
+        'sidebar.shared': '共有',
+        'sidebar.nexusApps': 'Nexusアプリ',
+        'sidebar.startCollaborating': 'コラボレーション開始',
+        'sidebar.noPages': 'ページがありません',
+        'sidebar.settings': '設定',
+        'sidebar.trash': 'ゴミ箱',
+        'sidebar.nexusMail': 'Nexusメール',
+        'sidebar.nexusCalendar': 'Nexusカレンダー',
+
+        // ── Workspace TopBar ──────────────────────────────────────
+        'topbar.share': '共有',
+        'topbar.edited': '編集済み',
+
+        // ── Profile ───────────────────────────────────────────────
+        'profile.title': 'アカウントとプロフィール',
+        'profile.label.fullName': '氏名',
+        'profile.label.email': 'メールアドレス',
+        'profile.email.hint': 'メールアドレスは変更できません。',
+        'profile.avatar.hint': 'クリックしてアップロード',
+        'profile.btn.save': '変更を保存',
+        'profile.btn.saving': '保存中...',
+        'profile.toast.avatarUpdated': 'アバターが更新されました！',
+        'profile.toast.saved': 'プロフィールが更新されました！',
+        'profile.toast.avatarTooLarge': '画像は2MB未満にしてください',
+
+        // ── General ───────────────────────────────────────────────
+        'general.title': '一般設定',
+        'general.theme.label': 'テーマ',
+        'general.theme.hint': '表示モードを選択してください。',
+        'general.theme.default': 'アプリのデフォルト',
+        'general.theme.dark': 'ダークモード',
+        'general.theme.light': 'ライトモード',
+        'general.datetime.label': '日付と時刻の形式',
+        'general.datetime.hint': '日付と時刻の表示方法。',
+        'general.timezone.label': 'タイムゾーン',
+        'general.timezone.hint': '通知とイベントに使用されます。',
+
+        // ── Notifications ─────────────────────────────────────────
+        'notif.title': '通知',
+        'notif.subtitle': '通知の受け取り方を管理します。',
+        'notif.email.label': 'メール通知',
+        'notif.email.hint': 'タスクの更新とリマインダーをメールで受け取ります。',
+        'notif.push.label': 'プッシュ通知',
+        'notif.push.hint': '重要な更新をブラウザのプッシュ通知で受け取ります。',
+
+        // ── Language ──────────────────────────────────────────────
+        'lang.title': '言語と地域',
+        'lang.subtitle': 'アプリの表示言語を選択してください。',
+
+        // ── Tasks – Toolbar ───────────────────────────────────────
+        'task.filter.all': 'すべて',
+        'task.filter.done': '完了',
+        'task.filter.pending': '未完了',
+        'task.search.placeholder': 'タスクを検索...',
+        'task.search.label': '検索',
+        'task.filter.tooltip': '優先度でフィルター',
+        'task.sort.tooltip': '並べ替え',
+        'task.priority.all': 'すべての優先度',
+        'task.priority.urgent': '緊急',
+        'task.priority.high': '高',
+        'task.priority.medium': '中',
+        'task.priority.low': '低',
+        'task.priority.none': 'なし',
+        'task.sort.dateAsc': '期日が近い順',
+        'task.sort.dateDesc': '期日が遠い順',
+        'task.sort.priority': '高優先度順',
+        'task.sort.title': '名前順 A-Z',
+        'task.sort.none': 'ソートなし',
+        'task.btn.create': '新規作成',
+
+        // ── Tasks – SlideOver ─────────────────────────────────────
+        'task.slideover.markDone': '完了にする',
+        'task.slideover.collapse': '折りたたむ',
+        'task.slideover.titlePlaceholder': 'タスクのタイトル',
+        'task.slideover.descPlaceholder': '説明（任意）',
+        'task.slideover.createdAt': '作成日',
+        'task.slideover.startDate': '開始',
+        'task.slideover.endDate': '終了',
+        'task.slideover.updateBtn': 'タスクを更新',
+        'task.slideover.toast.descSaved': '説明を保存しました',
+        'task.slideover.toast.updated': 'タスクが更新されました！',
+
+        // ── Tasks – Row ───────────────────────────────────────────
+        'task.row.openDetail': '詳細を開く',
+
+        // ── Tasks – Tooltip ───────────────────────────────────────
+        'tooltip.status.pending': 'ToDo',
+        'tooltip.status.inProgress': '進行中',
+        'tooltip.status.done': '完了',
+        'tooltip.label.status': '状態',
+        'tooltip.label.assignee': '担当者',
+        'tooltip.label.priority': '優先度',
+        'tooltip.label.due': '期限',
+        'tooltip.noDueDate': '期限なし',
+
+        // ── Calendar ──────────────────────────────────────────────
+        'cal.today': '今日',
+        'cal.view.month': '月',
+        'cal.view.week': '週',
+        'cal.month.0': '1月', 'cal.month.1': '2月', 'cal.month.2': '3月',
+        'cal.month.3': '4月', 'cal.month.4': '5月', 'cal.month.5': '6月',
+        'cal.month.6': '7月', 'cal.month.7': '8月', 'cal.month.8': '9月',
+        'cal.month.9': '10月', 'cal.month.10': '11月', 'cal.month.11': '12月',
+        'cal.day.0': '月', 'cal.day.1': '火', 'cal.day.2': '水',
+        'cal.day.3': '木', 'cal.day.4': '金', 'cal.day.5': '土', 'cal.day.6': '日',
+        'cal.sidebar.eventsOn': 'イベント',
+        'cal.sidebar.selectDate': '日付を選択',
+        'cal.sidebar.noEvents': 'イベントなし',
+
+        // ── Calendar – EventModal ─────────────────────────────────
+        'cal.modal.addTitle': 'タイトルを追加',
+        'cal.modal.event': 'イベント',
+        'cal.modal.start': '開始:',
+        'cal.modal.end': '終了:',
+        'cal.modal.selectDate': '日付を選択',
+        'cal.modal.allDay': '終日',
+        'cal.modal.timezone': 'タイムゾーン',
+        'cal.modal.taskLinkedHint': 'このイベントはタスクから作成されたため、終日モードは使用できません。',
+        'cal.modal.addGuests': 'ゲストを追加',
+        'cal.modal.addMeet': 'Google Meetのビデオ会議を追加',
+        'cal.modal.addLocation': '場所を追加',
+        'cal.modal.addDesc': '説明または添付ファイルを追加',
+        'cal.modal.myCalendar': '個人カレンダー',
+        'cal.modal.busy': '予定あり',
+        'cal.modal.free': '予定なし',
+        'cal.modal.visDefault': 'デフォルトの公開設定',
+        'cal.modal.visPrivate': '非公開',
+        'cal.modal.visPublic': '公開',
+        'cal.modal.noReminder': 'リマインダーなし',
+        'cal.modal.remind5': '5分前',
+        'cal.modal.remind15': '15分前',
+        'cal.modal.remind60': '1時間前',
+        'cal.modal.reminderBefore': '前',
+        'cal.modal.delete': '削除',
+        'cal.modal.moreOptions': 'その他のオプション',
+        'cal.modal.save': '保存',
+        'cal.modal.deleteTitle': 'イベントを削除',
+        'cal.modal.deleteConfirm': 'このイベントを削除してもよろしいですか？',
+        'cal.modal.cancel': 'キャンセル',
+        'cal.modal.endTimeError': '終了時間は開始時間より後にしてください！',
+        'cal.modal.notification': '通知',
+        'cal.duration.minutes': '分',
+        'cal.duration.hours': '時間',
+        'cal.dayName.0': '日曜日', 'cal.dayName.1': '月曜日', 'cal.dayName.2': '火曜日',
+        'cal.dayName.3': '水曜日', 'cal.dayName.4': '木曜日', 'cal.dayName.5': '金曜日',
+        'cal.dayName.6': '土曜日',
+        'cal.dateFormat.month': '月',
+
+        // ── Inbox ─────────────────────────────────────────────────
+        'inbox.greeting.morning': 'おはようございます',
+        'inbox.greeting.afternoon': 'こんにちは',
+        'inbox.greeting.evening': 'こんばんは',
+        'inbox.greeting.fallback': 'さん',
+        'inbox.subtitle': '外部からの通知とタスクの一覧です。',
+        'inbox.refresh': '受信箱を更新',
+        'inbox.tab.all': 'すべて',
+        'inbox.loading': 'データを同期中...',
+        'inbox.empty.title': 'メッセージはありません',
+        'inbox.empty.subtitle': '受信箱は空です。',
+        'inbox.modal.addToTask': 'タスクに追加',
+        'inbox.modal.added': '✓ タスクに追加済み',
+        'inbox.modal.inbox': '受信トレイ',
+        'inbox.modal.issue': 'Issue',
+        'inbox.modal.to': '宛先: 自分',
+        'inbox.modal.close': '閉じる',
+        'inbox.modal.openIn': '開く',
+        'inbox.toast.addedTask': '✓ タスクリストに追加しました！',
+        'inbox.toast.error': 'タスクへの変換に失敗しました',
+
+        // ── Trash ──────────────────────────────────────────────────
+        'trash.title': 'ゴミ箱',
+        'trash.subtitle': '削除したタスクはここに保管されます。',
+        'trash.empty': 'ゴミ箱は空です',
+        'trash.emptyHint': '削除したタスクがここに表示されます。',
+        'trash.itemCount': '件',
+        'trash.search': '検索',
+        'trash.searchPlaceholder': 'ゴミ箱を検索...',
+        'trash.noSearchResults': '結果が見つかりません',
+        'trash.tryOtherKeyword': '別のキーワードをお試しください。',
+        'trash.confirmDeleteTitle': '完全に削除',
+        'trash.confirmDeleteMessage': 'このタスクは完全に削除され、復元できません。よろしいですか？',
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // English
+    // ═══════════════════════════════════════════════════════════════
+    en: {
+        // ── Settings Sidebar nav ──────────────────────────────────
+        'nav.profile': 'Account & Profile',
+        'nav.general': 'General',
+        'nav.integrations': 'Integrations',
+        'nav.notifications': 'Notifications',
+        'nav.language': 'Language & Region',
+
+        // ── Workspace Sidebar ─────────────────────────────────────
+        'sidebar.search': 'Search',
+        'sidebar.home': 'Home',
+        'sidebar.inbox': 'Inbox',
+        'sidebar.private': 'Private',
+        'sidebar.shared': 'Shared',
+        'sidebar.nexusApps': 'Nexus apps',
+        'sidebar.startCollaborating': 'Start collaborating',
+        'sidebar.noPages': 'No pages inside',
+        'sidebar.settings': 'Settings',
+        'sidebar.trash': 'Trash',
+        'sidebar.nexusMail': 'Nexus Mail',
+        'sidebar.nexusCalendar': 'Nexus Calendar',
+
+        // ── Workspace TopBar ──────────────────────────────────────
+        'topbar.share': 'Share',
+        'topbar.edited': 'Edited',
+
+        // ── Profile ───────────────────────────────────────────────
+        'profile.title': 'Account & Profile',
+        'profile.label.fullName': 'Full Name',
+        'profile.label.email': 'Email Address',
+        'profile.email.hint': 'Your email address cannot be changed.',
+        'profile.avatar.hint': 'Click to upload',
+        'profile.btn.save': 'Save changes',
+        'profile.btn.saving': 'Saving...',
+        'profile.toast.avatarUpdated': 'Avatar updated!',
+        'profile.toast.saved': 'Profile updated successfully!',
+        'profile.toast.avatarTooLarge': 'Image must be smaller than 2MB',
+
+        // ── General ───────────────────────────────────────────────
+        'general.title': 'General',
+        'general.theme.label': 'Theme',
+        'general.theme.hint': 'Choose your preferred visual mode.',
+        'general.theme.default': 'App Default',
+        'general.theme.dark': 'Dark Mode',
+        'general.theme.light': 'Light Mode',
+        'general.datetime.label': 'Date & Time format',
+        'general.datetime.hint': 'How dates and times are displayed.',
+        'general.timezone.label': 'Time zone',
+        'general.timezone.hint': 'Used for notifications and events.',
+
+        // ── Notifications ─────────────────────────────────────────
+        'notif.title': 'Notifications',
+        'notif.subtitle': 'Manage how you receive notifications.',
+        'notif.email.label': 'Email Notifications',
+        'notif.email.hint': 'Receive task updates and reminders via email.',
+        'notif.push.label': 'Push Notifications',
+        'notif.push.hint': 'Get instant browser push notifications for important updates.',
+
+        // ── Language ──────────────────────────────────────────────
+        'lang.title': 'Language & Region',
+        'lang.subtitle': 'Choose the language for the application interface.',
+
+        // ── Tasks – Toolbar ───────────────────────────────────────
+        'task.filter.all': 'All',
+        'task.filter.done': 'Done',
+        'task.filter.pending': 'Pending',
+        'task.search.placeholder': 'Search tasks...',
+        'task.search.label': 'Search',
+        'task.filter.tooltip': 'Filter by priority',
+        'task.sort.tooltip': 'Sort',
+        'task.priority.all': 'All priorities',
+        'task.priority.urgent': 'Urgent',
+        'task.priority.high': 'High',
+        'task.priority.medium': 'Medium',
+        'task.priority.low': 'Low',
+        'task.priority.none': 'None',
+        'task.sort.dateAsc': 'Earliest due first',
+        'task.sort.dateDesc': 'Latest due first',
+        'task.sort.priority': 'Highest priority first',
+        'task.sort.title': 'Name A-Z',
+        'task.sort.none': 'No sort',
+        'task.btn.create': 'New task',
+
+        // ── Tasks – SlideOver ─────────────────────────────────────
+        'task.slideover.markDone': 'Mark as done',
+        'task.slideover.collapse': 'Collapse',
+        'task.slideover.titlePlaceholder': 'Task title',
+        'task.slideover.descPlaceholder': 'Description (optional)',
+        'task.slideover.createdAt': 'Created',
+        'task.slideover.startDate': 'Start',
+        'task.slideover.endDate': 'End',
+        'task.slideover.updateBtn': 'Update task',
+        'task.slideover.toast.descSaved': 'Description saved',
+        'task.slideover.toast.updated': 'Task updated!',
+
+        // ── Tasks – Row ───────────────────────────────────────────
+        'task.row.openDetail': 'Open detail',
+
+        // ── Tasks – Tooltip ───────────────────────────────────────
+        'tooltip.status.pending': 'Todo',
+        'tooltip.status.inProgress': 'In Progress',
+        'tooltip.status.done': 'Done',
+        'tooltip.label.status': 'Status',
+        'tooltip.label.assignee': 'Assignee',
+        'tooltip.label.priority': 'Priority',
+        'tooltip.label.due': 'Due',
+        'tooltip.noDueDate': 'No due date',
+
+        // ── Calendar ──────────────────────────────────────────────
+        'cal.today': 'Today',
+        'cal.view.month': 'Month',
+        'cal.view.week': 'Week',
+        'cal.month.0': 'January', 'cal.month.1': 'February', 'cal.month.2': 'March',
+        'cal.month.3': 'April', 'cal.month.4': 'May', 'cal.month.5': 'June',
+        'cal.month.6': 'July', 'cal.month.7': 'August', 'cal.month.8': 'September',
+        'cal.month.9': 'October', 'cal.month.10': 'November', 'cal.month.11': 'December',
+        'cal.day.0': 'Mon', 'cal.day.1': 'Tue', 'cal.day.2': 'Wed',
+        'cal.day.3': 'Thu', 'cal.day.4': 'Fri', 'cal.day.5': 'Sat', 'cal.day.6': 'Sun',
+        'cal.sidebar.eventsOn': 'Events on',
+        'cal.sidebar.selectDate': 'Select a date',
+        'cal.sidebar.noEvents': 'No events',
+
+        // ── Calendar – EventModal ─────────────────────────────────
+        'cal.modal.addTitle': 'Add title',
+        'cal.modal.event': 'Event',
+        'cal.modal.start': 'Start:',
+        'cal.modal.end': 'End:',
+        'cal.modal.selectDate': 'Select date',
+        'cal.modal.allDay': 'All day',
+        'cal.modal.timezone': 'Time zone',
+        'cal.modal.taskLinkedHint': 'This event is from a task and cannot use all-day mode.',
+        'cal.modal.addGuests': 'Add guests',
+        'cal.modal.addMeet': 'Add Google Meet video conference',
+        'cal.modal.addLocation': 'Add location',
+        'cal.modal.addDesc': 'Add description or attachments',
+        'cal.modal.myCalendar': 'My Calendar',
+        'cal.modal.busy': 'Busy',
+        'cal.modal.free': 'Free',
+        'cal.modal.visDefault': 'Default visibility',
+        'cal.modal.visPrivate': 'Private',
+        'cal.modal.visPublic': 'Public',
+        'cal.modal.noReminder': 'No reminder',
+        'cal.modal.remind5': '5 minutes before',
+        'cal.modal.remind15': '15 minutes before',
+        'cal.modal.remind60': '1 hour before',
+        'cal.modal.reminderBefore': 'before',
+        'cal.modal.delete': 'Delete',
+        'cal.modal.moreOptions': 'More options',
+        'cal.modal.save': 'Save',
+        'cal.modal.deleteTitle': 'Delete event',
+        'cal.modal.deleteConfirm': 'Are you sure you want to delete this event?',
+        'cal.modal.cancel': 'Cancel',
+        'cal.modal.endTimeError': 'End time must be after start time!',
+        'cal.modal.notification': 'Notification',
+        'cal.duration.minutes': 'min',
+        'cal.duration.hours': 'hr',
+        'cal.dayName.0': 'Sunday', 'cal.dayName.1': 'Monday', 'cal.dayName.2': 'Tuesday',
+        'cal.dayName.3': 'Wednesday', 'cal.dayName.4': 'Thursday', 'cal.dayName.5': 'Friday',
+        'cal.dayName.6': 'Saturday',
+        'cal.dateFormat.month': '',
+
+        // ── Inbox ─────────────────────────────────────────────────
+        'inbox.greeting.morning': 'Good morning',
+        'inbox.greeting.afternoon': 'Good afternoon',
+        'inbox.greeting.evening': 'Good evening',
+        'inbox.greeting.fallback': 'there',
+        'inbox.subtitle': 'Your notifications and external tasks hub.',
+        'inbox.refresh': 'Refresh inbox',
+        'inbox.tab.all': 'All',
+        'inbox.loading': 'Syncing data...',
+        'inbox.empty.title': 'No messages',
+        'inbox.empty.subtitle': 'Your inbox is empty.',
+        'inbox.modal.addToTask': 'Add to Task',
+        'inbox.modal.added': '✓ Added to task',
+        'inbox.modal.inbox': 'Inbox',
+        'inbox.modal.issue': 'Issue',
+        'inbox.modal.to': 'To: me',
+        'inbox.modal.close': 'Close',
+        'inbox.modal.openIn': 'Open in',
+        'inbox.toast.addedTask': '✓ Added to task list!',
+        'inbox.toast.error': 'Failed to convert to Task',
+
+        // ── Trash ──────────────────────────────────────────────────
+        'trash.title': 'Trash',
+        'trash.subtitle': 'Deleted tasks are kept here.',
+        'trash.empty': 'Trash is empty',
+        'trash.emptyHint': 'Tasks you delete will appear here.',
+        'trash.itemCount': 'items',
+        'trash.search': 'Search',
+        'trash.searchPlaceholder': 'Search trash...',
+        'trash.noSearchResults': 'No results found',
+        'trash.tryOtherKeyword': 'Try a different keyword.',
+        'trash.confirmDeleteTitle': 'Delete permanently',
+        'trash.confirmDeleteMessage': 'This task will be permanently deleted and cannot be recovered. Are you sure?',
+    },
+};
+
+/**
+ * Translate a key for the given language code.
+ * Falls back to English, then to the raw key if not found.
+ */
+export function translate(langCode, key) {
+    return (
+        translations[langCode]?.[key] ??
+        translations['en']?.[key] ??
+        key
+    );
+}

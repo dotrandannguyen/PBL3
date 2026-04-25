@@ -9,6 +9,7 @@ import {
 } from "../../../components/shared";
 import { InboxPanel, InvitePanel, UserMenu } from "../panels";
 import { MAIN_NAV_ITEMS, NEXUS_APPS, BOTTOM_NAV_ITEMS } from "../constants";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 // ============================================
 // MAIN COMPONENT
@@ -22,6 +23,7 @@ const Sidebar = ({
   onDeletePage,
   onRenamePage,
 }) => {
+  const { t } = useLanguage();
   // State for Inbox Panel
   const [showInbox, setShowInbox] = React.useState(false);
   const navigate = useNavigate();
@@ -41,25 +43,24 @@ const Sidebar = ({
         <nav className="py-1 mb-2">
           {MAIN_NAV_ITEMS.map((item) => {
             let isActive = false;
-            if (item.label === "Inbox") {
+            if (item.id === "inbox") {
               isActive = showInbox;
-            } else if (item.label === "Home") {
-              // Highlight Home if we are at /app and no specific private page is active
+            } else if (item.id === "home") {
               isActive = currentPath === "/app" && !activePage;
-            } else if (item.label === "Search") {
-              isActive = currentPath === "/search"; // Or wherever search goes
+            } else if (item.id === "search") {
+              isActive = currentPath === "/search";
             }
 
             return (
               <NavItem
-                key={item.label}
+                key={item.id}
                 icon={item.icon}
-                label={item.label}
+                label={t(item.labelKey)}
                 isActive={isActive}
                 onClick={() => {
-                  if (item.label === "Inbox") {
+                  if (item.id === "inbox") {
                     setShowInbox(!showInbox);
-                  } else if (item.label === "Home") {
+                  } else if (item.id === "home") {
                     navigate("/app");
                   }
                 }}
@@ -70,7 +71,7 @@ const Sidebar = ({
 
         {/* Private Pages Section */}
         <section className="py-1 mb-2 pt-2">
-          <SectionHeader title="Private" onAdd={onAddNewList} />
+          <SectionHeader title={t('sidebar.private')} onAdd={onAddNewList} />
 
           {privatePages.map((page) => (
             <PageItem
@@ -88,35 +89,35 @@ const Sidebar = ({
 
           {privatePages.length === 0 && (
             <p className="px-3.5 py-1.5 text-text-tertiary text-sm">
-              No pages inside
+              {t('sidebar.noPages')}
             </p>
           )}
         </section>
 
         {/* Shared Section */}
         <section className="py-1 mb-2 pt-2">
-          <SectionHeader title="Shared" />
-          <NavItem icon={Plus} label="Start collaborating" />
+          <SectionHeader title={t('sidebar.shared')} />
+          <NavItem icon={Plus} label={t('sidebar.startCollaborating')} />
         </section>
 
         {/* Nexus Apps Section */}
         <section className="py-1 mb-2 pt-2">
-          <SectionHeader title="Nexus apps" />
+          <SectionHeader title={t('sidebar.nexusApps')} />
           {NEXUS_APPS.map((item) => {
             let isActive = false;
-            if (item.label === "Nexus Mail") isActive = currentPath === "/mail";
-            if (item.label === "Nexus Calendar") isActive = currentPath === "/calendar";
+            if (item.id === "nexus-mail") isActive = currentPath === "/mail";
+            if (item.id === "nexus-calendar") isActive = currentPath === "/calendar";
 
             return (
               <NavItem
-                key={item.label}
+                key={item.id}
                 icon={item.icon}
-                label={item.label}
+                label={t(item.labelKey)}
                 isActive={isActive}
                 onClick={() => {
-                  if (item.label === "Nexus Mail") {
+                  if (item.id === "nexus-mail") {
                     navigate("/mail");
-                  } else if (item.label === "Nexus Calendar") {
+                  } else if (item.id === "nexus-calendar") {
                     navigate("/calendar");
                   }
                 }}
@@ -129,18 +130,20 @@ const Sidebar = ({
         <nav className="py-1 mb-2">
           {BOTTOM_NAV_ITEMS.map((item) => {
             let isActive = false;
-            if (item.label === "Settings") isActive = currentPath === "/settings";
-            if (item.label === "Trash") isActive = currentPath === "/trash";
+            if (item.id === "settings") isActive = currentPath === "/settings";
+            if (item.id === "trash") isActive = currentPath === "/trash";
 
             return (
               <NavItem 
-                key={item.label} 
+                key={item.id} 
                 icon={item.icon} 
-                label={item.label} 
+                label={t(item.labelKey)} 
                 isActive={isActive}
                 onClick={() => {
-                  if (item.label === "Settings") {
+                  if (item.id === "settings") {
                     navigate("/settings");
+                  } else if (item.id === "trash") {
+                    navigate("/trash");
                   }
                 }}
               />

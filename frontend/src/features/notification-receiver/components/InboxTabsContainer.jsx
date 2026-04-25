@@ -1,5 +1,6 @@
 import { Inbox, Mail, Github, RefreshCw, AlertCircle } from "lucide-react";
 import { MailListItem } from "./MailListItem";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 /**
  * @component InboxTabsContainer
@@ -20,6 +21,8 @@ export function InboxTabsContainer({
   onItemClick,
   onStatusChange,
 }) {
+  const { t } = useLanguage();
+
   // Lọc dữ liệu theo tab
   const filteredData = data.filter((item) => {
     if (filter === "all") return true;
@@ -38,7 +41,7 @@ export function InboxTabsContainer({
               : "border-transparent text-text-tertiary hover:bg-bg-hover"
           }`}
         >
-          <Inbox size={18} /> Chính
+          <Inbox size={18} /> {t('inbox.tab.all')}
         </button>
         <button
           onClick={() => onFilterChange("gmail")}
@@ -70,7 +73,7 @@ export function InboxTabsContainer({
               size={28}
               className="animate-spin mb-4 opacity-50 text-accent-primary"
             />
-            <p className="text-sm">Đang đồng bộ dữ liệu...</p>
+            <p className="text-sm">{t('inbox.loading')}</p>
           </div>
         ) : error && filteredData.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-red-500">
@@ -83,9 +86,9 @@ export function InboxTabsContainer({
               <Inbox size={32} className="opacity-40" />
             </div>
             <p className="text-base font-medium text-text-primary mb-1">
-              Chưa có tin nhắn nào
+              {t('inbox.empty.title')}
             </p>
-            <p className="text-sm">Hộp thư của bạn hiện đang trống.</p>
+            <p className="text-sm">{t('inbox.empty.subtitle')}</p>
           </div>
         ) : (
           <div className="flex flex-col">

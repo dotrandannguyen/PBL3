@@ -1,6 +1,7 @@
 import { X, ExternalLink, CheckCircle, Plus } from "lucide-react";
 import { confirmInboxTask } from "../../tasks/api/task.api";
 import { toast } from "sonner";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 /**
  * @component ItemDetailModal
@@ -10,28 +11,31 @@ import { toast } from "sonner";
  * @param {Function} onStatusChange - Callback khi confirm inbox task (taskId, newStatus)
  */
 export function ItemDetailModal({ item, onClose, onStatusChange }) {
+  const { t, lang } = useLanguage();
+
   if (!item) return null;
 
   /**
-   * 👉 Xử lý click "Thêm vào Task" trong Modal
+   * Xử lý click "Thêm vào Task" trong Modal
    * Gọi API confirm → update UI → show toast
    */
   const handleConfirm = async () => {
     try {
       await confirmInboxTask(item.id);
-      // ✅ Update UI: set isConverted = true để hiển thị "✓ Đã thêm vào task"
       if (onStatusChange) onStatusChange(item.id, "PENDING");
-      toast.success("✓ Đã đưa vào danh sách công việc!", {
+      toast.success(t('inbox.toast.addedTask'), {
         position: "bottom-right",
         duration: 3000,
       });
-      // Optionally close modal sau 1.5s để user thấy confirm animation
       setTimeout(onClose, 1500);
     } catch (error) {
-      toast.error("Lỗi khi chuyển thành Task");
+      toast.error(t('inbox.toast.error'));
       console.error(error);
     }
   };
+
+  // Locale string for date
+  const dateLocale = lang === 'ja' ? 'ja-JP' : lang === 'en' ? 'en-US' : 'vi-VN';
 
   return (
     <div
@@ -48,7 +52,7 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
             <button
               onClick={onClose}
               className="p-1.5 hover:bg-bg-hover rounded-md text-text-tertiary hover:text-text-primary transition-colors"
-              title="Đóng"
+              title={t('inbox.modal.close')}
             >
               <X size={20} />
             </button>
@@ -58,7 +62,7 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
               window.open(item.link, "_blank", "noopener,noreferrer")
             }
             className="p-1.5 hover:bg-bg-hover rounded-md text-text-tertiary hover:text-text-primary transition-colors"
-            title={`Mở trong ${item.source === "gmail" ? "Gmail" : "GitHub"}`}
+            title={`${t('inbox.modal.openIn')} ${item.source === "gmail" ? "Gmail" : "GitHub"}`}
           >
             <ExternalLink size={18} />
           </button>
@@ -72,21 +76,21 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
               <h2 className="text-2xl font-normal text-text-primary flex items-center gap-3">
                 {item.subject}
                 <span className="px-2 py-0.5 text-xs bg-bg-hover text-text-tertiary rounded-md">
-                  {item.source === "gmail" ? "Hộp thư đến" : "Vấn đề"}
+                  {item.source === "gmail" ? t('inbox.modal.inbox') : t('inbox.modal.issue')}
                 </span>
               </h2>
             </div>
-            {/* 👉 CONFIRM BUTTON OR BADGE */}
+            {/* CONFIRM BUTTON OR BADGE */}
             {item.isConverted ? (
               <div className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-green-500 bg-green-500/10 rounded-md whitespace-nowrap">
-                <CheckCircle size={16} />✓ Đã thêm vào task
+                <CheckCircle size={16} />{t('inbox.modal.added')}
               </div>
             ) : (
               <button
                 onClick={handleConfirm}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-accent-primary text-white rounded-md hover:bg-opacity-90 transition-colors shadow-sm whitespace-nowrap"
               >
-                <Plus size={16} /> Thêm vào Task
+                <Plus size={16} /> {t('inbox.modal.addToTask')}
               </button>
             )}
           </div>
@@ -108,11 +112,11 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
                     &gt;
                   </span>
                 </div>
-                <div className="text-xs text-text-tertiary mt-1">Tới: tôi</div>
+                <div className="text-xs text-text-tertiary mt-1">{t('inbox.modal.to')}</div>
               </div>
             </div>
             <div className="text-xs text-text-tertiary mt-1 font-medium">
-              {new Date(item.time).toLocaleString("vi-VN")}
+              {new Date(item.time).toLocaleString(dateLocale)}
             </div>
           </div>
 

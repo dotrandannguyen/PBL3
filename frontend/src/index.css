@@ -39,6 +39,43 @@
   --animate-spin-slow: spin 1s linear infinite;
 }
 
+/* ===== Light Mode Overrides ===== */
+[data-theme="light"] {
+  --color-bg-main: #f7f7f5;
+  --color-bg-sidebar: #ffffff;
+  --color-bg-hover: rgba(0, 0, 0, 0.04);
+  --color-bg-active: rgba(0, 0, 0, 0.07);
+  --color-bg-block-hover: rgba(0, 0, 0, 0.02);
+
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #5a5a5a;
+  --color-text-tertiary: #9a9a9a;
+
+  --color-border-subtle: #e3e3e0;
+  --color-border-focused: #c4c4c0;
+
+  --color-accent-primary: #2383e2;
+  --color-accent-hover: #1a6fb0;
+  --color-accent-glow: rgba(35, 131, 226, 0.2);
+
+  --color-glass-bg: rgba(255, 255, 255, 0.85);
+  --color-glass-border: rgba(0, 0, 0, 0.06);
+}
+
+/* Scrollbar for light mode */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background-color: #c9c9c9;
+  border-color: var(--color-bg-main);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background-color: #a8a8a8;
+}
+
+[data-theme="light"] ::selection {
+  background: rgba(35, 131, 226, 0.18);
+}
+
 @keyframes float {
   0%,
   100% {
@@ -56,6 +93,17 @@
     transform: translateY(20px);
   }
 
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tooltipIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
   to {
     opacity: 1;
     transform: translateY(0);
