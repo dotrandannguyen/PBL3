@@ -8,10 +8,25 @@ const NETWORK_ERROR_MESSAGE = `Không thể kết nối server (${API_BASE_URL})
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  withCredentials: true, // Gửi cookie (refresh token) cùng request
   headers: {
     "Content-Type": "application/json",
   },
 });
+// Các biến quản lý việc refresh token (Tránh việc gọi refresh nhiều lần cùng lúc nếu có 3 API cùng fail 401)
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
 
 // Request interceptor: attach stored access token to every request
 apiClient.interceptors.request.use((config) => {
@@ -27,11 +42,12 @@ apiClient.interceptors.request.use((config) => {
 // Response interceptor: on 401/403/500, log error và handle
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const status = error.response?.status;
     const url = error.config?.url;
     const method = error.config?.method?.toUpperCase();
     const errorMessage = error.response?.data?.message || error.message;
+    const originalRequest = error.config;
 
     if (!error.response && error.code === "ERR_NETWORK") {
       error.message = NETWORK_ERROR_MESSAGE;
@@ -54,6 +70,7 @@ apiClient.interceptors.response.use(
         "/health",
         "/auth/google/url",
         "/auth/github/url",
+        "/auth/refresh",
         "/integrations/",
       ];
       const isExcluded = EXCLUDED_URLS.some((path) =>
@@ -64,19 +81,59 @@ apiClient.interceptors.response.use(
         `[401 Unauthorized] ${method} ${url} - Had Token: ${hadToken}`,
       );
 
-      if (hadToken && !isExcluded) {
-        // Hiển thị error message rõ ràng
-        toast.error(`Phiên đăng nhập hết hạn: ${errorMessage}`);
+      if (hadToken && !isExcluded && !originalRequest?._retry) {
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          }).then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          });
+        }
 
-        // Xóa token
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("user");
+        originalRequest._retry = true;
+        isRefreshing = true;
 
-        // Delay để user kịp thấy error, rồi redirect
-        setTimeout(() => {
-          window.location.href = "/auth/login?reason=session_expired";
-        }, 1500);
+        try {
+          const refreshResponse = await axios.post(
+            `${API_BASE_URL}/v1/api/auth/refresh`,
+            {},
+            { withCredentials: true }, // Bắt buộc phải có để gửi Cookie lên Backend
+          );
+          const newAccessToken = refreshResponse.data?.data?.accessToken;
+
+          if (!newAccessToken) {
+            throw new Error("Missing access token after refresh");
+          }
+
+          localStorage.setItem("accessToken", newAccessToken);
+          apiClient.defaults.headers.Authorization = `Bearer ${newAccessToken}`;
+
+          // Trả token về cho các request đang xếp hàng
+          processQueue(null, newAccessToken);
+          // Cập nhật request hiện tại và chạy lại
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return apiClient(originalRequest);
+        } catch (refreshError) {
+          // BƯỚC 2: Thêm console.log để CÓ THỂ NHÌN THẤY LỖI
+          console.error(
+            "LỖI REFRESH TOKEN:",
+            refreshError.response?.data || refreshError.message,
+          );
+          processQueue(refreshError, null);
+          toast.error(`Phiên đăng nhập hết hạn: ${errorMessage}`);
+
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
+
+          setTimeout(() => {
+            window.location.href = "/auth/login?reason=session_expired";
+          }, 1500);
+
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
+        }
       }
     } else if (status === 403) {
       console.warn(`[403 Forbidden] ${method} ${url}`);

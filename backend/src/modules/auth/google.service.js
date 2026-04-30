@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import bcrypt from 'bcrypt';
 import { ClientException } from '../../common/exceptions/index.js';
 import prisma from '../../config/database.js';
 import { encryptionUtils } from '../../common/utils/encryption.js';
@@ -209,6 +210,12 @@ export const googleService = {
 
 		// Tạo JWT cho hệ thống
 		const jwtTokens = generateTokens(result);
+
+		const refreshTokenHash = await bcrypt.hash(jwtTokens.refreshToken, 10);
+		await prisma.user.update({
+			where: { id: result.id },
+			data: { refreshTokenHash },
+		});
 
 		return {
 			user: result,

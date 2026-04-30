@@ -7,6 +7,7 @@ import taskRouter from './modules/tasks/task.router.js';
 import integrationRouter from './modules/integrations/integration.router.js';
 import eventRouter from './modules/events/event.router.js';
 import notificationRouter from './modules/notifications/notification.router.js';
+import cookieParser from 'cookie-parser';
 const app = express();
 
 // CORS Configuration - match with Socket.io CORS
@@ -17,6 +18,8 @@ app.use(
 		credentials: true,
 	}),
 );
+
+app.use(cookieParser());
 
 app.use(
 	express.json({

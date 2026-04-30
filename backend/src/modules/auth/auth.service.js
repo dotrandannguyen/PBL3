@@ -15,8 +15,12 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'secret-pbl3-refres
 // Tách hàm generate token để tái sử dụng cho Google Login sau này
 export const generateTokens = (user) => {
 	const payload = { sub: user.id, email: user.email }; // sub chứa UUID
-	const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
-	const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: '7d' });
+	const accessToken = jwt.sign(payload, JWT_SECRET, {
+		expiresIn: process.env.JWT_EXPIRES || '15m',
+	});
+	const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, {
+		expiresIn: process.env.JWT_REFRESH_EXPIRES || '7d',
+	});
 	return { accessToken, refreshToken };
 };
 
@@ -43,6 +47,10 @@ export const authService = {
 
 		// 4. Tạo Token & Trả về (Auto login sau khi đăng ký)
 		const tokens = generateTokens(newUser);
+
+		// 5. Hash và lưu refresh token vào database
+		const refreshTokenHash = await bcrypt.hash(tokens.refreshToken, SALT_ROUNDS);
+		await authRepository.updateRefreshTokenHash(newUser.id, refreshTokenHash);
 		return new AuthResponseDto(newUser, tokens);
 	},
 
@@ -79,7 +87,7 @@ export const authService = {
 
 		return new AuthResponseDto(user, tokens);
 	},
-	logout: async(userId) => {
+	logout: async (userId) => {
 		if (!userId) {
 			throw new UnauthorizedException('User not found');
 		}

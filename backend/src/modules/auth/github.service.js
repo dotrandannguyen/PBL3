@@ -1,4 +1,5 @@
 import { ClientException } from '../../common/exceptions/index.js';
+import bcrypt from 'bcrypt';
 import { encryptionUtils } from '../../common/utils/encryption.js';
 import { generateTokens } from './auth.service.js';
 import axios from 'axios';
@@ -158,6 +159,12 @@ export const githubService = {
 
 		// E. Trả về JWT
 		const jwtTokens = generateTokens(result);
+
+		const refreshTokenHash = await bcrypt.hash(jwtTokens.refreshToken, 10);
+		await prisma.user.update({
+			where: { id: result.id },
+			data: { refreshTokenHash },
+		});
 		return { user: result, ...jwtTokens };
 	},
 

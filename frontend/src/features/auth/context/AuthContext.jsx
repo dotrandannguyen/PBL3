@@ -29,7 +29,6 @@ export const AuthProvider = ({ children }) => {
   }, []);
   const persistAuth = (data) => {
     localStorage.setItem("accessToken", data.accessToken);
-    localStorage.setItem("refreshToken", data.refreshToken);
     localStorage.setItem("user", JSON.stringify(data.user));
     setAccessToken(data.accessToken);
     setUser(data.user);
@@ -73,9 +72,14 @@ export const AuthProvider = ({ children }) => {
   );
 
   /** Clear session and redirect to /login. */
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      // Gọi lên Backend để nó thực hiện hàm res.clearCookie('refreshToken')
+      await apiClient.post("/v1/api/auth/logout");
+    } catch (error) {
+      console.warn("Logout API failed, forcing local logout", error);
+    }
     localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
     setAccessToken(null);
     setUser(null);
