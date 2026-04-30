@@ -34,11 +34,15 @@ export const integrationService = {
 		const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
 		try {
+			// Sử dụng cú pháp của Gmail: {} nghĩa là OR (hoặc)
+			// Tìm các thư chưa đọc VÀ có chứa 1 trong các từ khóa này
+			const searchQuery =
+				'is:unread {"task" "công việc" "nhiệm vụ" "báo cáo" "deadline" "bug" "fix"}';
 			const response = await gmail.users.messages.list({
 				userId: 'me',
 				labelIds: ['INBOX'],
 				maxResults: 10,
-				q: 'task is:unread', // Chỉ lấy email chưa đọc để preview
+				q: searchQuery, // Chỉ lấy email chưa đọc để preview
 			});
 
 			const messages = response.data.messages || [];
@@ -68,21 +72,26 @@ export const integrationService = {
 						from: from,
 						date: date,
 						snippet: msgDetail.data.snippet, // Đoạn text xem trước ngắn
+						labelIds: msgDetail.data.labelIds || [],
 						link: `https://mail.google.com/mail/u/0/#inbox/${msg.id}`,
 					};
 				}),
 			);
+			const filteredMessages =
+				await integrationService.filterEmails(detailedMessages);
+
+			if (filteredMessages.length === 0) return [];
 
 			// === BƯỚC MỚI: Lưu tất cả emails vào database và return task IDs ===
 			// Lưu tất cả emails vào INBOX (không filter "task" nữa)
 			const tasksBySourceId = await integrationService.saveTasksToInbox(
 				userId,
-				detailedMessages,
+				filteredMessages,
 				'GMAIL',
 			);
 
 			// Match emails với saved tasks by sourceId (email.id)
-			const emailsWithTaskIds = detailedMessages.map((email) => {
+			const emailsWithTaskIds = filteredMessages.map((email) => {
 				const savedTask = tasksBySourceId[email.id];
 				return {
 					...email,
@@ -180,11 +189,11 @@ export const integrationService = {
 		const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
 		try {
-			// Lấy lịch sử thay đổi từ historyId (nơi email mới được nhận)
+			// Lấy lịch sử thay đổi từ historyId
 			const historyResponse = await gmail.users.history.list({
 				userId: 'me',
 				startHistoryId: historyId,
-				// Chỉ lấy email chưa đọc (UNREAD label)
+				// Bỏ qua filter, lấy mọi thứ thay đổi
 			});
 
 			const historyRecords = historyResponse.data.history || [];
@@ -193,22 +202,50 @@ export const integrationService = {
 				return [];
 			}
 
-			// Extract messageId từ history records
-			// History có thể chứa ADDED, MODIFIED, DELETED actions
-			const messageIds = [];
+			// Dùng Set để tránh trùng lặp messageId
+			const messageIdSet = new Set();
+
 			historyRecords.forEach((record) => {
+				// Lay tat ca thu moi duoc them vao (khong can nhan ngay luc nay)
 				if (record.messagesAdded) {
 					record.messagesAdded.forEach((item) => {
-						messageIds.push(item.message.id);
+						messageIdSet.add(item.message.id);
+					});
+				}
+
+				// Lay them cac thu vua duoc gan nhan INBOX
+				if (record.labelsAdded) {
+					record.labelsAdded.forEach((item) => {
+						if (item.labelIds && item.labelIds.includes('INBOX')) {
+							messageIdSet.add(item.message.id);
+						}
 					});
 				}
 			});
 
-			console.log(`[GMAIL] Tìm thấy ${messageIds.length} email mới từ history.`);
+			const messageIds = Array.from(messageIdSet);
+			console.log(
+				`[GMAIL] Tim thay ${messageIds.length} email co bien dong trong history.`,
+			);
 			return messageIds;
 		} catch (error) {
-			console.error('Lỗi lấy Gmail history:', error);
-			throw error;
+			// NẾU LỖI LÀ DO HISTORY ID HẾT HẠN (404)
+			if (error.code === 404 || error.response?.status === 404) {
+				console.warn(
+					'[GMAIL] HistoryID đã quá hạn, fallback sang quét 5 thư mới nhất.',
+				);
+				// Lấy 5 thư mới nhất thay vì dùng history
+				const fallbackRes = await gmail.users.messages.list({
+					userId: 'me',
+					maxResults: 5,
+					labelIds: ['INBOX'],
+				});
+				const msgs = fallbackRes.data.messages || [];
+				return msgs.map((m) => m.id);
+			}
+
+			console.error('Lỗi lấy Gmail history:', error.message);
+			return []; // Đừng throw error để tránh treo server
 		}
 	},
 
@@ -228,6 +265,7 @@ export const integrationService = {
 
 			const message = msgResponse.data;
 			const headers = message.payload.headers || [];
+			const labelIds = message.labelIds || [];
 
 			// Extract headers
 			const getHeader = (name) => headers.find((h) => h.name === name)?.value || '';
@@ -288,6 +326,7 @@ export const integrationService = {
 				body: bodyContent,
 				attachments,
 				snippet: message.snippet,
+				labelIds,
 				link: `https://mail.google.com/mail/u/0/#inbox/${messageId}`,
 			};
 		} catch (error) {
@@ -303,26 +342,37 @@ export const integrationService = {
 	 * @returns {Array} Filtered emails
 	 */
 	filterEmails: async (emails, gmail = null) => {
-		console.log(`🔍 [GMAIL] Lọc ${emails.length} email theo điều kiện...`);
+		console.log(`[GMAIL] Lọc ${emails.length} email theo điều kiện...`);
 
 		const filteredEmails = emails.filter((email) => {
-			const searchText = `${email.subject} ${email.body}`.toLowerCase();
-			const hasTaskKeyword = searchText.includes('task');
-
-			if (hasTaskKeyword) {
-				console.log(`[GMAIL] Email "${email.subject}" chứa từ "task"`);
-				return true;
-			} else {
+			if (!email.labelIds || !email.labelIds.includes('INBOX')) {
 				console.log(
-					`[GMAIL] Email "${email.subject}" không chứa từ "task" - bỏ qua`,
+					`[GMAIL] Bo qua: "${email.subject}" vi khong nam trong INBOX.`,
 				);
 				return false;
 			}
+
+			const searchText = `${email.subject} ${email.body}`.toLowerCase();
+
+			// Mở rộng từ khóa (Tiếng Việt & Anh)
+			const keywords = [
+				'task',
+				'công việc',
+				'nhiệm vụ',
+				'báo cáo',
+				'deadline',
+				'bug',
+				'fix',
+			];
+			const hasTaskKeyword = keywords.some((kw) => searchText.includes(kw));
+
+			if (hasTaskKeyword) {
+				console.log(`[GMAIL] Giữ lại email: "${email.subject}"`);
+				return true;
+			}
+			return false;
 		});
 
-		console.log(
-			`[GMAIL] Kết quả: ${filteredEmails.length}/${emails.length} emails đáp ứng điều kiện`,
-		);
 		return filteredEmails;
 	},
 
