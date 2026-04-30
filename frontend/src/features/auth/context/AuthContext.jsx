@@ -1,6 +1,8 @@
 import React, { createContext, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginUser, registerUser } from "../api/auth.api";
+import axios from "axios";
+import apiClient, { setInMemoryToken } from "../../../shared/api/apiClient";
 
 export const AuthContext = createContext(null);
 
@@ -10,28 +12,51 @@ export const AuthProvider = ({ children }) => {
   const [accessToken, setAccessToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Restore session from localStorage on mount
+  // Silent refresh from cookie on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem("accessToken");
-    const storedUser = localStorage.getItem("user");
-    if (storedToken && storedUser) {
-      setAccessToken(storedToken);
+    const silentRefresh = async () => {
       try {
-        setUser(JSON.parse(storedUser));
+        const API_BASE_URL =
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
+        const res = await axios.post(
+          `${API_BASE_URL}/v1/api/auth/refresh`,
+          {},
+          { withCredentials: true },
+        );
+
+        const token = res.data?.data?.accessToken;
+        if (token) {
+          setInMemoryToken(token);
+          setAccessToken(token);
+
+          const storedUser = localStorage.getItem("user");
+          if (storedUser) {
+            try {
+              setUser(JSON.parse(storedUser));
+            } catch {
+              localStorage.removeItem("user");
+            }
+          }
+        }
       } catch {
-        // corrupted storage — clear it
+        setInMemoryToken(null);
+        setAccessToken(null);
         localStorage.removeItem("user");
         localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
+      } finally {
+        setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    };
+
+    silentRefresh();
   }, []);
   const persistAuth = (data) => {
-    localStorage.setItem("accessToken", data.accessToken);
-    localStorage.setItem("user", JSON.stringify(data.user));
+    setInMemoryToken(data.accessToken);
     setAccessToken(data.accessToken);
     setUser(data.user);
+    localStorage.setItem("user", JSON.stringify(data.user));
+    localStorage.removeItem("accessToken");
   };
 
   /**
@@ -79,6 +104,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.warn("Logout API failed, forcing local logout", error);
     }
+    setInMemoryToken(null);
     localStorage.removeItem("accessToken");
     localStorage.removeItem("user");
     setAccessToken(null);

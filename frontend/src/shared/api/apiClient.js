@@ -5,6 +5,12 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 const NETWORK_ERROR_MESSAGE = `Không thể kết nối server (${API_BASE_URL}).`;
 
+let inMemoryAccessToken = null;
+
+export const setInMemoryToken = (token) => {
+  inMemoryAccessToken = token;
+};
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
@@ -30,9 +36,8 @@ const processQueue = (error, token = null) => {
 
 // Request interceptor: attach stored access token to every request
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("accessToken");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (inMemoryAccessToken) {
+    config.headers.Authorization = `Bearer ${inMemoryAccessToken}`;
   }
   // Log request để debug
   console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`);
@@ -76,7 +81,7 @@ apiClient.interceptors.response.use(
       const isExcluded = EXCLUDED_URLS.some((path) =>
         requestUrl.includes(path),
       );
-      const hadToken = !!localStorage.getItem("accessToken");
+      const hadToken = !!inMemoryAccessToken;
       console.warn(
         `[401 Unauthorized] ${method} ${url} - Had Token: ${hadToken}`,
       );
@@ -106,7 +111,8 @@ apiClient.interceptors.response.use(
             throw new Error("Missing access token after refresh");
           }
 
-          localStorage.setItem("accessToken", newAccessToken);
+          setInMemoryToken(newAccessToken);
+          localStorage.removeItem("accessToken");
           apiClient.defaults.headers.Authorization = `Bearer ${newAccessToken}`;
 
           // Trả token về cho các request đang xếp hàng
@@ -123,6 +129,7 @@ apiClient.interceptors.response.use(
           processQueue(refreshError, null);
           toast.error(`Phiên đăng nhập hết hạn: ${errorMessage}`);
 
+          setInMemoryToken(null);
           localStorage.removeItem("accessToken");
           localStorage.removeItem("user");
 
