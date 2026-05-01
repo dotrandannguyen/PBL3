@@ -1,13 +1,10 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-
-const MONTHS = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-];
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 const CalendarHeader = ({ currentDate, onPrev, onNext, onToday, viewMode, onViewModeChange }) => {
-    const month = MONTHS[currentDate.getMonth()];
+    const { t } = useLanguage();
+    const month = t(`cal.month.${currentDate.getMonth()}`);
     const year = currentDate.getFullYear();
 
     return (
@@ -21,7 +18,7 @@ const CalendarHeader = ({ currentDate, onPrev, onNext, onToday, viewMode, onView
                                text-text-primary bg-transparent hover:bg-bg-hover
                                transition-colors duration-150 cursor-pointer"
                 >
-                    Today
+                    {t('cal.today')}
                 </button>
 
                 <div className="flex items-center gap-1">
@@ -57,7 +54,7 @@ const CalendarHeader = ({ currentDate, onPrev, onNext, onToday, viewMode, onView
                         className={`px-3 py-1 text-[13px] font-medium rounded-sm transition-colors cursor-pointer border-none
                             ${viewMode === 'month' ? 'bg-bg-sidebar text-text-primary shadow-sm' : 'text-text-secondary bg-transparent hover:text-text-primary'}`}
                     >
-                        Tháng
+                        {t('cal.view.month')}
                     </button>
                     <button
                         type="button"
@@ -65,7 +62,7 @@ const CalendarHeader = ({ currentDate, onPrev, onNext, onToday, viewMode, onView
                         className={`px-3 py-1 text-[13px] font-medium rounded-sm transition-colors cursor-pointer border-none
                             ${viewMode === 'week' ? 'bg-bg-sidebar text-text-primary shadow-sm' : 'text-text-secondary bg-transparent hover:text-text-primary'}`}
                     >
-                        Tuần
+                        {t('cal.view.week')}
                     </button>
                 </div>
             )}

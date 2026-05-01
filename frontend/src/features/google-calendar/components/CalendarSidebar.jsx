@@ -1,12 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-
-const MINI_DAY_NAMES = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-const MONTHS = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-];
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 /**
  * Tạo danh sách ngày cho mini calendar
@@ -37,8 +31,12 @@ const getMiniCalendarDays = (year, month) => {
 };
 
 const CalendarSidebar = ({ currentDate, selectedDate, events, onDateSelect }) => {
+    const { t } = useLanguage();
     const [miniDate, setMiniDate] = React.useState(currentDate);
     const today = new Date();
+
+    // Build translated day name headers
+    const miniDayNames = Array.from({ length: 7 }, (_, i) => t(`cal.day.${i}`));
 
     React.useEffect(() => {
         setMiniDate(currentDate);
@@ -66,7 +64,7 @@ const CalendarSidebar = ({ currentDate, selectedDate, events, onDateSelect }) =>
                 {/* Mini Calendar Header */}
                 <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-semibold text-text-primary">
-                        {MONTHS[miniDate.getMonth()]} {miniDate.getFullYear()}
+                        {t(`cal.month.${miniDate.getMonth()}`)} {miniDate.getFullYear()}
                     </span>
                     <div className="flex items-center gap-0.5">
                         <button
@@ -90,7 +88,7 @@ const CalendarSidebar = ({ currentDate, selectedDate, events, onDateSelect }) =>
 
                 {/* Mini Day Names */}
                 <div className="grid grid-cols-7 gap-0 mb-1">
-                    {MINI_DAY_NAMES.map((d, i) => (
+                    {miniDayNames.map((d, i) => (
                         <div key={i} className="text-center text-[10px] text-text-tertiary font-medium py-0.5">
                             {d}
                         </div>
@@ -128,13 +126,13 @@ const CalendarSidebar = ({ currentDate, selectedDate, events, onDateSelect }) =>
             <div className="border-t border-border-subtle pt-3">
                 <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
                     {selectedDate
-                        ? `Events on ${selectedDate.getDate()}/${selectedDate.getMonth() + 1}`
-                        : 'Select a date'
+                        ? `${t('cal.sidebar.eventsOn')} ${selectedDate.getDate()}/${selectedDate.getMonth() + 1}`
+                        : t('cal.sidebar.selectDate')
                     }
                 </h3>
 
                 {selectedEvents.length === 0 ? (
-                    <p className="text-xs text-text-tertiary">No events</p>
+                    <p className="text-xs text-text-tertiary">{t('cal.sidebar.noEvents')}</p>
                 ) : (
                     <div className="flex flex-col gap-2">
                         {selectedEvents.map((event) => (

@@ -164,6 +164,111 @@ export const taskRepository = {
 	},
 
 	/**
+	 * Lấy danh sách tasks đã xoá (trash)
+	 * @param {String} userId - ID của user
+	 * @param {Object} query - { search, skip, take }
+	 * @returns {Array} Tasks có deletedAt != null
+	 */
+	findDeleted: async (userId, query = {}) => {
+		const where = {
+			userId,
+			deletedAt: { not: null },
+		};
+
+		if (query.search) {
+			where.title = {
+				contains: query.search,
+				mode: 'insensitive',
+			};
+		}
+
+		return await prisma.task.findMany({
+			where,
+			skip: query.skip ?? 0,
+			take: query.take ?? 50,
+			orderBy: [{ deletedAt: 'desc' }],
+			select: {
+				...taskSelect,
+				deletedAt: true,
+			},
+		});
+	},
+
+	/**
+	 * Đếm tổng số tasks đã xoá (cho pagination)
+	 * @param {String} userId
+	 * @param {Object} query - { search }
+	 * @returns {Number} Total count
+	 */
+	countDeleted: async (userId, query = {}) => {
+		const where = {
+			userId,
+			deletedAt: { not: null },
+		};
+
+		if (query.search) {
+			where.title = {
+				contains: query.search,
+				mode: 'insensitive',
+			};
+		}
+
+		return await prisma.task.count({ where });
+	},
+
+	/**
+	 * Khôi phục task đã xoá (set deletedAt = null)
+	 * @param {String} userId
+	 * @param {String} taskId
+	 */
+	restore: async (userId, taskId) => {
+		return await prisma.task.updateMany({
+			where: {
+				id: taskId,
+				userId,
+				deletedAt: { not: null },
+			},
+			data: {
+				deletedAt: null,
+			},
+		});
+	},
+
+	/**
+	 * Xoá vĩnh viễn task khỏi database
+	 * @param {String} userId
+	 * @param {String} taskId
+	 */
+	hardDelete: async (userId, taskId) => {
+		return await prisma.task.deleteMany({
+			where: {
+				id: taskId,
+				userId,
+				deletedAt: { not: null },
+			},
+		});
+	},
+
+	/**
+	 * Lấy 1 task đã xoá theo ID (cho restore/permanent delete)
+	 * @param {String} userId
+	 * @param {String} taskId
+	 */
+	findDeletedById: async (userId, taskId) => {
+		return await prisma.task.findFirst({
+			where: {
+				id: taskId,
+				userId,
+				deletedAt: { not: null },
+			},
+			select: {
+				...taskSelect,
+				deletedAt: true,
+			},
+		});
+	},
+
+	/**
 	 * Lấy danh sách INBOX tasks (chờ duyệt + đã thêm vào task)
 	 * Trả về TẤT CẢ tasks từ external sources để hiển thị status
 	 * @param {String} userId - ID của user

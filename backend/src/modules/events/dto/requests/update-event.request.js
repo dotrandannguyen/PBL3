@@ -19,6 +19,16 @@ export const updateEventSchema = {
 				.string()
 				.regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Time must be in HH:mm format')
 				.optional(),
+			endDate: z
+				.string()
+				.date('End date must be in YYYY-MM-DD format')
+				.optional()
+				.nullable(),
+			endTime: z
+				.string()
+				.regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'End time must be in HH:mm format')
+				.optional()
+				.nullable(),
 			color: z
 				.string()
 				.regex(/^#(?:[0-9a-fA-F]{3}){1,2}$/, 'Color must be a valid HEX code')

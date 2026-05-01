@@ -39,6 +39,43 @@
   --animate-spin-slow: spin 1s linear infinite;
 }
 
+/* ===== Light Mode Overrides ===== */
+[data-theme="light"] {
+  --color-bg-main: #f7f7f5;
+  --color-bg-sidebar: #ffffff;
+  --color-bg-hover: rgba(0, 0, 0, 0.04);
+  --color-bg-active: rgba(0, 0, 0, 0.07);
+  --color-bg-block-hover: rgba(0, 0, 0, 0.02);
+
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #5a5a5a;
+  --color-text-tertiary: #9a9a9a;
+
+  --color-border-subtle: #e3e3e0;
+  --color-border-focused: #c4c4c0;
+
+  --color-accent-primary: #2383e2;
+  --color-accent-hover: #1a6fb0;
+  --color-accent-glow: rgba(35, 131, 226, 0.2);
+
+  --color-glass-bg: rgba(255, 255, 255, 0.85);
+  --color-glass-border: rgba(0, 0, 0, 0.06);
+}
+
+/* Scrollbar for light mode */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background-color: #c9c9c9;
+  border-color: var(--color-bg-main);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background-color: #a8a8a8;
+}
+
+[data-theme="light"] ::selection {
+  background: rgba(35, 131, 226, 0.18);
+}
+
 @keyframes float {
   0%,
   100% {
@@ -62,9 +99,249 @@
   }
 }
 
+@keyframes tooltipIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes routeFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+}
+
+@keyframes rowFadeOut {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  60% {
+    opacity: 0;
+    transform: translateX(16px) scale(0.98);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(16px) scale(0.98);
+    height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+  }
+}
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes bulkBarIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 24px) scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -2px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes bulkBarOut {
+  to {
+    opacity: 0;
+    transform: translate(-50%, 16px) scale(0.96);
+  }
+}
+
+@keyframes floatGentle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
+@keyframes badgePop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Animation utility classes */
+.animate-route-fade-in {
+  animation: routeFadeIn 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.animate-modal-in {
+  animation: modalScaleIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.animate-backdrop-in {
+  animation: backdropFadeIn 220ms ease-out both;
+}
+
+.animate-row-fade-out {
+  animation: rowFadeOut 280ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  overflow: hidden;
+}
+
+.animate-dropdown-in {
+  animation: dropdownIn 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: top right;
+}
+
+.animate-bulk-bar-in {
+  animation: bulkBarIn 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.animate-bulk-bar-out {
+  animation: bulkBarOut 200ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.animate-float-gentle {
+  animation: floatGentle 4s ease-in-out infinite;
+}
+
+.animate-pulse-dot {
+  animation: pulseDot 1.6s ease-in-out infinite;
+}
+
+.animate-badge-pop {
+  animation: badgePop 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 1.6s infinite linear;
+}
+
+[data-theme="light"] .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.04) 0%,
+    rgba(0, 0, 0, 0.08) 50%,
+    rgba(0, 0, 0, 0.04) 100%
+  );
+  background-size: 1000px 100%;
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Base Styles */
 * {
   box-sizing: border-box;
+}
+
+/* Smooth theme transition for color-bearing properties */
+html {
+  transition:
+    background-color 280ms ease,
+    color 280ms ease;
+}
+
+body,
+body * {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Disable the inherited transition while user is dragging or scrolling lists
+   (keeps drag/drop snappy and avoids janky color tween on scrollbars) */
+[data-dragging] *,
+[data-dragging] {
+  transition: none !important;
 }
 
 body {
@@ -72,6 +349,18 @@ body {
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
     "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+}
+
+/* Better focus ring globally */
+:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Hide focus ring when not from keyboard */
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* Scrollbar Styling */
@@ -89,6 +378,16 @@ body {
 
 ::-webkit-scrollbar-track {
   @apply bg-transparent;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #404040 transparent;
+}
+
+[data-theme="light"] * {
+  scrollbar-color: #c9c9c9 transparent;
 }
 
 ::selection {

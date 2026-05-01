@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from "react";
 import { Search, Filter, ArrowUpDown, ListFilter } from "lucide-react";
 import TabButton from "./TabButton";
 import ToolbarButton from "./ToolbarButton";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 /**
  * TaskToolbar Component
@@ -26,6 +27,7 @@ const TaskToolbar = ({
   onOpenCreateTask,
   loading,
 }) => {
+  const { t } = useLanguage();
   const filterRef = useRef(null);
   const sortRef = useRef(null);
   const searchRef = useRef(null);
@@ -67,17 +69,17 @@ const TaskToolbar = ({
         {/* Filter Tabs: All, Done, Pending - with counts */}
         <TabButton
           icon={ListFilter}
-          label={`Tất cả (${allTasks.length})`}
+          label={`${t('task.filter.all')} (${allTasks.length})`}
           isActive={activeFilter === "all"}
           onClick={() => onFilterChange("all")}
         />
         <TabButton
-          label={`Hoàn thành (${allTasks.filter((t) => t.completed === true).length})`}
+          label={`${t('task.filter.done')} (${allTasks.filter((t) => t.completed === true).length})`}
           isActive={activeFilter === "done"}
           onClick={() => onFilterChange("done")}
         />
         <TabButton
-          label={`Chưa làm (${allTasks.filter((t) => t.completed !== true).length})`}
+          label={`${t('task.filter.pending')} (${allTasks.filter((t) => t.completed !== true).length})`}
           isActive={activeFilter === "pending"}
           onClick={() => onFilterChange("pending")}
         />
@@ -93,7 +95,7 @@ const TaskToolbar = ({
             <Search size={14} className="text-neutral-500" />
             <input
               autoFocus
-              placeholder="Tìm công việc..."
+              placeholder={t('task.search.placeholder')}
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               onBlur={() => !searchQuery && onSearchOpenChange(false)}
@@ -114,7 +116,7 @@ const TaskToolbar = ({
         ) : (
           <ToolbarButton
             icon={Search}
-            name="Tìm kiếm"
+            name={t('task.search.label')}
             onClick={() => onSearchOpenChange(true)}
           />
         )}
@@ -124,7 +126,7 @@ const TaskToolbar = ({
             type="button"
             className="p-1.5 rounded-md hover:bg-white/5 text-text-tertiary hover:text-text-secondary transition-colors cursor-pointer"
             onClick={() => onPriorityFilterOpenChange(!isPriorityFilterOpen)}
-            title="Lọc theo độ ưu tiên"
+            title={t('task.filter.tooltip')}
           >
             <Filter size={14} />
           </button>
@@ -139,7 +141,7 @@ const TaskToolbar = ({
                   priorityFilter === "all" ? "bg-white/10" : ""
                 }`}
               >
-                Tất cả mức ưu tiên
+                {t('task.priority.all')}
               </button>
               <button
                 onClick={() => {
@@ -150,7 +152,7 @@ const TaskToolbar = ({
                   priorityFilter === "URGENT" ? "bg-white/10" : ""
                 }`}
               >
-                Khẩn cấp
+                {t('task.priority.urgent')}
               </button>
               <button
                 onClick={() => {
@@ -161,7 +163,7 @@ const TaskToolbar = ({
                   priorityFilter === "HIGH" ? "bg-white/10" : ""
                 }`}
               >
-                Cao
+                {t('task.priority.high')}
               </button>
               <button
                 onClick={() => {
@@ -172,7 +174,7 @@ const TaskToolbar = ({
                   priorityFilter === "MEDIUM" ? "bg-white/10" : ""
                 }`}
               >
-                Trung bình
+                {t('task.priority.medium')}
               </button>
               <button
                 onClick={() => {
@@ -183,7 +185,7 @@ const TaskToolbar = ({
                   priorityFilter === "LOW" ? "bg-white/10" : ""
                 }`}
               >
-                Thấp
+                {t('task.priority.low')}
               </button>
             </div>
           )}
@@ -194,7 +196,7 @@ const TaskToolbar = ({
             type="button"
             className="p-1.5 rounded-md hover:bg-white/5 text-text-tertiary hover:text-text-secondary transition-colors cursor-pointer"
             onClick={() => onSortOpenChange(!isSortOpen)}
-            title="Sắp xếp"
+            title={t('task.sort.tooltip')}
           >
             <ArrowUpDown size={14} />
           </button>
@@ -209,7 +211,7 @@ const TaskToolbar = ({
                   sortBy === "date-asc" ? "bg-white/10" : ""
                 }`}
               >
-                Hạn gần nhất trước
+                {t('task.sort.dateAsc')}
               </button>
               <button
                 onClick={() => {
@@ -220,7 +222,7 @@ const TaskToolbar = ({
                   sortBy === "date-desc" ? "bg-white/10" : ""
                 }`}
               >
-                Hạn xa nhất trước
+                {t('task.sort.dateDesc')}
               </button>
               <button
                 onClick={() => {
@@ -231,7 +233,7 @@ const TaskToolbar = ({
                   sortBy === "priority-high" ? "bg-white/10" : ""
                 }`}
               >
-                Ưu tiên cao trước
+                {t('task.sort.priority')}
               </button>
               <button
                 onClick={() => {
@@ -242,7 +244,7 @@ const TaskToolbar = ({
                   sortBy === "title" ? "bg-white/10" : ""
                 }`}
               >
-                Tên A-Z
+                {t('task.sort.title')}
               </button>
               <button
                 onClick={() => {
@@ -253,7 +255,7 @@ const TaskToolbar = ({
                   sortBy === "none" ? "bg-white/10" : ""
                 }`}
               >
-                Không sắp xếp
+                {t('task.sort.none')}
               </button>
             </div>
           )}
@@ -266,7 +268,7 @@ const TaskToolbar = ({
           onClick={onOpenCreateTask}
           disabled={loading}
         >
-          Tạo mới
+          {t('task.btn.create')}
         </button>
       </div>
     </div>

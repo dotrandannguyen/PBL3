@@ -366,6 +366,66 @@ export const taskService = {
 	},
 
 	/**
+	 * Lấy danh sách tasks đã xoá (trash)
+	 */
+	getTrashTasks: async (userId, query) => {
+		const page = parseInt(query.page, 10) || 1;
+		const limit = parseInt(query.limit, 10) || 50;
+		const skip = (page - 1) * limit;
+
+		const repositoryQuery = {
+			search: query.search || undefined,
+			skip,
+			take: limit,
+		};
+
+		const [tasks, totalItems] = await Promise.all([
+			taskRepository.findDeleted(userId, repositoryQuery),
+			taskRepository.countDeleted(userId, repositoryQuery),
+		]);
+		const totalPages = Math.ceil(totalItems / limit);
+
+		return {
+			data: tasks.map(mapTask),
+			pagination: {
+				page,
+				limit,
+				totalItems,
+				totalPages,
+			},
+		};
+	},
+
+	/**
+	 * Khôi phục task đã xoá
+	 */
+	restoreTask: async (userId, taskId) => {
+		const task = await taskRepository.findDeletedById(userId, taskId);
+		if (!task) {
+			throw new NotFoundException('Task không tồn tại trong Thùng rác.');
+		}
+
+		await taskRepository.restore(userId, taskId);
+		const restoredTask = await taskRepository.findById(userId, taskId);
+
+		return mapTask(restoredTask);
+	},
+
+	/**
+	 * Xoá vĩnh viễn task
+	 */
+	permanentDeleteTask: async (userId, taskId) => {
+		const task = await taskRepository.findDeletedById(userId, taskId);
+		if (!task) {
+			throw new NotFoundException('Task không tồn tại trong Thùng rác.');
+		}
+
+		await taskRepository.hardDelete(userId, taskId);
+
+		return { message: 'Task deleted permanently' };
+	},
+
+	/**
 	 * Lấy danh sách INBOX tasks (chờ duyệt từ Webhook/Fetch API)
 	 * QUAN TRỌNG: Fetch TẤT CẢ tasks từ sourceType GMAIL/GITHUB (không filter status)
 	 * Để frontend có thể lookup và merge isConverted flag cho tất cả tasks (kể cả PENDING/DONE)

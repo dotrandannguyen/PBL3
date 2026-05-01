@@ -1,40 +1,68 @@
 import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 
+/**
+ * CalendarEventUI — pure presentation. Used in the grid AND as DragOverlay.
+ *
+ * data-event-block="true" lets the week-grid drag-to-create selection skip
+ * over existing events.
+ */
+export const CalendarEventUI = React.forwardRef(
+    ({ event, isDragging, isOverlay, className, style, onClick, ...props }, ref) => (
+        <button
+            ref={ref}
+            type="button"
+            data-event-block="true"
+            onClick={(e) => {
+                e.stopPropagation();
+                if (!isDragging && !isOverlay) onClick?.(event);
+            }}
+            className={`block h-full w-full overflow-hidden rounded-[4px] border border-border-subtle bg-white/5 px-2 py-1.5 text-left text-[11px] leading-snug transition-[background-color,border-color,box-shadow,opacity] duration-150 ease-out hover:border-white/20 hover:bg-white/10 ${
+                isOverlay
+                    ? 'shadow-2xl ring-1 ring-white/40 z-50 cursor-grabbing'
+                    : isDragging
+                    ? 'opacity-30 cursor-grabbing'
+                    : 'cursor-grab active:cursor-grabbing'
+            } ${className || 'mb-1'}`}
+            style={{
+                ...style,
+                borderLeft: `3px solid ${event.color || '#2383e2'}`,
+                willChange: isDragging || isOverlay ? 'transform, opacity' : 'auto',
+            }}
+            {...props}
+        >
+            <div className="flex flex-col">
+                <span className="truncate font-medium text-text-primary">
+                    {event.title}
+                </span>
+                {event.time && (
+                    <span className="mt-0.5 truncate text-[10px] text-text-tertiary">
+                        {event.time}
+                        {event.endTime ? ` – ${event.endTime}` : ''}
+                    </span>
+                )}
+            </div>
+        </button>
+    )
+);
+CalendarEventUI.displayName = 'CalendarEventUI';
+
 const CalendarEvent = ({ event, onClick, className }) => {
-    const {attributes, listeners, setNodeRef, transform, isDragging} = useDraggable({
+    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: `event-${event.id}`,
         data: { event },
     });
 
-    const style = transform ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        zIndex: 50,
-    } : undefined;
     return (
-        <button
+        <CalendarEventUI
             ref={setNodeRef}
-            type="button"
-            onClick={(e) => {
-                e.stopPropagation();
-                if (!isDragging) {
-                    onClick?.(event);
-                }
-            }}
-            className={`w-full h-full text-left px-2 py-1.5 rounded-[4px] text-[11px] font-medium leading-tight overflow-hidden cursor-grab active:cursor-grabbing hover:brightness-125 transition-all duration-150 border block ${isDragging ? 'opacity-50 ring-2 ring-accent-primary z-50' : 'opacity-100'} ${className || 'mb-[3px]'}`}
-            style={{ 
-                ...style,
-                backgroundColor: event.color + '20', 
-                color: event.color,
-                borderColor: event.color + '30'
-            }}
+            event={event}
+            onClick={onClick}
+            className={className}
+            isDragging={isDragging}
             {...listeners}
             {...attributes}
-        >
-            <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5" style={{ backgroundColor: event.color }} />
-            {event.time && <span className="opacity-80 mr-1">{event.time}</span>}
-            {event.title}
-        </button>
+        />
     );
 };
 

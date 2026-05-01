@@ -263,10 +263,12 @@ model Event {
   userId       String        @map("user_id")
 
   title        String
-  
+
   // Legacy fields — giữ để backward compat
   date         DateTime      @db.Date
   time         String
+  endDate      DateTime?     @map("end_date") @db.Date
+  endTime      String?       @map("end_time")
   color        String        @default("#3b82f6")
   location     String?
   description  String?       @db.Text

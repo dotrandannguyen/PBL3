@@ -42,6 +42,12 @@ taskRouter.get('/', validateRequestMiddleware(getTasksSchema), taskController.ge
 taskRouter.get('/inbox', taskController.getInbox);
 
 /**
+ * GET /tasks/trash
+ * Lấy danh sách tasks đã xoá
+ */
+taskRouter.get('/trash', taskController.getTrash);
+
+/**
  * GET /tasks/:id
  * Lấy chi tiết 1 task
  */
@@ -91,5 +97,17 @@ taskRouter.patch(
  * Xóa task (soft delete)
  */
 taskRouter.delete('/:id', taskController.delete);
+
+/**
+ * PATCH /tasks/:id/restore
+ * Khôi phục task đã xoá (set deletedAt = null)
+ */
+taskRouter.patch('/:id/restore', taskController.restore);
+
+/**
+ * DELETE /tasks/:id/permanent
+ * Xoá vĩnh viễn task
+ */
+taskRouter.delete('/:id/permanent', taskController.permanentDelete);
 
 export default taskRouter;
