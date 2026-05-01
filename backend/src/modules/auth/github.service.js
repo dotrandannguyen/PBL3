@@ -58,6 +58,10 @@ export const githubService = {
 			}
 			accessToken = response.data.access_token;
 		} catch (error) {
+			console.error(
+				'[GITHUB] Lỗi lấy access token:',
+				error.response?.data || error.message,
+			);
 			throw new ClientException(400, 'Failed to retrieve access token from GitHub');
 		}
 		//doc user github rest api
@@ -71,6 +75,10 @@ export const githubService = {
 			});
 			userProfile = data.data;
 		} catch (error) {
+			console.error(
+				'[GITHUB] Lỗi lấy user profile:',
+				error.response?.data || error.message,
+			);
 			throw new ClientException(400, 'Failed to fetch user profile from GitHub');
 		}
 

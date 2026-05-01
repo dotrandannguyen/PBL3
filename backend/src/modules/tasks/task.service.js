@@ -1,4 +1,3 @@
-import prisma from '../../config/database.js';
 import { taskRepository } from './task.repository.js';
 import { NotFoundException, OptionalException } from '../../common/exceptions/index.js';
 import { StatusCodes } from 'http-status-codes';
@@ -379,49 +378,15 @@ export const taskService = {
 		// Parse pagination params
 		//FIX BUG-04: Thêm tham số radix 10 để parseInt luôn hoạt động đúng
 		const page = parseInt(query.page, 10) || 1;
-		const limit = parseInt(query.limit, 10) || 100; // Tăng limit để lấy đủ tasks
+		const limit = parseInt(query.limit, 10) || 20;
 		const skip = (page - 1) * limit;
 
 		// Fetch TẤT CẢ tasks từ sourceType GMAIL/GITHUB (bất kể status)
-		// Không dùng findInbox() vì nó chỉ lấy status=INBOX
-		const tasks = await prisma.task.findMany({
-			where: {
-				userId,
-				sourceType: {
-					in: ['GMAIL', 'GITHUB'],
-				},
-				deletedAt: null,
-			},
-			skip,
-			take: limit,
-			orderBy: [{ createdAt: 'desc' }],
-			select: {
-				id: true,
-				title: true,
-				description: true,
-				status: true,
-				priority: true,
-				sourceType: true,
-				sourceId: true,
-				sourceLink: true,
-				sourceMetadata: true,
-				isConverted: true,
-				dueDate: true,
-				completedAt: true,
-				createdAt: true,
-				updatedAt: true,
-			},
-		});
-
-		const totalItems = await prisma.task.count({
-			where: {
-				userId,
-				sourceType: {
-					in: ['GMAIL', 'GITHUB'],
-				},
-				deletedAt: null,
-			},
-		});
+		// FIX BUG-15: Dùng repository methods thay vì duplicate prisma query trực tiếp
+		const [tasks, totalItems] = await Promise.all([
+			taskRepository.findInbox(userId, { skip, limit }),
+			taskRepository.countInbox(userId),
+		]);
 
 		// Map database format → API format
 		const mappedTasks = tasks.map((task) => mapTask(task));

@@ -402,10 +402,11 @@ const TaskRow = ({
                     key={opt.value}
                     type="button"
                     className={`block w-full text-left px-3 py-1.5 rounded text-xs hover:bg-white/5 ${
-                      (opt.value === "NONE" && !currentReminder) ||
-                      (opt.value !== "NONE" && currentReminder)
-                        ? ""
-                        : ""
+                      opt.value === "NONE" && !currentReminder
+                        ? "bg-white/10 text-text-primary"
+                        : opt.value !== "NONE" && currentReminder
+                          ? "bg-white/10 text-amber-400"
+                          : ""
                     }`}
                     onClick={() => {
                       onReminderChange(opt.value);

@@ -52,24 +52,7 @@ export const useIntegrations = () => {
           taskMapById[task.id] = task;
         });
       }
-      // 🔍 DEBUG: Log tasks from DB
-      console.log(
-        "[useIntegrations] Fetched from DB:",
-        inboxTasks.length,
-        "tasks",
-      );
-      console.log(
-        "[useIntegrations] taskMapById keys:",
-        Object.keys(taskMapById),
-      );
-      console.log(
-        "[useIntegrations] Task details:",
-        inboxTasks.slice(0, 3).map((t) => ({
-          id: t.id,
-          title: t.title,
-          isConverted: t.isConverted,
-        })),
-      );
+      // Inbox tasks fetched — map by ID for fast lookup below
 
       // Handle Gmail response
       if (gmailResult.status === "fulfilled" && gmailResult.value.success) {
@@ -87,12 +70,7 @@ export const useIntegrations = () => {
               return null;
             }
 
-            // DEBUG: Log lookup result
-            if (mail.taskId) {
-              console.log(
-                `[Gmail] Lookup mail.taskId=${mail.taskId}: task=${task ? `FOUND (isConverted=${task.isConverted})` : "NOT FOUND"}`,
-              );
-            }
+
             return {
               id: mail.taskId || `gmail-${mail.id}`,
               source: "gmail",
@@ -133,12 +111,7 @@ export const useIntegrations = () => {
               return null;
             }
 
-            //DEBUG: Log lookup result
-            if (issue.taskId) {
-              console.log(
-                `[GitHub] Lookup issue.taskId=${issue.taskId}: task=${task ? `FOUND (isConverted=${task.isConverted})` : "NOT FOUND"}`,
-              );
-            }
+
             return {
               id: issue.taskId || `github-${issue.id}`,
               source: "github",
@@ -174,21 +147,7 @@ export const useIntegrations = () => {
         time: item.time.toISOString(),
       }));
 
-      // 🔍 DEBUG: Log final data before setData
-      console.log(
-        "[useIntegrations] Final data ready:",
-        serializedItems.length,
-        "items",
-      );
-      console.log(
-        "[useIntegrations] Items with isConverted=true:",
-        serializedItems.filter((i) => i.isConverted).length,
-      );
-      serializedItems.slice(0, 3).forEach((item) => {
-        console.log(
-          `  - ${item.source} "${item.subject}": isConverted=${item.isConverted}`,
-        );
-      });
+
 
       setData(serializedItems);
       setConnected(newConnectedStatus);

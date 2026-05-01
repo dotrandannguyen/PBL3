@@ -54,28 +54,48 @@ export const webhookController = {
 				(payload.action === 'opened' || payload.action === 'assigned')
 			) {
 				const issue = payload.issue;
-				// Người liên quan: ưu tiên người được giao, nếu chưa có ai thì tính người tạo
-				const targetUser = payload.assignee || issue.user;
+				// 3. Xác định đối tượng cần nhận thông báo
+				// - Event "assigned": dùng payload.assignee (người vừa được giao)
+				// - Event "opened": dùng issue.assignees nếu có, không thì issue.user (người tạo)
+				let targetUsers = [];
+				if (payload.action === 'assigned' && payload.assignee) {
+					targetUsers = [payload.assignee];
+				} else if (
+					payload.action === 'opened' &&
+					issue.assignees &&
+					issue.assignees.length > 0
+				) {
+					targetUsers = issue.assignees;
+				} else {
+					// Fallback: Thông báo cho chính người tạo issue
+					targetUsers = [issue.user];
+				}
 
-				if (!targetUser) return;
+				for (const targetUser of targetUsers) {
+					if (!targetUser) continue;
 
-				// 4. Tìm xem GitHub ID này thuộc về User nào trong Database của bạn
-				const integration = await prisma.integration.findFirst({
-					where: {
-						provider: 'GITHUB',
-						providerUserId: String(targetUser.id), // Tìm người được gán trong hệ thống
-					},
-				});
+					// 4. Tìm xem GitHub ID này thuộc về User nào trong Database của bạn
+					const integration = await prisma.integration.findFirst({
+						where: {
+							provider: 'GITHUB',
+							providerUserId: String(targetUser.id),
+						},
+					});
 
-				if (integration) {
+					if (!integration) {
+						console.log(
+							`[WEBHOOK] Bỏ qua: User GitHub ID ${targetUser.id} chưa liên kết với tài khoản nào trên App.`,
+						);
+						continue;
+					}
+
 					console.log('====================================');
-					console.log('🎉 [WEBHOOK] GITHUB VỪA BẮN DATA VỀ!');
+					console.log('[WEBHOOK] GITHUB VỪA BẮN DATA VỀ!');
 					console.log('Tiêu đề:', issue.title);
 					console.log('Người xử lý:', targetUser.login);
 					console.log('====================================');
 
 					// 5. Lưu thẳng vào bảng Tasks (INBOX - chờ duyệt)
-					// Dùng upsert để tránh duplicate khi re-sync
 					const taskData = {
 						title: `[GitHub] ${issue.title}`,
 						description: issue.body || 'Không có mô tả chi tiết.',
@@ -105,15 +125,8 @@ export const webhookController = {
 							);
 						}
 					} catch (socketError) {
-						console.error(
-							'[SOCKET.IO] Lỗi khi emit event:',
-							socketError.message,
-						);
+						console.error('[SOCKET.IO] Lỗi khi emit event:', socketError.message);
 					}
-				} else {
-					console.log(
-						`[WEBHOOK] Bỏ qua: User GitHub ID ${targetUser.id} chưa liên kết với tài khoản nào trên App.`,
-					);
 				}
 			}
 		} catch (error) {

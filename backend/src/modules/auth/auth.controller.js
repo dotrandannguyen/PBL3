@@ -89,7 +89,6 @@ export const authController = {
 				accessToken: data.accessToken,
 				user: JSON.stringify(data.user),
 			});
-			console.log('Google callback data:', data.accessToken);
 			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
 		} catch (error) {
 			console.error('Google Callback Error:', error);
@@ -118,7 +117,6 @@ export const authController = {
 				user: JSON.stringify(data.user),
 			});
 			setRefreshCookie(res, data.refreshToken);
-			console.log('GitHub callback data:', data.accessToken);
 			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
 		} catch (error) {
 			console.error('GitHub Callback Error:', error);
