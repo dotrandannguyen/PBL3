@@ -22,13 +22,25 @@ export const webhookController = {
 				console.error('🚨 [WEBHOOK] Thiếu chữ ký hoặc Secret Key.');
 				return;
 			}
+			// fix lỗi crash khi GitHub gửi payload rỗng (ping test) hoặc không có body
+			if (!req.rawBody) {
+				console.error('[WEBHOOK] Thiếu rawBody (payload trống). Bỏ qua request.');
+				return;
+			}
 
 			const hmac = crypto.createHmac('sha256', secret);
 			// Hàm băm dùng dữ liệu gốc (rawBody) đã được cấu hình trong app.js
 			const digest = 'sha256=' + hmac.update(req.rawBody).digest('hex');
 
-			if (signature !== digest) {
-				console.error('🚨 [WEBHOOK] Chữ ký không hợp lệ! Bỏ qua request.');
+			//fix timming attack dùng crypto.timingSafeEqual
+			// Lưu ý: timingSafeEqual yêu cầu 2 biến phải là dạng Buffer và có cùng độ dài.
+			const signatureBuffer = Buffer.from(signature);
+			const digestBuffer = Buffer.from(digest);
+			if (
+				signatureBuffer.length !== digestBuffer.length ||
+				!crypto.timingSafeEqual(signatureBuffer, digestBuffer)
+			) {
+				console.error('[WEBHOOK] Chữ ký không hợp lệ! Bỏ qua request.');
 				return;
 			}
 
