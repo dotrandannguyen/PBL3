@@ -9,8 +9,17 @@ import {
 } from '../../common/exceptions/index.js';
 
 const SALT_ROUNDS = 10;
-const JWT_SECRET = process.env.JWT_SECRET || 'secret-pbl3';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'secret-pbl3-refresh';
+
+//FIX BUG-06: Bắt buộc phải có trong .env, nếu không thì Crash Server!
+if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
+	console.error(
+		'LỖI NGHIÊM TRỌNG: Thiếu JWT_SECRET hoặc JWT_REFRESH_SECRET trong file .env!',
+	);
+	process.exit(1);
+}
+
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 
 // Tách hàm generate token để tái sử dụng cho Google Login sau này
 export const generateTokens = (user) => {

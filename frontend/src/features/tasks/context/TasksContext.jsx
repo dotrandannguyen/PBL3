@@ -369,7 +369,7 @@ export function TasksProvider({ children }) {
       }
 
       delete payload.completedAt;
-      delete payload.scheduledAt;
+      // FIX BUG-08: Đã XÓA `delete payload.scheduledAt` để cho phép cập nhật thời gian lịch trình
 
       const response = await updateTask(id, payload);
 

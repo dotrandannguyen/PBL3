@@ -51,8 +51,7 @@ const hasScheduleSource = (task) =>
  * - Có scheduledAt (startAt) -> SCHEDULED
  * - Không có -> TODO
  */
-const resolveTaskType = (task) =>
-	task?.scheduledAt ? 'SCHEDULED' : 'TODO';
+const resolveTaskType = (task) => (task?.scheduledAt ? 'SCHEDULED' : 'TODO');
 
 const hasSchedulingChange = (beforeTask, afterTask) =>
 	!isSameInstant(beforeTask?.dueDate, afterTask?.dueDate) ||
@@ -253,7 +252,9 @@ export const taskService = {
 		const scheduleChanged = hasSchedulingChange(existingTask, updatedTask);
 
 		if (becameDone) {
-			console.log(`[TaskService] Cancelling jobs for task ${updatedTask.id} (status=DONE)`);
+			console.log(
+				`[TaskService] Cancelling jobs for task ${updatedTask.id} (status=DONE)`,
+			);
 			await cancelTaskJobsV2(updatedTask.id);
 			await cancelAllForTarget('TASK', updatedTask.id); // legacy
 		} else if (
@@ -264,7 +265,9 @@ export const taskService = {
 			console.log(`[TaskService] Rescheduling task ${updatedTask.id}`);
 			await rescheduleTaskV2(updatedTask);
 		} else if (scheduleChanged && !hasScheduleSource(updatedTask)) {
-			console.log(`[TaskService] Cancelling jobs for task ${updatedTask.id} (no schedule)`);
+			console.log(
+				`[TaskService] Cancelling jobs for task ${updatedTask.id} (no schedule)`,
+			);
 			await cancelTaskJobsV2(updatedTask.id);
 			await cancelAllForTarget('TASK', updatedTask.id); // legacy
 		}
@@ -374,8 +377,9 @@ export const taskService = {
 	 */
 	getInboxTasks: async (userId, query) => {
 		// Parse pagination params
-		const page = parseInt(query.page) || 1;
-		const limit = parseInt(query.limit) || 100; // Tăng limit để lấy đủ tasks
+		//FIX BUG-04: Thêm tham số radix 10 để parseInt luôn hoạt động đúng
+		const page = parseInt(query.page, 10) || 1;
+		const limit = parseInt(query.limit, 10) || 100; // Tăng limit để lấy đủ tasks
 		const skip = (page - 1) * limit;
 
 		// Fetch TẤT CẢ tasks từ sourceType GMAIL/GITHUB (bất kể status)
@@ -514,7 +518,7 @@ function buildTaskEventPayload(task, scheduledAt) {
 		startAt: scheduledAt,
 		endAt: task.dueDate ? new Date(task.dueDate) : null,
 		reminderAt: task.reminderAt ? new Date(task.reminderAt) : null,
-		linkedTaskId: task.id,  // Rule D: event dẫn xuất từ task
+		linkedTaskId: task.id, // Rule D: event dẫn xuất từ task
 	};
 }
 

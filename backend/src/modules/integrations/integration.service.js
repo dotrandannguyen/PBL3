@@ -14,7 +14,7 @@ import { googleService } from '../auth/google.service.js';
 export const integrationService = {
 	getGmailPreview: async (userId) => {
 		// Logic to fetch Gmail preview for the user
-		const integration = await integrationRepository.getIntegrationGmailPreview(
+		const integration = await integrationRepository.getIntegrationByProvider(
 			userId,
 			'GOOGLE',
 		);
@@ -108,7 +108,7 @@ export const integrationService = {
 
 	getGithubPreview: async (userId) => {
 		// Logic to fetch Github preview for the
-		const integration = await integrationRepository.getIntegrationGmailPreview(
+		const integration = await integrationRepository.getIntegrationByProvider(
 			userId,
 			'GITHUB',
 		);
@@ -383,7 +383,7 @@ export const integrationService = {
 	 */
 	getGithubRepositories: async (userId) => {
 		// Lấy integration GitHub của user
-		const integration = await integrationRepository.getIntegrationGmailPreview(
+		const integration = await integrationRepository.getIntegrationByProvider(
 			userId,
 			'GITHUB',
 		);
@@ -430,7 +430,7 @@ export const integrationService = {
 	 */
 	setupGithubWebhooks: async (userId, repositoryIds) => {
 		// Lấy integration GitHub của user
-		const integration = await integrationRepository.getIntegrationGmailPreview(
+		const integration = await integrationRepository.getIntegrationByProvider(
 			userId,
 			'GITHUB',
 		);
@@ -532,7 +532,7 @@ export const integrationService = {
 	 * @returns {Object} Disable result
 	 */
 	disableGithubWebhook: async (userId, repositoryId) => {
-		const integration = await integrationRepository.getIntegrationGmailPreview(
+		const integration = await integrationRepository.getIntegrationByProvider(
 			userId,
 			'GITHUB',
 		);

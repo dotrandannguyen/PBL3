@@ -94,7 +94,7 @@ export const googleService = {
 			const PROJECT_ID = process.env.GOOGLE_PROJECT_ID;
 			if (!PROJECT_ID) {
 				console.error(
-					'❌ [GMAIL] GOOGLE_PROJECT_ID không được thiết lập trong .env',
+					'[GMAIL] GOOGLE_PROJECT_ID không được thiết lập trong .env',
 				);
 				return null;
 			}
@@ -142,12 +142,7 @@ export const googleService = {
 	handleCallback: async (code) => {
 		const { tokens } = await oauth2Client.getToken(code);
 		oauth2Client.setCredentials(tokens);
-		//Từ giờ mày đã đăng nhập Google rồi, đây là access token của mày, cứ dùng nó mà gọi API.
-
-		// THÊM DÒNG NÀY ĐỂ LẤY YA29 TOKEN:
-		console.log('================ GOOGLE ACCESS TOKEN ================');
-		console.log(tokens.access_token);
-		console.log('====================================================');
+		// FIX BUG-07: ĐÃ XÓA các dòng console.log in Access Token (bảo mật)
 		// lấy thông tin user từ gg
 		const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
 		const { data: googleUser } = await oauth2.userinfo.get();

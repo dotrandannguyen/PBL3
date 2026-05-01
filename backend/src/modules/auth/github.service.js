@@ -57,9 +57,6 @@ export const githubService = {
 				throw new Error(response.data.error_description);
 			}
 			accessToken = response.data.access_token;
-			console.log('================ GITHUB ACCESS TOKEN ================');
-			console.log(accessToken);
-			console.log('====================================================');
 		} catch (error) {
 			throw new ClientException(400, 'Failed to retrieve access token from GitHub');
 		}
