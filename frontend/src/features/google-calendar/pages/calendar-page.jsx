@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   DndContext,
   DragOverlay,
@@ -533,29 +534,32 @@ export function CalendarPage() {
                 dropPreview={dropPreview}
               />
             )}
-            <DragOverlay
-              dropAnimation={{
-                duration: 150,
-                easing: "cubic-bezier(0.25, 0.1, 0.25, 1)",
-              }}
-              style={{ cursor: "grabbing" }}
-            >
-              {activeEvent ? (
-                // No width/height override: dnd-kit's overlay wrapper sizes to
-                // the dragged element's bounding rect, and CalendarEventUI uses
-                // h-full w-full so it fills exactly that — cursor stays at the
-                // exact grab point, no horizontal shift.
-                <CalendarEventUI
-                  event={activeEvent}
-                  isOverlay
-                  style={{
-                    width: draggedRect?.width,
-                    height: draggedRect?.height,
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
-                  }}
-                />
-              ) : null}
-            </DragOverlay>
+            {createPortal(
+              <DragOverlay
+                dropAnimation={{
+                  duration: 150,
+                  easing: "cubic-bezier(0.25, 0.1, 0.25, 1)",
+                }}
+                style={{ cursor: "grabbing" }}
+              >
+                {activeEvent ? (
+                  // No width/height override: dnd-kit's overlay wrapper sizes to
+                  // the dragged element's bounding rect, and CalendarEventUI uses
+                  // h-full w-full so it fills exactly that — cursor stays at the
+                  // exact grab point, no horizontal shift.
+                  <CalendarEventUI
+                    event={activeEvent}
+                    isOverlay
+                    style={{
+                      width: draggedRect?.width,
+                      height: draggedRect?.height,
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+                    }}
+                  />
+                ) : null}
+              </DragOverlay>,
+              document.body
+            )}
           </DndContext>
         </div>
 
