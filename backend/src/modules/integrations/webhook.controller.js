@@ -5,6 +5,7 @@ import { integrationService } from './integration.service.js';
 import { integrationRepository } from './integration.repository.js';
 import { encryptionUtils } from '../../common/utils/encryption.js';
 import { taskRepository } from '../tasks/task.repository.js';
+import { googleService } from '../auth/google.service.js';
 
 export const webhookController = {
 	handleGithub: async (req, res) => {
@@ -130,10 +131,8 @@ export const webhookController = {
 
 			if (!integration) return;
 
-			// Giải mã Token & Khởi tạo Google Client
-			const accessToken = encryptionUtils.decrypt(integration.accessTokenEncrypted);
-			const oauth2Client = new google.auth.OAuth2();
-			oauth2Client.setCredentials({ access_token: accessToken });
+			// Khởi tạo Google Client
+			const oauth2Client = googleService.getValidGoogleClient(integration);
 			const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
 			// BƯỚC ĐỘT PHÁ: Bỏ qua History lằng nhằng, Query trực tiếp 5 thư mới nhất!

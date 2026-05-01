@@ -9,6 +9,7 @@ import { githubService } from '../auth/github.service.js';
 import { taskRepository } from '../tasks/task.repository.js';
 import axios from 'axios';
 import prisma from '../../config/database.js';
+import { googleService } from '../auth/google.service.js';
 
 export const integrationService = {
 	getGmailPreview: async (userId) => {
@@ -22,15 +23,11 @@ export const integrationService = {
 			throw new NotFoundException('Bạn chưa kết nối với Google.');
 		}
 
-		// Giải mã access token nếu cần thiết và gọi API của Google để lấy preview
-		const accessToken = encryptionUtils.decrypt(integration.accessTokenEncrypted);
-
 		// console.log('Decrypted Access Token:', accessToken);
 
 		// Khởi tạo client Google API và lấy preview (ví dụ: tên tài khoản, email, avatar)
 		// phải enable Gmail API trong Google Cloud Console và cấp quyền phù hợp
-		const oauth2Client = new google.auth.OAuth2();
-		oauth2Client.setCredentials({ access_token: accessToken });
+		const oauth2Client = googleService.getValidGoogleClient(integration);
 		const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
 		try {

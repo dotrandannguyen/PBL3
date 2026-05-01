@@ -39,6 +39,54 @@ export const googleService = {
 
 		return url;
 	},
+	//Khởi tạo Google Client có khả năng tự Refresh Token
+	getValidGoogleClient: (integration) => {
+		const client = new google.auth.OAuth2(
+			process.env.GOOGLE_CLIENT_ID,
+			process.env.GOOGLE_CLIENT_SECRET,
+			process.env.GOOGLE_REDIRECT_URI,
+		);
+
+		let accessToken = encryptionUtils.decrypt(integration.accessTokenEncrypted);
+
+		//THÊM DÒNG NÀY ĐỂ MÔ PHỎNG TOKEN BỊ GOOGLE TỪ CHỐI (HẾT HẠN)
+		// accessToken = accessToken + 'co_tinh_lam_sai_token_de_test';
+
+		// Giải mã Refresh Token nếu có
+		const refreshToken = integration.refreshTokenEncrypted
+			? encryptionUtils.decrypt(integration.refreshTokenEncrypted)
+			: null;
+
+		// Cấp quyền bằng CẢ HAI token
+		client.setCredentials({
+			access_token: accessToken,
+			refresh_token: refreshToken,
+		});
+
+		// Lắng nghe sự kiện cấp mới Token từ thư viện googleapis
+		client.on('tokens', async (tokens) => {
+			if (tokens.access_token) {
+				console.log('[GOOGLE API] Đã tự động cấp mới Access Token hết hạn!');
+				try {
+					const newEncryptedToken = encryptionUtils.encrypt(
+						tokens.access_token,
+					);
+
+					await prisma.integration.update({
+						where: { id: integration.id },
+						data: {
+							accessTokenEncrypted: newEncryptedToken,
+							updatedAt: new Date(),
+						},
+					});
+				} catch (err) {
+					console.error('[GOOGLE API] Lỗi lưu Token mới:', err.message);
+				}
+			}
+		});
+
+		return client;
+	},
 
 	// HÀM TỰ ĐỘNG ĐĂNG KÝ WATCH CHO GMAIL
 	registerGmailWatch: async (accessToken) => {
@@ -77,13 +125,13 @@ export const googleService = {
 			// Nếu topic không tồn tại (error 404/409), chỉ log warning
 			if (error.response?.status === 404 || error.response?.status === 409) {
 				console.warn(
-					'⚠️ [GMAIL] Pub/Sub topic chưa được khởi tạo. Vui lòng tạo topic "gmail-webhook-pbl3" tại Google Cloud Console',
+					'[GMAIL] Pub/Sub topic chưa được khởi tạo. Vui lòng tạo topic "gmail-webhook-pbl3" tại Google Cloud Console',
 					error.response?.data?.error?.message,
 				);
 				return null;
 			}
 			console.error(
-				'❌ [GMAIL] Lỗi tự động đăng ký Watch:',
+				'[GMAIL] Lỗi tự động đăng ký Watch:',
 				error.response?.data || error.message,
 			);
 			return null;
@@ -96,7 +144,7 @@ export const googleService = {
 		oauth2Client.setCredentials(tokens);
 		//Từ giờ mày đã đăng nhập Google rồi, đây là access token của mày, cứ dùng nó mà gọi API.
 
-		// 👉 THÊM DÒNG NÀY ĐỂ LẤY YA29 TOKEN:
+		// THÊM DÒNG NÀY ĐỂ LẤY YA29 TOKEN:
 		console.log('================ GOOGLE ACCESS TOKEN ================');
 		console.log(tokens.access_token);
 		console.log('====================================================');
@@ -203,7 +251,7 @@ export const googleService = {
 		} catch (watchError) {
 			// Log warning nhưng không crash - Gmail Watch là optional feature
 			console.warn(
-				'⚠️ [Google Auth] Gmail Watch registration failed, continuing anyway:',
+				'[GMAIL] Gmail Watch registration failed, continuing anyway:',
 				watchError.message,
 			);
 		}
