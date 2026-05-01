@@ -349,7 +349,8 @@ export const integrationService = {
 				return false;
 			}
 
-			const searchText = `${email.subject} ${email.body}`.toLowerCase();
+			const bodyText = email.body || email.snippet || '';
+			const searchText = `${email.subject} ${bodyText}`.toLowerCase();
 
 			// Mở rộng từ khóa (Tiếng Việt & Anh)
 			const keywords = [

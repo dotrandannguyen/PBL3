@@ -23,13 +23,13 @@ export const useIntegrations = () => {
     const newConnectedStatus = { gmail: true, github: true };
 
     try {
-      // 1️⃣ Fetch preview từ API (Gmail + GitHub emails)
+      // Fetch preview từ API (Gmail + GitHub emails)
       const [gmailResult, githubResult] = await Promise.allSettled([
         integrationAPI.getGmailPreview(),
         integrationAPI.getGithubPreview(),
       ]);
 
-      // 2️⃣ Fetch inbox tasks từ DB (để lấy isConverted flag)
+      //Fetch inbox tasks từ DB (để lấy isConverted flag)
       const inboxResponse = await getInboxTasks({ limit: 100 });
       let inboxTasks = [];
 
@@ -54,16 +54,16 @@ export const useIntegrations = () => {
       }
       // 🔍 DEBUG: Log tasks from DB
       console.log(
-        "📥 [useIntegrations] Fetched from DB:",
+        "[useIntegrations] Fetched from DB:",
         inboxTasks.length,
         "tasks",
       );
       console.log(
-        "📊 [useIntegrations] taskMapById keys:",
+        "[useIntegrations] taskMapById keys:",
         Object.keys(taskMapById),
       );
       console.log(
-        "📄 [useIntegrations] Task details:",
+        "[useIntegrations] Task details:",
         inboxTasks.slice(0, 3).map((t) => ({
           id: t.id,
           title: t.title,
@@ -79,7 +79,7 @@ export const useIntegrations = () => {
 
         const mails = gmailDataArray
           .map((mail) => {
-            // ✅ Lookup task dùng taskId (task ID từ preview API)
+            // Lookup task dùng taskId (task ID từ preview API)
             const task = taskMapById[mail.taskId];
 
             // Task external đã ARCHIVED => xem như đã dismiss khỏi inbox
@@ -87,10 +87,10 @@ export const useIntegrations = () => {
               return null;
             }
 
-            // 🔍 DEBUG: Log lookup result
+            // DEBUG: Log lookup result
             if (mail.taskId) {
               console.log(
-                `📧 [Gmail] Lookup mail.taskId=${mail.taskId}: task=${task ? `FOUND (isConverted=${task.isConverted})` : "NOT FOUND"}`,
+                `[Gmail] Lookup mail.taskId=${mail.taskId}: task=${task ? `FOUND (isConverted=${task.isConverted})` : "NOT FOUND"}`,
               );
             }
             return {
@@ -125,7 +125,7 @@ export const useIntegrations = () => {
 
         const issues = githubDataArray
           .map((issue) => {
-            // ✅ Lookup task dùng taskId (task ID từ preview API)
+            //Lookup task dùng taskId (task ID từ preview API)
             const task = taskMapById[issue.taskId];
 
             // Task external đã ARCHIVED => xem như đã dismiss khỏi inbox
@@ -133,10 +133,10 @@ export const useIntegrations = () => {
               return null;
             }
 
-            // 🔍 DEBUG: Log lookup result
+            //DEBUG: Log lookup result
             if (issue.taskId) {
               console.log(
-                `🐙 [GitHub] Lookup issue.taskId=${issue.taskId}: task=${task ? `FOUND (isConverted=${task.isConverted})` : "NOT FOUND"}`,
+                `[GitHub] Lookup issue.taskId=${issue.taskId}: task=${task ? `FOUND (isConverted=${task.isConverted})` : "NOT FOUND"}`,
               );
             }
             return {
@@ -144,7 +144,9 @@ export const useIntegrations = () => {
               source: "github",
               sender: issue.creator || issue.repository,
               subject: issue.title,
-              preview: `Issue in ${issue.repository} - State: ${issue.state}`,
+              preview:
+                issue.description ||
+                `Issue in ${issue.repository} - State: ${issue.state}`,
               time: new Date(issue.createdAt),
               link: issue.link,
               icon: Github,
@@ -174,12 +176,12 @@ export const useIntegrations = () => {
 
       // 🔍 DEBUG: Log final data before setData
       console.log(
-        "✅ [useIntegrations] Final data ready:",
+        "[useIntegrations] Final data ready:",
         serializedItems.length,
         "items",
       );
       console.log(
-        "📌 [useIntegrations] Items with isConverted=true:",
+        "[useIntegrations] Items with isConverted=true:",
         serializedItems.filter((i) => i.isConverted).length,
       );
       serializedItems.slice(0, 3).forEach((item) => {
