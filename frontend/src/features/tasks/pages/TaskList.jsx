@@ -20,6 +20,7 @@ import TaskRow from "../components/TaskRow";
 import TaskSlideOver from "../components/TaskSlideOver";
 import { getTodayDate } from "../utils/dateUtils";
 import { getPriorityColor } from "../utils/priorityUtils";
+import { SkeletonList } from "@/components/shared";
 
 /* ── Priority Pill (UI from HEAD) ──────────────────────────────────────── */
 const RenderPriorityPill = ({ priority }) => {
@@ -202,6 +203,7 @@ const TaskList = ({ title = "To Do List" }) => {
   } = useTaskFilters(tasks, initialFilterState);
 
   // ── State ──────────────────────────────────────────────
+  const [removingIds, setRemovingIds] = useState(() => new Set());
   const [newTaskText, setNewTaskText] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newTaskDueAt, setNewTaskDueAt] = useState("");
@@ -352,7 +354,24 @@ const TaskList = ({ title = "To Do List" }) => {
     await toggleTask(id, !currentCompleted);
   };
 
-  const handleDeleteTask = (id) => { removeTask(id); };
+  const handleDeleteTask = (id) => {
+    if (removingIds.has(id)) return;
+    setRemovingIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    // Delay actual removal so the row can play its slide-out animation
+    setTimeout(() => {
+      setRemovingIds((prev) => {
+        if (!prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      removeTask(id);
+    }, 240);
+  };
 
   const handleStartEdit = (task) => {
     setEditingId(task.id);
@@ -487,7 +506,7 @@ const TaskList = ({ title = "To Do List" }) => {
         if (editingId === task.id) { setEditPriority(priority); return; }
         handlePriorityChange(task.id, priority);
       }}
-      isDeleting={false}
+      isDeleting={removingIds.has(task.id)}
       isScheduling={schedulingId === task.id}
       onOpenDashboard={() => setSelectedTaskId(task.id)}
     />
@@ -710,8 +729,8 @@ const TaskList = ({ title = "To Do List" }) => {
         )}
 
         {loading && !tasks.length && (
-          <div className="flex items-center justify-center py-20">
-            <Loader size={32} className="animate-spin text-text-tertiary" />
+          <div className="mt-4 rounded-md border border-border-subtle/40 overflow-hidden">
+            <SkeletonList rows={6} />
           </div>
         )}
 

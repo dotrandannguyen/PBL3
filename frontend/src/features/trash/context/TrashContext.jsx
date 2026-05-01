@@ -1,12 +1,14 @@
 /**
- * Trash Context - State Management cho Thùng rác
+ * Trash Context — state management cho Thùng rác.
  *
  * File: frontend/src/features/trash/context/TrashContext.jsx
  *
- * Mục đích: Quản lý state của tasks đã xoá (trash)
- * Tách biệt khỏi TasksContext chính để không ảnh hưởng TaskList
- *
- * Pattern: Context API + Provider (giống TasksContext)
+ * Tách biệt khỏi TasksContext chính để không ảnh hưởng TaskList.
+ * Hỗ trợ:
+ *   - fetch / restore / permanentDelete (single)
+ *   - bulkRestore / bulkPermanentDelete / emptyTrash (multi)
+ *   - removingIds: track các row đang chạy exit-animation, để UI delay
+ *     việc unmount khoảng 240ms cho hiệu ứng slide-out đẹp.
  */
 
 import React, {
@@ -25,6 +27,8 @@ import {
 const DEFAULT_BACKEND_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
+const EXIT_ANIM_MS = 240;
+
 const resolveErrorMessage = (err, fallbackMessage) => {
   const serverMessage = err?.response?.data?.message;
   if (serverMessage) return serverMessage;
@@ -37,24 +41,32 @@ const resolveErrorMessage = (err, fallbackMessage) => {
 
 const TrashContext = createContext(null);
 
-/**
- * TrashProvider - Wrapper component cung cấp trash state
- */
 export function TrashProvider({ children }) {
-  // ========================================
-  // STATE
-  // ========================================
   const [trashTasks, setTrashTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Set of task IDs currently mid-animation. UI uses this to apply the
+  // fade/slide-out class. Removed from `trashTasks` after EXIT_ANIM_MS.
+  const [removingIds, setRemovingIds] = useState(() => new Set());
 
-  // ========================================
-  // API ACTIONS
-  // ========================================
+  const markRemoving = useCallback((ids) => {
+    setRemovingIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+  }, []);
 
-  /**
-   * Fetch danh sách tasks đã xoá
-   */
+  const finalizeRemove = useCallback((ids) => {
+    const idSet = new Set(ids);
+    setTrashTasks((prev) => prev.filter((t) => !idSet.has(t.id)));
+    setRemovingIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+  }, []);
+
   const fetchTrashTasks = useCallback(async (query = {}) => {
     try {
       setLoading(true);
@@ -83,57 +95,141 @@ export function TrashProvider({ children }) {
     }
   }, []);
 
+  const restoreTask = useCallback(
+    async (taskId) => {
+      try {
+        markRemoving([taskId]);
+        await restoreTaskApi(taskId);
+        // Wait for the exit animation before actually removing the row
+        setTimeout(() => finalizeRemove([taskId]), EXIT_ANIM_MS);
+        toast.success("Đã khôi phục task.");
+        return true;
+      } catch (err) {
+        // Roll back animation marker on failure
+        setRemovingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+        const message = resolveErrorMessage(err, "Khôi phục task thất bại.");
+        toast.error(`Lỗi: ${message}`);
+        console.error("Restore task error:", err);
+        return false;
+      }
+    },
+    [markRemoving, finalizeRemove]
+  );
+
+  const permanentDeleteTask = useCallback(
+    async (taskId) => {
+      try {
+        markRemoving([taskId]);
+        await permanentDeleteTaskApi(taskId);
+        setTimeout(() => finalizeRemove([taskId]), EXIT_ANIM_MS);
+        toast.success("Đã xoá vĩnh viễn task.");
+        return true;
+      } catch (err) {
+        setRemovingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+        const message = resolveErrorMessage(err, "Xoá vĩnh viễn thất bại.");
+        toast.error(`Lỗi: ${message}`);
+        console.error("Permanent delete error:", err);
+        return false;
+      }
+    },
+    [markRemoving, finalizeRemove]
+  );
+
   /**
-   * Khôi phục task đã xoá
+   * Bulk operation runner. Marks all ids as removing, runs the API call for
+   * each in parallel via Promise.allSettled, then schedules a single
+   * finalize call. Returns the ids that succeeded.
    */
-  const restoreTask = useCallback(async (taskId) => {
-    try {
-      await restoreTaskApi(taskId);
+  const runBulk = useCallback(
+    async (taskIds, apiFn, onSuccessMsg, onErrorMsg) => {
+      if (!taskIds.length) return [];
+      markRemoving(taskIds);
 
-      // Remove task khỏi trash list
-      setTrashTasks((prev) => prev.filter((t) => t.id !== taskId));
+      const results = await Promise.allSettled(taskIds.map((id) => apiFn(id)));
+      const succeededIds = [];
+      const failedIds = [];
+      results.forEach((res, idx) => {
+        if (res.status === "fulfilled") {
+          succeededIds.push(taskIds[idx]);
+        } else {
+          failedIds.push(taskIds[idx]);
+        }
+      });
 
-      toast.success("Đã khôi phục task thành công!");
-      return true;
-    } catch (err) {
-      const message = resolveErrorMessage(err, "Khôi phục task thất bại.");
-      toast.error(`Lỗi: ${message}`);
-      console.error("Restore task error:", err);
-      return false;
-    }
-  }, []);
+      // Roll back animation marker for failed ids so they stay visible
+      if (failedIds.length) {
+        setRemovingIds((prev) => {
+          const next = new Set(prev);
+          failedIds.forEach((id) => next.delete(id));
+          return next;
+        });
+      }
 
-  /**
-   * Xoá vĩnh viễn task
-   */
-  const permanentDeleteTask = useCallback(async (taskId) => {
-    try {
-      await permanentDeleteTaskApi(taskId);
+      if (succeededIds.length) {
+        setTimeout(() => finalizeRemove(succeededIds), EXIT_ANIM_MS);
+        toast.success(`${onSuccessMsg} (${succeededIds.length})`);
+      }
+      if (failedIds.length) {
+        toast.error(`${onErrorMsg} (${failedIds.length})`);
+      }
 
-      // Remove task khỏi trash list
-      setTrashTasks((prev) => prev.filter((t) => t.id !== taskId));
+      return succeededIds;
+    },
+    [markRemoving, finalizeRemove]
+  );
 
-      toast.success("Đã xoá vĩnh viễn task.");
-      return true;
-    } catch (err) {
-      const message = resolveErrorMessage(err, "Xoá vĩnh viễn thất bại.");
-      toast.error(`Lỗi: ${message}`);
-      console.error("Permanent delete error:", err);
-      return false;
-    }
-  }, []);
+  const bulkRestore = useCallback(
+    (ids) =>
+      runBulk(
+        ids,
+        restoreTaskApi,
+        "Đã khôi phục",
+        "Một số task không khôi phục được"
+      ),
+    [runBulk]
+  );
 
-  // ========================================
-  // CONTEXT VALUE
-  // ========================================
+  const bulkPermanentDelete = useCallback(
+    (ids) =>
+      runBulk(
+        ids,
+        permanentDeleteTaskApi,
+        "Đã xoá vĩnh viễn",
+        "Một số task không xoá được"
+      ),
+    [runBulk]
+  );
+
+  const emptyTrash = useCallback(async () => {
+    const allIds = trashTasks.map((t) => t.id);
+    if (!allIds.length) return [];
+    return runBulk(
+      allIds,
+      permanentDeleteTaskApi,
+      "Đã dọn sạch thùng rác",
+      "Một số task không xoá được"
+    );
+  }, [trashTasks, runBulk]);
 
   const value = {
     trashTasks,
     loading,
     error,
+    removingIds,
     fetchTrashTasks,
     restoreTask,
     permanentDeleteTask,
+    bulkRestore,
+    bulkPermanentDelete,
+    emptyTrash,
   };
 
   return (
@@ -141,9 +237,6 @@ export function TrashProvider({ children }) {
   );
 }
 
-/**
- * useTrashContext - Hook để sử dụng TrashContext
- */
 export function useTrashContext() {
   const context = useContext(TrashContext);
   if (!context) {

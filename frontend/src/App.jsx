@@ -16,11 +16,11 @@
  */
 
 import React from "react";
-import { Toaster } from "sonner";
 import { AppRouter } from "./router";
 import { TasksProvider } from "./features/tasks/context/TasksContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
+import ThemedToaster from "./components/shared/ThemedToaster";
 
 function App() {
   return (
@@ -28,13 +28,7 @@ function App() {
       <ThemeProvider>
         <TasksProvider>
           <AppRouter />
-          <Toaster
-            position="top-right"
-            theme="dark"
-            richColors
-            closeButton
-            expand
-          />
+          <ThemedToaster />
         </TasksProvider>
       </ThemeProvider>
     </LanguageProvider>

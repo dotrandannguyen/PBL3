@@ -8,8 +8,22 @@ const CALENDAR_METADATA_KEY = 'calendar';
 const DEFAULT_EVENT_SORT = 'date-asc';
 
 const mapEventToResponse = (event, options = {}) => {
-	const endTime = options.endTime ?? null;
-	const endAt = options.endAt ?? null;
+	// Persisted columns take precedence; task-linked fallback fills only when
+	// the event itself has no end set (legacy task-scheduled events).
+	const persistedEndTime = event.endTime ?? null;
+	const persistedEndDate = event.endDate
+		? event.endDate.toISOString().slice(0, 10)
+		: null;
+
+	const endTime = persistedEndTime ?? options.endTime ?? null;
+	const endDate = persistedEndDate ?? options.endDate ?? null;
+
+	let endAt = null;
+	if (endDate && endTime) {
+		endAt = new Date(`${endDate}T${endTime}:00`).toISOString();
+	} else if (options.endAt) {
+		endAt = options.endAt;
+	}
 
 	return {
 		id: event.id,
@@ -17,6 +31,7 @@ const mapEventToResponse = (event, options = {}) => {
 		date: event.date.toISOString().slice(0, 10),
 		time: event.time,
 		endTime,
+		endDate,
 		endAt,
 		color: event.color,
 		location: event.location,
@@ -100,6 +115,8 @@ export const eventService = {
 			title: dto.title,
 			date: toDateOnly(dto.date),
 			time: dto.time,
+			endDate: dto.endDate ? toDateOnly(dto.endDate) : null,
+			endTime: dto.endTime ?? null,
 			location: dto.location ?? null,
 			description: dto.description ?? null,
 			repeat: dto.repeat ?? 'NONE',
@@ -111,10 +128,7 @@ export const eventService = {
 		}
 
 		const createdEvent = await eventRepository.create(userId, eventData);
-		return mapEventToResponse(createdEvent, {
-			endTime: null,
-			endAt: null,
-		});
+		return mapEventToResponse(createdEvent);
 	},
 
 	updateEvent: async (userId, eventId, dto) => {
@@ -128,6 +142,10 @@ export const eventService = {
 		if (dto.title !== undefined) updateData.title = dto.title;
 		if (dto.date !== undefined) updateData.date = toDateOnly(dto.date);
 		if (dto.time !== undefined) updateData.time = dto.time;
+		if (dto.endDate !== undefined) {
+			updateData.endDate = dto.endDate ? toDateOnly(dto.endDate) : null;
+		}
+		if (dto.endTime !== undefined) updateData.endTime = dto.endTime ?? null;
 		if (dto.color !== undefined) updateData.color = dto.color;
 		if (dto.location !== undefined) updateData.location = dto.location;
 		if (dto.description !== undefined) updateData.description = dto.description;

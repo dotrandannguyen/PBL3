@@ -62,16 +62,26 @@ const mapApiEventToUiEvent = (event) => ({
   endTime: event.endTime || toHHMM(event.endAt),
 });
 
-const toApiPayload = (eventData) => ({
-  title: eventData.title?.trim() || "",
-  date: eventData.date,
-  time: eventData.isAllDay ? "00:00" : eventData.time || "09:00",
-  color: eventData.color || DEFAULT_EVENT_COLOR,
-  location: eventData.location?.trim() || null,
-  description: eventData.description?.trim() || null,
-  repeat: "NONE",
-  reminder: normalizeReminder(eventData.reminder),
-});
+const toApiPayload = (eventData) => {
+  const isAllDay = Boolean(eventData.isAllDay);
+  const endTime = isAllDay ? null : eventData.endTime || null;
+  const endDate = isAllDay
+    ? null
+    : eventData.endDate || (endTime ? eventData.date : null);
+
+  return {
+    title: eventData.title?.trim() || "",
+    date: eventData.date,
+    time: isAllDay ? "00:00" : eventData.time || "09:00",
+    endDate,
+    endTime,
+    color: eventData.color || DEFAULT_EVENT_COLOR,
+    location: eventData.location?.trim() || null,
+    description: eventData.description?.trim() || null,
+    repeat: "NONE",
+    reminder: normalizeReminder(eventData.reminder),
+  };
+};
 
 const extractEvents = (response) => {
   const payload = response?.data?.data;
@@ -115,8 +125,16 @@ export function CalendarPage() {
   const [prefillRange, setPrefillRange] = useState(null);
   const [activeEvent, setActiveEvent] = useState(null);
   const [viewMode, setViewMode] = useState("month");
+  const [dropPreview, setDropPreview] = useState(null);
+  const [draggedRect, setDraggedRect] = useState(null);
+  // shape: { dateKey, mins, top, dayIdx, durationMins }
   const dragJustEndedRef = useRef(false);
+  // Real pointer position tracked via window listener — more accurate than
+  // dragged-element rect for translating drop position to time.
   const dragPointerRef = useRef({ x: 0, y: 0 });
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  // Cache of which event we're dragging so we can build a drop preview
+  const draggingEventRef = useRef(null);
 
   const loadEvents = useCallback(async () => {
     try {
@@ -192,44 +210,93 @@ export function CalendarPage() {
     }),
   );
 
+  // Track real pointer position globally so we can use it for drop math
+  useEffect(() => {
+    const onPointerMove = (e) => {
+      dragPointerRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onPointerMove);
+  }, []);
+
   const handleDragStart = (event) => {
     const draggedEvent = event.active.data.current?.event;
     setActiveEvent(draggedEvent || null);
-  };
+    draggingEventRef.current = draggedEvent || null;
 
-  const handleDragMove = (event) => {
-    // Track the translated position of the dragged element for smooth drop calculation
-    const translated = event.active.rect.current?.translated;
-    if (translated) {
-      dragPointerRef.current = { x: translated.left, y: translated.top };
+    const initialRect = event.active.rect.current?.initial;
+    setDraggedRect(initialRect || null);
+
+    // Capture pointer offset within the dragged element. Used so the dropped
+    // event aligns with the grab point rather than always anchoring to top.
+    const activator = event.activatorEvent;
+    if (initialRect && activator) {
+      dragOffsetRef.current = {
+        x: (activator.clientX ?? 0) - initialRect.left,
+        y: (activator.clientY ?? 0) - initialRect.top,
+      };
+    } else {
+      dragOffsetRef.current = { x: 0, y: 0 };
     }
   };
 
-  // Compute drop time from pointer position relative to the time grid
+  // Compute drop time from REAL pointer position relative to time grid.
+  // We anchor the event's TOP to (pointerY - clickOffset) so the event lands
+  // exactly where the user grabbed it from.
   const computeDropMinutes = () => {
     const timeGrid = document.querySelector('[data-week-time-grid="true"]');
     if (!timeGrid) return null;
 
     const gridRect = timeGrid.getBoundingClientRect();
-    const scrollContainer = timeGrid.parentElement;
-    const scrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
-
-    // pointer Y relative to grid top, accounting for scroll
-    const offsetY = dragPointerRef.current.y - gridRect.top + scrollTop;
-    // Snap to 15-minute intervals (1px = 1min)
-    const rawMins = Math.max(0, Math.min(offsetY, 24 * 60 - 1));
+    // pointer Y relative to grid top
+    const pointerY = dragPointerRef.current.y - gridRect.top;
+    // anchor the event TOP at (pointer - offset)
+    const eventTopY = pointerY - dragOffsetRef.current.y;
+    const rawMins = Math.max(0, Math.min(eventTopY, 24 * 60 - 1));
+    // Snap to 15-minute intervals
     return Math.round(rawMins / 15) * 15;
+  };
+
+  // Live drop preview while dragging in week view
+  const handleDragMove = (dragEvent) => {
+    if (viewMode !== "week") return;
+    const overData = dragEvent.over?.data?.current;
+    if (!overData?.date) {
+      setDropPreview(null);
+      return;
+    }
+    const dropMins = computeDropMinutes();
+    if (dropMins == null) return;
+    const draggedEvent = draggingEventRef.current;
+    if (!draggedEvent) return;
+
+    const oldStart = parseTimeToMins(draggedEvent.time);
+    const oldEnd = draggedEvent.endTime
+      ? parseTimeToMins(draggedEvent.endTime)
+      : oldStart + 60;
+    const duration = oldEnd - oldStart;
+
+    setDropPreview({
+      dateKey: overData.date,
+      top: dropMins,
+      durationMins: Math.max(15, duration),
+      startMins: dropMins,
+      endMins: Math.min(dropMins + duration, 24 * 60),
+    });
   };
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     setActiveEvent(null);
+    setDropPreview(null);
+    setDraggedRect(null);
+    draggingEventRef.current = null;
 
     // Suppress the click event that fires on the drop-target cell after drag ends
     dragJustEndedRef.current = true;
     setTimeout(() => {
       dragJustEndedRef.current = false;
-    }, 100);
+    }, 120);
 
     if (!over) return;
 
@@ -274,22 +341,34 @@ export function CalendarPage() {
     setEvents((prev) =>
       prev.map((item) =>
         item.id === draggedEvent.id
-          ? { ...item, date: newDateStr, time: newTime, endTime: newEndTime }
+          ? {
+              ...item,
+              date: newDateStr,
+              time: newTime,
+              endTime: newEndTime,
+              endDate: newDateStr,
+            }
           : item,
       ),
     );
 
     try {
-      const response = await updateEvent(draggedEvent.id, {
+      const updatePayload = {
         date: newDateStr,
         time: newTime,
-      });
+      };
+      if (newEndTime) {
+        updatePayload.endTime = newEndTime;
+        updatePayload.endDate = newDateStr;
+      }
+      const response = await updateEvent(draggedEvent.id, updatePayload);
       const updatedEvent = extractEvent(response);
       if (updatedEvent) {
         const normalized = mapApiEventToUiEvent({
           ...draggedEvent,
           ...updatedEvent,
-          endTime: newEndTime,
+          endTime: updatedEvent.endTime ?? newEndTime,
+          endDate: updatedEvent.endDate ?? newDateStr,
         });
         setEvents((prev) =>
           prev.map((item) =>
@@ -451,20 +530,28 @@ export function CalendarPage() {
                 onDateClick={handleDateClick}
                 onEventClick={handleEventClick}
                 onAddEventRange={handleAddEventRange}
+                dropPreview={dropPreview}
               />
             )}
             <DragOverlay
-              dropAnimation={{ duration: 150, easing: "cubic-bezier(0.25, 0.1, 0.25, 1)" }}
-              style={{ cursor: 'grabbing' }}
+              dropAnimation={{
+                duration: 150,
+                easing: "cubic-bezier(0.25, 0.1, 0.25, 1)",
+              }}
+              style={{ cursor: "grabbing" }}
             >
               {activeEvent ? (
+                // No width/height override: dnd-kit's overlay wrapper sizes to
+                // the dragged element's bounding rect, and CalendarEventUI uses
+                // h-full w-full so it fills exactly that — cursor stays at the
+                // exact grab point, no horizontal shift.
                 <CalendarEventUI
                   event={activeEvent}
                   isOverlay
                   style={{
-                    width: 180,
-                    transition: 'box-shadow 0.15s ease',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+                    width: draggedRect?.width,
+                    height: draggedRect?.height,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
                   }}
                 />
               ) : null}

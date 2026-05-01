@@ -1,6 +1,7 @@
-import { Inbox, Mail, Github, RefreshCw, AlertCircle } from "lucide-react";
+import { Inbox, Mail, Github, AlertCircle } from "lucide-react";
 import { MailListItem } from "./MailListItem";
 import { useLanguage } from "../../../contexts/LanguageContext";
+import { SkeletonList } from "@/components/shared";
 
 /**
  * @component InboxTabsContainer
@@ -68,13 +69,7 @@ export function InboxTabsContainer({
       {/* LIST DATA */}
       <div className="flex flex-col">
         {isLoading && filteredData.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-text-tertiary">
-            <RefreshCw
-              size={28}
-              className="animate-spin mb-4 opacity-50 text-accent-primary"
-            />
-            <p className="text-sm">{t('inbox.loading')}</p>
-          </div>
+          <SkeletonList rows={6} />
         ) : error && filteredData.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-red-500">
             <AlertCircle size={32} className="mb-4 opacity-50" />

@@ -1,8 +1,46 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Camera, User, Mail, Shield, CalendarDays, CheckCircle2, Fingerprint } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import {
+    Camera,
+    User,
+    Mail,
+    Shield,
+    CalendarDays,
+    Fingerprint,
+    Trash2,
+    KeyRound,
+    Smartphone,
+    Copy,
+    Check,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import useAuth from '../../../auth/hooks/useAuth';
 import { useLanguage } from '../../../../contexts/LanguageContext';
+
+/* ─── Tiny helpers ────────────────────────────────────────────────── */
+
+const InfoRow = ({ icon: Icon, label, children, mono = false }) => (
+    <div className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
+        <div className="flex items-center gap-2.5 min-w-0">
+            {Icon && (
+                <Icon size={13} className="shrink-0 text-text-tertiary" />
+            )}
+            <span className="text-[12px] font-medium text-text-tertiary">
+                {label}
+            </span>
+        </div>
+        <div
+            className={`min-w-0 truncate text-[12.5px] ${
+                mono
+                    ? 'font-mono text-text-tertiary'
+                    : 'font-medium text-text-primary'
+            }`}
+        >
+            {children}
+        </div>
+    </div>
+);
+
+/* ─── Section ─────────────────────────────────────────────────────── */
 
 const ProfileSection = () => {
     const { user, updateUserInStorage } = useAuth();
@@ -13,8 +51,9 @@ const ProfileSection = () => {
     const [bio, setBio] = useState('');
     const [avatarPreview, setAvatarPreview] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [idCopied, setIdCopied] = useState(false);
 
-    // Load saved avatar & bio from localStorage
+    // Initial load from localStorage when user becomes available
     useEffect(() => {
         if (user?.id) {
             const savedAvatar = localStorage.getItem(`avatar-${user.id}`);
@@ -24,12 +63,14 @@ const ProfileSection = () => {
         }
     }, [user?.id]);
 
-    // Sync fullName if user changes
     useEffect(() => {
         if (user?.fullName) setFullName(user.fullName);
     }, [user?.fullName]);
 
-    const initial = user?.fullName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U';
+    const initial =
+        user?.fullName?.[0]?.toUpperCase() ||
+        user?.email?.[0]?.toUpperCase() ||
+        'U';
 
     const handleAvatarClick = () => fileInputRef.current?.click();
 
@@ -66,44 +107,92 @@ const ProfileSection = () => {
         }, 300);
     };
 
-    const hasChanges =
-        fullName.trim() !== (user?.fullName || '') ||
-        bio !== (localStorage.getItem(`bio-${user?.id}`) || '');
+    const handleResetChanges = () => {
+        setFullName(user?.fullName || '');
+        setBio(localStorage.getItem(`bio-${user?.id}`) || '');
+    };
+
+    const hasChanges = useMemo(
+        () =>
+            fullName.trim() !== (user?.fullName || '') ||
+            bio !== (localStorage.getItem(`bio-${user?.id}`) || ''),
+        [fullName, bio, user]
+    );
+
+    const handleCopyId = async () => {
+        if (!user?.id) return;
+        try {
+            await navigator.clipboard.writeText(user.id);
+            setIdCopied(true);
+            toast.success('Đã sao chép User ID');
+            setTimeout(() => setIdCopied(false), 1600);
+        } catch {
+            toast.error('Không thể sao chép');
+        }
+    };
+
+    const memberSince = user?.createdAt
+        ? new Date(user.createdAt).toLocaleDateString('vi-VN', {
+              day: '2-digit',
+              month: 'long',
+              year: 'numeric',
+          })
+        : 'N/A';
 
     return (
-        <section className="space-y-10">
-            {/* ── Section title ── */}
-            <div>
-                <h2 className="text-xl font-semibold text-text-primary">{t('profile.title')}</h2>
-                <p className="text-[13px] text-text-tertiary mt-1">Quản lý thông tin hồ sơ và tài khoản của bạn.</p>
-            </div>
+        <section>
+            {/* Section header */}
+            <header className="mb-8">
+                <h2 className="text-2xl font-semibold tracking-tight text-text-primary">
+                    {t('profile.title')}
+                </h2>
+                <p className="mt-1 text-[13px] text-text-tertiary">
+                    {t('profile.subtitle') ||
+                        'Quản lý thông tin hồ sơ và tài khoản của bạn.'}
+                </p>
+            </header>
 
-            {/* ── Avatar card ── */}
-            <div className="rounded-xl border border-border-subtle bg-bg-sidebar p-6">
-                <div className="flex flex-col sm:flex-row sm:items-start gap-5">
-                    {/* Left — avatar + actions */}
-                    <div className="flex items-center gap-5 flex-1 min-w-0">
-                        {/* Avatar */}
-                        <div className="relative group shrink-0">
+            {/* ── Profile card ───────────────────────────────────── */}
+            <div className="overflow-hidden rounded-2xl border border-border-subtle bg-gradient-to-br from-bg-sidebar to-bg-sidebar/60">
+                <div className="grid grid-cols-1 gap-0 lg:grid-cols-[1fr_240px]">
+                    {/* Left column: avatar + identity */}
+                    <div className="flex items-center gap-5 p-6">
+                        {/* Avatar with hover overlay */}
+                        <div className="group relative shrink-0">
                             <button
                                 type="button"
                                 onClick={handleAvatarClick}
-                                className="w-20 h-20 rounded-full bg-accent-primary/20 flex items-center justify-center text-accent-primary text-3xl font-semibold border-2 border-accent-primary/30 relative overflow-hidden cursor-pointer p-0"
+                                className="relative h-20 w-20 overflow-hidden rounded-full border border-border-subtle bg-gradient-to-br from-accent-primary/30 to-accent-primary/10 p-0 text-3xl font-semibold text-accent-primary outline-none ring-2 ring-transparent transition-all duration-150 hover:ring-accent-primary/40 active:scale-95"
                                 title={t('profile.avatar.hint')}
                             >
                                 {avatarPreview ? (
                                     <img
                                         src={avatarPreview}
                                         alt="Avatar"
-                                        className="w-full h-full object-cover rounded-full"
+                                        className="h-full w-full object-cover"
                                     />
                                 ) : (
-                                    initial
+                                    <span className="flex h-full w-full items-center justify-center">
+                                        {initial}
+                                    </span>
                                 )}
-                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
-                                    <Camera size={18} className="text-white" />
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-black/55 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                                    <Camera size={16} className="text-white" />
+                                    <span className="text-[9.5px] font-medium uppercase tracking-wide text-white/90">
+                                        Đổi ảnh
+                                    </span>
                                 </div>
                             </button>
+                            {avatarPreview && (
+                                <button
+                                    type="button"
+                                    onClick={handleRemoveAvatar}
+                                    className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-border-subtle bg-bg-sidebar text-text-tertiary opacity-0 shadow-md transition-all duration-150 group-hover:opacity-100 hover:bg-red-500/15 hover:text-red-400 active:scale-90"
+                                    title="Xoá ảnh"
+                                >
+                                    <Trash2 size={11} />
+                                </button>
+                            )}
                             <input
                                 ref={fileInputRef}
                                 type="file"
@@ -113,202 +202,255 @@ const ProfileSection = () => {
                             />
                         </div>
 
-                        {/* Name / email / actions */}
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-text-primary truncate">{user?.fullName || user?.email}</p>
-                            <p className="text-xs text-text-tertiary mt-0.5 truncate">{user?.email}</p>
-                            <div className="flex items-center gap-2 mt-3">
+                        {/* Name + email */}
+                        <div className="min-w-0 flex-1">
+                            <p className="truncate text-base font-semibold text-text-primary">
+                                {user?.fullName || user?.email || '—'}
+                            </p>
+                            <p className="mt-0.5 truncate text-[12.5px] text-text-tertiary">
+                                {user?.email}
+                            </p>
+                            <div className="mt-3 flex items-center gap-2">
                                 <button
                                     type="button"
                                     onClick={handleAvatarClick}
-                                    className="px-3 py-1.5 text-xs font-medium text-text-secondary bg-bg-main hover:bg-bg-hover rounded-md border border-border-subtle transition-all active:scale-[0.97]"
+                                    className="flex h-7 items-center gap-1.5 rounded-md border border-border-subtle bg-bg-main/60 px-2.5 text-[11.5px] font-medium text-text-secondary transition-all duration-150 hover:bg-white/[0.04] hover:text-text-primary active:scale-[0.97]"
                                 >
+                                    <Camera size={12} />
                                     Đổi ảnh
                                 </button>
-                                {avatarPreview && (
-                                    <button
-                                        type="button"
-                                        onClick={handleRemoveAvatar}
-                                        className="px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 rounded-md transition-all active:scale-[0.97]"
-                                    >
-                                        Xóa ảnh
-                                    </button>
-                                )}
-                            </div>
-                            <p className="text-[11px] text-text-tertiary mt-2">Cho phép JPG, PNG. Tối đa 2MB.</p>
-                        </div>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="hidden sm:block w-px self-stretch bg-border-subtle" />
-
-                    {/* Right — account metadata */}
-                    <div className="sm:w-52 shrink-0 flex flex-col gap-3.5">
-                        {/* Account type */}
-                        <div className="flex items-start gap-2.5">
-                            <div className="mt-0.5 w-6 h-6 rounded-md bg-white/5 flex items-center justify-center shrink-0">
-                                <CheckCircle2 size={13} className="text-emerald-400" />
-                            </div>
-                            <div>
-                                <p className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Loại tài khoản</p>
-                                {user?.provider === 'google' ? (
-                                    <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 text-[11px] font-semibold text-blue-400 bg-blue-500/10 rounded-full border border-blue-500/20">
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                                        Google Account
-                                    </span>
-                                ) : (
-                                    <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 text-[11px] font-semibold text-text-secondary bg-white/5 rounded-full border border-border-subtle">
-                                        Tài khoản cục bộ
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Member since */}
-                        <div className="flex items-start gap-2.5">
-                            <div className="mt-0.5 w-6 h-6 rounded-md bg-white/5 flex items-center justify-center shrink-0">
-                                <CalendarDays size={13} className="text-text-tertiary" />
-                            </div>
-                            <div>
-                                <p className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">Thành viên từ</p>
-                                <p className="text-xs text-text-primary mt-0.5">
-                                    {user?.createdAt
-                                        ? new Date(user.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' })
-                                        : 'N/A'
-                                    }
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* User ID */}
-                        <div className="flex items-start gap-2.5">
-                            <div className="mt-0.5 w-6 h-6 rounded-md bg-white/5 flex items-center justify-center shrink-0">
-                                <Fingerprint size={13} className="text-text-tertiary" />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">User ID</p>
-                                <p className="text-[11px] text-text-tertiary mt-0.5 font-mono truncate" title={user?.id}>
-                                    {user?.id ? `...${user.id.slice(-12)}` : 'N/A'}
-                                </p>
+                                <span className="text-[10.5px] text-text-tertiary">
+                                    JPG/PNG · ≤ 2MB
+                                </span>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            {/* ── Personal info card ── */}
-            <div className="rounded-xl border border-border-subtle bg-bg-sidebar p-6 space-y-5">
-                <div className="flex items-center gap-2 mb-1">
-                    <User size={15} className="text-text-tertiary" />
-                    <h3 className="text-sm font-semibold text-text-primary">Thông tin cá nhân</h3>
-                </div>
-
-                {/* Full name */}
-                <div className="space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
-                        {t('profile.label.fullName')}
-                    </label>
-                    <input
-                        type="text"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Nhập họ và tên..."
-                        className="w-full max-w-lg h-9 bg-bg-main border border-border-subtle rounded-lg px-3 text-sm text-text-primary placeholder-text-tertiary focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-all"
-                    />
-                </div>
-
-                {/* Email */}
-                <div className="space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
-                        {t('profile.label.email')}
-                    </label>
-                    <div className="relative max-w-lg">
-                        <input
-                            type="email"
-                            value={user?.email || ''}
-                            disabled
-                            className="w-full h-9 bg-bg-main border border-border-subtle rounded-lg px-3 pr-10 text-sm text-text-tertiary cursor-not-allowed opacity-60"
-                        />
-                        <Mail size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
-                    </div>
-                    <p className="text-xs text-text-tertiary">{t('profile.email.hint')}</p>
-                </div>
-
-                {/* Bio */}
-                <div className="space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
-                        Giới thiệu bản thân
-                    </label>
-                    <textarea
-                        value={bio}
-                        onChange={(e) => setBio(e.target.value)}
-                        placeholder="Viết một vài dòng giới thiệu về bạn..."
-                        maxLength={200}
-                        rows={3}
-                        className="w-full max-w-lg bg-bg-main border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-all resize-none"
-                    />
-                    <p className="text-[11px] text-text-tertiary text-right max-w-lg">{bio.length}/200</p>
-                </div>
-
-                {/* Save button */}
-                <div className="pt-1">
-                    <button
-                        onClick={handleSave}
-                        disabled={!hasChanges || isSaving}
-                        className={`px-5 py-2 text-white text-sm font-medium rounded-lg transition-all shadow-sm ${
-                            hasChanges && !isSaving
-                                ? 'bg-accent-primary hover:bg-accent-hover active:scale-[0.98] cursor-pointer'
-                                : 'bg-accent-primary/40 cursor-not-allowed'
-                        }`}
-                    >
-                        {isSaving ? t('profile.btn.saving') : t('profile.btn.save')}
-                    </button>
-                </div>
-            </div>
-
-            {/* ── Account security card ── */}
-            <div className="rounded-xl border border-border-subtle bg-bg-sidebar p-6">
-                <div className="flex items-center gap-2 mb-4">
-                    <Shield size={15} className="text-text-tertiary" />
-                    <h3 className="text-sm font-semibold text-text-primary">Bảo mật tài khoản</h3>
-                </div>
-
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between py-3 border-b border-border-subtle">
-                        <div>
-                            <p className="text-sm text-text-primary font-medium">Mật khẩu</p>
-                            <p className="text-xs text-text-tertiary mt-0.5">
-                                {user?.provider === 'google'
-                                    ? 'Tài khoản đăng nhập bằng Google, không có mật khẩu.'
-                                    : 'Thay đổi mật khẩu tài khoản của bạn.'}
-                            </p>
-                        </div>
-                        {user?.provider !== 'google' && (
+                    {/* Right column: metadata grid (border-left on desktop, top on mobile) */}
+                    <div className="border-t border-border-subtle bg-white/[0.015] p-6 lg:border-l lg:border-t-0">
+                        <InfoRow icon={Shield} label="Loại tài khoản">
+                            {user?.provider === 'google' ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2 py-0.5 text-[11px] font-semibold text-blue-400 ring-1 ring-blue-500/20">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                                    Google
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-400 ring-1 ring-emerald-500/20">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                    Local
+                                </span>
+                            )}
+                        </InfoRow>
+                        <InfoRow icon={CalendarDays} label="Thành viên từ">
+                            {memberSince}
+                        </InfoRow>
+                        <InfoRow icon={Fingerprint} label="User ID">
                             <button
                                 type="button"
-                                className="px-3.5 py-1.5 text-xs font-medium text-text-secondary bg-bg-main hover:bg-bg-hover rounded-md border border-border-subtle transition-all active:scale-[0.97]"
-                                onClick={() => toast.info('Tính năng đang phát triển.')}
+                                onClick={handleCopyId}
+                                className="group inline-flex items-center gap-1.5 rounded px-1 text-text-tertiary transition-colors hover:text-text-primary"
+                                title="Sao chép User ID"
+                            >
+                                <span className="font-mono">
+                                    {user?.id ? `…${user.id.slice(-10)}` : 'N/A'}
+                                </span>
+                                {idCopied ? (
+                                    <Check
+                                        size={11}
+                                        className="text-emerald-400"
+                                    />
+                                ) : (
+                                    <Copy
+                                        size={11}
+                                        className="opacity-0 transition-opacity group-hover:opacity-100"
+                                    />
+                                )}
+                            </button>
+                        </InfoRow>
+                    </div>
+                </div>
+            </div>
+
+            {/* ── Personal info card ─────────────────────────────── */}
+            <div className="mt-6 overflow-hidden rounded-2xl border border-border-subtle bg-bg-sidebar/60">
+                <div className="border-b border-border-subtle/70 px-6 py-4">
+                    <h3 className="flex items-center gap-2 text-[13.5px] font-semibold text-text-primary">
+                        <User size={14} className="text-text-tertiary" />
+                        Thông tin cá nhân
+                    </h3>
+                </div>
+
+                <div className="space-y-5 p-6">
+                    {/* Full name */}
+                    <div className="space-y-1.5">
+                        <label
+                            htmlFor="profile-fullname"
+                            className="block text-[11.5px] font-medium text-text-secondary"
+                        >
+                            {t('profile.label.fullName')}
+                        </label>
+                        <input
+                            id="profile-fullname"
+                            type="text"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            placeholder="Nhập họ và tên..."
+                            className="h-10 w-full max-w-lg rounded-lg border border-border-subtle bg-bg-main/60 px-3 text-[13.5px] text-text-primary placeholder-text-tertiary outline-none transition-all duration-150 focus:border-accent-primary focus:bg-bg-main focus:ring-2 focus:ring-accent-primary/20"
+                        />
+                    </div>
+
+                    {/* Email */}
+                    <div className="space-y-1.5">
+                        <label className="block text-[11.5px] font-medium text-text-secondary">
+                            {t('profile.label.email')}
+                        </label>
+                        <div className="relative max-w-lg">
+                            <Mail
+                                size={14}
+                                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
+                            />
+                            <input
+                                type="email"
+                                value={user?.email || ''}
+                                disabled
+                                className="h-10 w-full cursor-not-allowed rounded-lg border border-border-subtle/60 bg-white/[0.015] pl-9 pr-3 text-[13.5px] text-text-tertiary"
+                            />
+                        </div>
+                        <p className="text-[11.5px] text-text-tertiary">
+                            {t('profile.email.hint')}
+                        </p>
+                    </div>
+
+                    {/* Bio */}
+                    <div className="space-y-1.5">
+                        <label
+                            htmlFor="profile-bio"
+                            className="block text-[11.5px] font-medium text-text-secondary"
+                        >
+                            Giới thiệu bản thân
+                        </label>
+                        <textarea
+                            id="profile-bio"
+                            value={bio}
+                            onChange={(e) => setBio(e.target.value)}
+                            placeholder="Viết một vài dòng giới thiệu về bạn..."
+                            maxLength={200}
+                            rows={3}
+                            className="w-full max-w-lg resize-none rounded-lg border border-border-subtle bg-bg-main/60 px-3 py-2 text-[13.5px] text-text-primary placeholder-text-tertiary outline-none transition-all duration-150 focus:border-accent-primary focus:bg-bg-main focus:ring-2 focus:ring-accent-primary/20"
+                        />
+                        <div className="flex max-w-lg items-center justify-end">
+                            <span
+                                className={`text-[11px] tabular-nums ${
+                                    bio.length > 180
+                                        ? 'text-yellow-400'
+                                        : 'text-text-tertiary'
+                                }`}
+                            >
+                                {bio.length}/200
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Sticky save bar (appears when there are unsaved changes) */}
+                <div
+                    className={`grid overflow-hidden border-t border-border-subtle/70 bg-bg-main/40 transition-[grid-template-rows] duration-200 ease-out ${
+                        hasChanges ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                    }`}
+                >
+                    <div className="overflow-hidden">
+                        <div className="flex items-center justify-between gap-3 px-6 py-3">
+                            <span className="flex items-center gap-2 text-[12px] text-text-secondary">
+                                <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent-primary" />
+                                Có thay đổi chưa lưu
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleResetChanges}
+                                    disabled={isSaving}
+                                    className="rounded-md px-3 py-1.5 text-[12px] font-medium text-text-secondary transition-colors hover:bg-white/[0.04] hover:text-text-primary disabled:opacity-40"
+                                >
+                                    Hoàn tác
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    disabled={isSaving}
+                                    className="rounded-md bg-accent-primary px-4 py-1.5 text-[12px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-accent-hover hover:shadow-accent-primary/25 hover:shadow-md active:scale-[0.97] disabled:opacity-60"
+                                >
+                                    {isSaving
+                                        ? t('profile.btn.saving')
+                                        : t('profile.btn.save')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* ── Security card ──────────────────────────────────── */}
+            <div className="mt-6 overflow-hidden rounded-2xl border border-border-subtle bg-bg-sidebar/60">
+                <div className="border-b border-border-subtle/70 px-6 py-4">
+                    <h3 className="flex items-center gap-2 text-[13.5px] font-semibold text-text-primary">
+                        <Shield size={14} className="text-text-tertiary" />
+                        Bảo mật tài khoản
+                    </h3>
+                </div>
+
+                <div className="divide-y divide-border-subtle/50">
+                    <div className="flex items-center justify-between gap-4 px-6 py-4">
+                        <div className="flex items-start gap-3 min-w-0">
+                            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/[0.04] text-text-tertiary">
+                                <KeyRound size={14} />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[13px] font-medium text-text-primary">
+                                    Mật khẩu
+                                </p>
+                                <p className="mt-0.5 text-[12px] text-text-tertiary">
+                                    {user?.provider === 'google'
+                                        ? 'Bạn đăng nhập bằng Google — không có mật khẩu.'
+                                        : 'Thay đổi mật khẩu tài khoản của bạn.'}
+                                </p>
+                            </div>
+                        </div>
+                        {user?.provider === 'google' ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 ring-1 ring-emerald-500/20">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                Google Auth
+                            </span>
+                        ) : (
+                            <button
+                                type="button"
+                                className="rounded-md border border-border-subtle bg-bg-main/60 px-3 py-1.5 text-[12px] font-medium text-text-secondary transition-all duration-150 hover:bg-white/[0.04] hover:text-text-primary active:scale-[0.97]"
+                                onClick={() =>
+                                    toast.info('Tính năng đang phát triển.')
+                                }
                             >
                                 Đổi mật khẩu
                             </button>
                         )}
-                        {user?.provider === 'google' && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 rounded-full border border-emerald-500/20">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                                Google Auth
-                            </span>
-                        )}
                     </div>
 
-                    <div className="flex items-center justify-between py-3">
-                        <div>
-                            <p className="text-sm text-text-primary font-medium">Phiên đăng nhập</p>
-                            <p className="text-xs text-text-tertiary mt-0.5">Quản lý các thiết bị đang đăng nhập.</p>
+                    <div className="flex items-center justify-between gap-4 px-6 py-4">
+                        <div className="flex items-start gap-3 min-w-0">
+                            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/[0.04] text-text-tertiary">
+                                <Smartphone size={14} />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[13px] font-medium text-text-primary">
+                                    Phiên đăng nhập
+                                </p>
+                                <p className="mt-0.5 text-[12px] text-text-tertiary">
+                                    Quản lý các thiết bị đang đăng nhập.
+                                </p>
+                            </div>
                         </div>
                         <button
                             type="button"
-                            className="px-3.5 py-1.5 text-xs font-medium text-text-secondary bg-bg-main hover:bg-bg-hover rounded-md border border-border-subtle transition-all active:scale-[0.97]"
-                            onClick={() => toast.info('Tính năng đang phát triển.')}
+                            className="rounded-md border border-border-subtle bg-bg-main/60 px-3 py-1.5 text-[12px] font-medium text-text-secondary transition-all duration-150 hover:bg-white/[0.04] hover:text-text-primary active:scale-[0.97]"
+                            onClick={() =>
+                                toast.info('Tính năng đang phát triển.')
+                            }
                         >
                             Xem phiên
                         </button>

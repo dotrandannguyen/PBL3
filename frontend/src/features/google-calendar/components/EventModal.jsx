@@ -458,7 +458,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
         <>
             {/* Overlay */}
             <div
-                className="fixed inset-0 bg-black/40 z-40"
+                className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm animate-backdrop-in"
                 onClick={onClose}
             />
 
@@ -469,25 +469,23 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
             >
                 <form
                     onSubmit={handleSubmit}
-                    className="w-full max-w-[480px] bg-bg-main rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.35)]
-                               overflow-visible flex flex-col border border-border-subtle"
+                    className="flex w-full max-w-[420px] flex-col overflow-visible rounded-xl border border-border-subtle bg-bg-main shadow-[0_16px_60px_rgba(0,0,0,0.4)] animate-modal-in"
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* ─── Header ─── */}
-                    <div className="flex justify-between items-center px-5 pt-3 pb-1">
-                        <GripHorizontal size={18} className="text-text-tertiary cursor-grab" />
+                    <div className="flex items-center justify-between px-4 pt-2.5 pb-0.5">
+                        <GripHorizontal size={16} className="cursor-grab text-text-tertiary/60" />
                         <button
                             type="button"
                             onClick={onClose}
-                            className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-bg-hover
-                                       transition-colors cursor-pointer border-none bg-transparent"
+                            className="rounded-md border-none bg-transparent p-1.5 text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary active:scale-90"
                         >
-                            <X size={18} />
+                            <X size={16} />
                         </button>
                     </div>
 
                     {/* ─── Body ─── */}
-                    <div className="px-6 pb-2 pt-1 flex flex-col gap-5">
+                    <div className="flex flex-col gap-4 px-5 pb-2 pt-1">
 
                         {/* Title Input */}
                         <input
@@ -496,18 +494,15 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder={t('cal.modal.addTitle')}
                             autoFocus
-                            className="w-full text-[22px] bg-transparent text-text-primary placeholder:text-text-tertiary
-                                       border-none border-b-2 border-b-transparent focus:border-b-accent-primary
-                                       focus:outline-none py-1.5 transition-colors font-normal leading-tight"
+                            className="w-full border-b-2 border-b-transparent border-none bg-transparent py-1 text-[18px] font-medium leading-tight text-text-primary placeholder:text-text-tertiary focus:border-b-accent-primary focus:outline-none"
                             style={{ borderBottom: '2px solid', borderBottomColor: title ? 'var(--accent-primary, #2383e2)' : 'var(--border-subtle, #333)' }}
                         />
 
                         {/* Event Type Tabs */}
-                        <div className="flex gap-2 items-center">
+                        <div className="flex items-center gap-2">
                             <button
                                 type="button"
-                                className="px-3.5 py-1.5 rounded-lg text-[13px] font-semibold cursor-default border-none transition-all duration-150
-                                           bg-accent-primary/15 text-accent-primary"
+                                className="cursor-default rounded-md border-none bg-accent-primary/15 px-2.5 py-1 text-[12px] font-semibold text-accent-primary"
                             >
                                 {t('cal.modal.event')}
                             </button>
@@ -515,9 +510,9 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
 
 
                         {/* ─── Date & Time Section ─── */}
-                        <div className="flex items-start gap-4">
-                            <Clock size={18} className="text-text-tertiary mt-2 shrink-0" />
-                            <div className="flex-1 flex flex-col gap-2.5">
+                        <div className="flex items-start gap-3">
+                            <Clock size={16} className="mt-1.5 shrink-0 text-text-tertiary" />
+                            <div className="flex flex-1 flex-col gap-2">
                                 {/* Row 1: Start Date + Start Time */}
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <span className="w-[76px] text-[13px] font-medium text-text-secondary">
@@ -613,39 +608,38 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                         </div>
 
                         {/* ─── Info Rows ─── */}
-                        <div className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-3">
                             {/* Guests */}
-                            <div className="flex items-center gap-4">
-                                <Users size={18} className="text-text-tertiary shrink-0" />
-                                <span className="text-[13px] text-text-secondary cursor-pointer hover:text-text-primary transition-colors">
+                            <div className="flex items-center gap-3">
+                                <Users size={16} className="shrink-0 text-text-tertiary" />
+                                <span className="cursor-pointer text-[12.5px] text-text-secondary transition-colors hover:text-text-primary">
                                     {t('cal.modal.addGuests')}
                                 </span>
                             </div>
 
                             {/* Google Meet */}
-                            <div className="flex items-center gap-4">
-                                <Video size={18} className="text-text-tertiary shrink-0" />
-                                <span className="text-[13px] text-text-secondary cursor-pointer hover:text-text-primary transition-colors truncate">
+                            <div className="flex items-center gap-3">
+                                <Video size={16} className="shrink-0 text-text-tertiary" />
+                                <span className="cursor-pointer truncate text-[12.5px] text-text-secondary transition-colors hover:text-text-primary">
                                     {t('cal.modal.addMeet')}
                                 </span>
                             </div>
 
                             {/* Location */}
-                            <div className="flex items-center gap-4">
-                                <MapPin size={18} className="text-text-tertiary shrink-0" />
+                            <div className="flex items-center gap-3">
+                                <MapPin size={16} className="shrink-0 text-text-tertiary" />
                                 <input
                                     type="text"
                                     value={location}
                                     onChange={(e) => setLocation(e.target.value)}
                                     placeholder={t('cal.modal.addLocation')}
-                                    className="flex-1 bg-transparent text-text-primary text-[13px] focus:outline-none
-                                               placeholder:text-text-secondary border-none py-0"
+                                    className="flex-1 border-none bg-transparent py-0 text-[12.5px] text-text-primary placeholder:text-text-secondary focus:outline-none"
                                 />
                             </div>
 
                             {/* Description */}
-                            <div className="flex items-start gap-4">
-                                <AlignLeft size={18} className="text-text-tertiary shrink-0 mt-0.5" />
+                            <div className="flex items-start gap-3">
+                                <AlignLeft size={16} className="mt-0.5 shrink-0 text-text-tertiary" />
                                 <textarea
                                     value={description}
                                     onChange={(e) => {
@@ -655,15 +649,14 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                     }}
                                     placeholder={t('cal.modal.addDesc')}
                                     rows={1}
-                                    className="flex-1 bg-transparent text-text-primary text-[13px] focus:outline-none
-                                               placeholder:text-text-secondary border-none resize-none py-0 overflow-hidden"
+                                    className="flex-1 resize-none overflow-hidden border-none bg-transparent py-0 text-[12.5px] text-text-primary placeholder:text-text-secondary focus:outline-none"
                                     style={{ minHeight: '20px' }}
                                 />
                             </div>
 
                             {/* Calendar / Profile — Expandable */}
-                            <div className="flex items-start gap-4">
-                                <CalendarIcon size={18} className="text-text-tertiary shrink-0 mt-0.5" />
+                            <div className="flex items-start gap-3">
+                                <CalendarIcon size={16} className="mt-0.5 shrink-0 text-text-tertiary" />
                                 <div className="flex-1 flex flex-col gap-1.5">
                                     <button
                                         type="button"
@@ -752,14 +745,13 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                     </div>
 
                     {/* ─── Footer ─── */}
-                    <div className="flex items-center justify-between px-6 py-3.5 mt-1 border-t border-border-subtle">
+                    <div className="mt-1 flex items-center justify-between border-t border-border-subtle px-5 py-3">
                         <div>
                             {isEditing && onDelete ? (
                                 <button
                                     type="button"
                                     onClick={() => setShowConfirmDelete(true)}
-                                    className="text-[13px] text-red-400 hover:bg-red-500/10 px-3 py-1.5 rounded-lg font-medium
-                                               transition cursor-pointer border-none bg-transparent"
+                                    className="cursor-pointer rounded-md border-none bg-transparent px-2.5 py-1.5 text-[12.5px] font-medium text-red-400 transition hover:bg-red-500/10 active:scale-[0.97]"
                                 >
                                     {t('cal.modal.delete')}
                                 </button>
@@ -768,19 +760,16 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                             )}
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                             <button
                                 type="button"
-                                className="text-[13px] font-medium text-accent-primary bg-transparent
-                                           hover:bg-accent-primary/10 px-3 py-1.5 rounded-lg border-none cursor-pointer transition-colors"
+                                className="cursor-pointer rounded-md border-none bg-transparent px-2.5 py-1.5 text-[12.5px] font-medium text-accent-primary transition-colors hover:bg-accent-primary/10 active:scale-[0.97]"
                             >
                                 {t('cal.modal.moreOptions')}
                             </button>
                             <button
                                 type="submit"
-                                className="px-5 py-1.5 text-[13px] font-semibold rounded-full text-white
-                                           bg-accent-primary border-none hover:brightness-110
-                                           transition-all duration-150 cursor-pointer shadow-sm"
+                                className="cursor-pointer rounded-md border-none bg-accent-primary px-4 py-1.5 text-[12.5px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-accent-hover hover:shadow-md hover:shadow-accent-primary/20 active:scale-[0.97]"
                             >
                                 {t('cal.modal.save')}
                             </button>

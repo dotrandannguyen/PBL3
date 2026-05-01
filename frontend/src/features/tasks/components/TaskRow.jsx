@@ -138,7 +138,11 @@ const TaskRow = ({
   };
 
   return (
-    <div className="group flex items-center gap-3 py-2 px-0 border-b border-border-subtle hover:bg-white/2 transition-colors relative">
+    <div
+      className={`group flex items-center gap-3 py-2 px-0 border-b border-border-subtle hover:bg-white/2 transition-colors relative overflow-hidden ${
+        isDeleting ? "animate-row-fade-out pointer-events-none" : ""
+      }`}
+    >
       <TaskCheckbox checked={task.completed === true} onChange={onToggle} />
 
       {isEditing ? (

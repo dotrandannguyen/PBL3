@@ -1,10 +1,11 @@
 import React from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "@/features/workspace/components/Sidebar";
 import {
   WorkspaceProvider,
   useWorkspace,
 } from "@/features/workspace/context/WorkspaceContext";
+import { UnreadInboxProvider } from "@/features/notification-receiver/context/UnreadInboxContext";
 
 /**
  * DashboardContent — Nội dung layout, consume WorkspaceContext.
@@ -19,9 +20,10 @@ function DashboardContent() {
     handleDeletePage,
     handleRenamePage,
   } = useWorkspace();
+  const location = useLocation();
 
   return (
-    <div className="flex w-screen h-screen overflow-hidden bg-bg-main text-text-primary font-sans">
+    <div className="flex w-full h-screen overflow-hidden bg-bg-main text-text-primary font-sans">
       <Sidebar
         pages={pages}
         activePage={activePage}
@@ -31,7 +33,13 @@ function DashboardContent() {
         onRenamePage={handleRenamePage}
       />
       <main className="flex-1 flex flex-col bg-bg-main overflow-hidden">
-        <Outlet />
+        {/* Keyed wrapper: re-mounts on route change → triggers fade-in */}
+        <div
+          key={location.pathname}
+          className="flex flex-col flex-1 min-h-0 animate-route-fade-in"
+        >
+          <Outlet />
+        </div>
       </main>
     </div>
   );
@@ -44,7 +52,9 @@ function DashboardContent() {
 export function DashboardLayout() {
   return (
     <WorkspaceProvider>
-      <DashboardContent />
+      <UnreadInboxProvider>
+        <DashboardContent />
+      </UnreadInboxProvider>
     </WorkspaceProvider>
   );
 }

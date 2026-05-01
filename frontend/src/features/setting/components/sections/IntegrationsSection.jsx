@@ -1,64 +1,138 @@
 import React from 'react';
-import { Github, Calendar as CalendarIcon, Mail } from 'lucide-react';
+import { Github, Calendar as CalendarIcon, Mail, ArrowUpRight, X } from 'lucide-react';
+import { useLanguage } from '../../../../contexts/LanguageContext';
+
+/* ─── Connection status pill ─────────────────────────────────────── */
+
+const StatusPill = ({ connected, account }) => {
+    if (!connected) return null;
+    return (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-400 ring-1 ring-emerald-500/20">
+            <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            </span>
+            {account ? `Đã kết nối · ${account}` : 'Đã kết nối'}
+        </span>
+    );
+};
+
+/* ─── Integration card ───────────────────────────────────────────── */
+
+const IntegrationCard = ({
+    icon: Icon,
+    iconBg,
+    iconColor,
+    iconBgIsLight = false,
+    name,
+    description,
+    connected,
+    account,
+    onConnect,
+    onDisconnect,
+}) => (
+    <div className="group relative overflow-hidden rounded-xl border border-border-subtle bg-bg-sidebar/60 p-4 transition-all duration-150 hover:border-border-focused hover:bg-bg-sidebar">
+        <div className="flex items-start gap-4">
+            {/* Icon */}
+            <div
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg} ${
+                    iconBgIsLight ? 'shadow-sm shadow-black/10' : ''
+                }`}
+            >
+                <Icon size={20} className={iconColor} />
+            </div>
+
+            {/* Content */}
+            <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-[13.5px] font-semibold text-text-primary">
+                        {name}
+                    </h3>
+                    <StatusPill connected={connected} account={account} />
+                </div>
+                <p className="mt-1 text-[12.5px] text-text-tertiary leading-relaxed">
+                    {description}
+                </p>
+            </div>
+
+            {/* Action */}
+            <div className="shrink-0">
+                {connected ? (
+                    <button
+                        type="button"
+                        onClick={onDisconnect}
+                        className="flex h-8 items-center gap-1.5 rounded-md border border-transparent bg-transparent px-3 text-[12px] font-medium text-text-tertiary transition-all duration-150 hover:border-red-500/25 hover:bg-red-500/8 hover:text-red-400 active:scale-[0.97]"
+                    >
+                        <X size={12} />
+                        Ngắt kết nối
+                    </button>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={onConnect}
+                        className="flex h-8 items-center gap-1.5 rounded-md border border-border-subtle bg-bg-main/60 px-3 text-[12px] font-semibold text-text-primary transition-all duration-150 hover:border-accent-primary/40 hover:bg-accent-primary/8 hover:text-accent-primary active:scale-[0.97]"
+                    >
+                        Kết nối
+                        <ArrowUpRight
+                            size={12}
+                            className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                        />
+                    </button>
+                )}
+            </div>
+        </div>
+    </div>
+);
+
+/* ─── Section ─────────────────────────────────────────────────────── */
 
 const IntegrationsSection = () => {
+    const { t } = useLanguage();
+
     return (
         <section>
-            <h2 className="text-xl font-medium text-text-primary mb-8">Integrations</h2>
-            <p className="text-[13px] text-text-secondary mb-8">Connect external services to seamlessly sync data across your workspace.</p>
+            {/* Section header */}
+            <header className="mb-6">
+                <h2 className="text-2xl font-semibold tracking-tight text-text-primary">
+                    {t('integrations.title') || 'Tích hợp'}
+                </h2>
+                <p className="mt-1 text-[13px] text-text-tertiary">
+                    {t('integrations.subtitle') ||
+                        'Kết nối các dịch vụ ngoài để đồng bộ dữ liệu vào workspace.'}
+                </p>
+            </header>
 
-            <div className="space-y-4 max-w-2xl">
-                {/* Google Calendar Card */}
-                <div className="p-5 rounded-lg border border-border-subtle bg-bg-sidebar flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-border-focused transition-colors">
-                    <div className="flex gap-4 items-center">
-                        <div className="w-12 h-12 rounded-[10px] bg-white flex items-center justify-center shadow-sm shrink-0">
-                            <CalendarIcon size={24} className="text-[#4285F4]" />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-semibold text-text-primary">Google Calendar</h3>
-                            <p className="text-[13px] text-text-secondary mt-0.5">Two-way sync for your events.</p>
-                            <span className="inline-block mt-2.5 px-2 py-0.5 text-[11px] font-medium bg-green-500/10 text-green-500 rounded border border-green-500/20">
-                                Connected as mock@example.com
-                            </span>
-                        </div>
-                    </div>
-                    <button className="px-3.5 py-1.5 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-md transition-all border border-transparent hover:border-red-400/20 active:scale-[0.98]">
-                        Disconnect
-                    </button>
-                </div>
+            <div className="space-y-3">
+                <IntegrationCard
+                    icon={CalendarIcon}
+                    iconBg="bg-white"
+                    iconColor="text-[#4285F4]"
+                    iconBgIsLight
+                    name="Google Calendar"
+                    description="Đồng bộ hai chiều sự kiện và task có lịch."
+                    connected
+                    account="mock@example.com"
+                    onDisconnect={() => {}}
+                />
 
-                {/* GitHub Card */}
-                <div className="p-5 rounded-lg border border-border-subtle bg-bg-sidebar flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-border-focused transition-colors">
-                    <div className="flex gap-4 items-center">
-                        <div className="w-12 h-12 rounded-[10px] bg-[#24292e] flex items-center justify-center shadow-sm shrink-0">
-                            <Github size={24} className="text-white" />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-semibold text-text-primary">GitHub</h3>
-                            <p className="text-[13px] text-text-secondary mt-0.5">Manage issues and pull requests.</p>
-                        </div>
-                    </div>
-                    <button className="px-4 py-1.5 text-xs font-semibold text-text-primary bg-bg-main hover:bg-bg-hover rounded-md transition-all border border-border-subtle shadow-sm active:scale-[0.98]">
-                        Connect
-                    </button>
-                </div>
-                
-                {/* Gmail Card */}
-                <div className="p-5 rounded-lg border border-border-subtle bg-bg-sidebar flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:border-border-focused transition-colors">
-                    <div className="flex gap-4 items-center">
-                        <div className="w-12 h-12 rounded-[10px] bg-white flex items-center justify-center shadow-sm shrink-0">
-                            <Mail size={24} className="text-[#EA4335]" />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-semibold text-text-primary">Gmail</h3>
-                            <p className="text-[13px] text-text-secondary mt-0.5">Turn emails into actionable tasks.</p>
-                        </div>
-                    </div>
-                    <button className="px-4 py-1.5 text-xs font-semibold text-text-primary bg-bg-main hover:bg-bg-hover rounded-md transition-all border border-border-subtle shadow-sm active:scale-[0.98]">
-                        Connect
-                    </button>
-                </div>
+                <IntegrationCard
+                    icon={Github}
+                    iconBg="bg-[#181717]"
+                    iconColor="text-white"
+                    name="GitHub"
+                    description="Theo dõi issues và pull request được giao cho bạn."
+                    onConnect={() => {}}
+                />
 
+                <IntegrationCard
+                    icon={Mail}
+                    iconBg="bg-white"
+                    iconColor="text-[#EA4335]"
+                    iconBgIsLight
+                    name="Gmail"
+                    description="Biến email thành task có thể hành động."
+                    onConnect={() => {}}
+                />
             </div>
         </section>
     );

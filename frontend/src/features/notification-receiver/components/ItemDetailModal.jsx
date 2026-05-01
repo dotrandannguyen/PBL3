@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { X, ExternalLink, CheckCircle, Plus } from "lucide-react";
 import { confirmInboxTask } from "../../tasks/api/task.api";
 import { toast } from "sonner";
@@ -12,6 +13,28 @@ import { useLanguage } from "../../../contexts/LanguageContext";
  */
 export function ItemDetailModal({ item, onClose, onStatusChange }) {
   const { t, lang } = useLanguage();
+  const [isClosing, setIsClosing] = useState(false);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!item) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") requestClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item]);
+
+  // Animate out, then call parent onClose
+  const requestClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsClosing(false);
+      onClose?.();
+    }, 180);
+  };
 
   if (!item) return null;
 
@@ -27,7 +50,7 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
         position: "bottom-right",
         duration: 3000,
       });
-      setTimeout(onClose, 1500);
+      setTimeout(requestClose, 1500);
     } catch (error) {
       toast.error(t('inbox.toast.error'));
       console.error(error);
@@ -39,19 +62,27 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-200 ${
+        isClosing ? "opacity-0" : "animate-backdrop-in"
+      }`}
+      onClick={requestClose}
+      role="dialog"
+      aria-modal="true"
     >
       <div
-        className="bg-bg-sidebar w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden border border-border-subtle flex flex-col max-h-[85vh]"
+        className={`bg-bg-sidebar w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden border border-border-subtle flex flex-col max-h-[85vh] transition-all duration-200 ${
+          isClosing
+            ? "opacity-0 scale-[0.97] translate-y-1"
+            : "animate-modal-in"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-3 border-b border-border-subtle bg-bg-main/50">
           <div className="flex items-center gap-2">
             <button
-              onClick={onClose}
-              className="p-1.5 hover:bg-bg-hover rounded-md text-text-tertiary hover:text-text-primary transition-colors"
+              onClick={requestClose}
+              className="p-1.5 hover:bg-bg-hover rounded-md text-text-tertiary hover:text-text-primary transition-colors active:scale-95"
               title={t('inbox.modal.close')}
             >
               <X size={20} />

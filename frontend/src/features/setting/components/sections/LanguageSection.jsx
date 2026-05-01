@@ -28,14 +28,18 @@ const LanguageSection = () => {
 
     return (
         <section>
-            <h2 className="text-xl font-medium text-text-primary mb-2">
-                {t('lang.title')}
-            </h2>
-            <p className="text-[13px] text-text-secondary mb-8">
-                {t('lang.subtitle')}
-            </p>
+            {/* Section header */}
+            <header className="mb-6">
+                <h2 className="text-2xl font-semibold tracking-tight text-text-primary">
+                    {t('lang.title')}
+                </h2>
+                <p className="mt-1 text-[13px] text-text-tertiary">
+                    {t('lang.subtitle')}
+                </p>
+            </header>
 
-            <div className="max-w-2xl grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Language picker */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {LANGUAGES.map((language) => {
                     const isSelected = lang === language.code;
                     return (
@@ -43,28 +47,43 @@ const LanguageSection = () => {
                             key={language.code}
                             type="button"
                             onClick={() => setLang(language.code)}
-                            className={`
-                                relative flex flex-col items-center gap-2 p-5 rounded-xl border-2 
-                                transition-all duration-200 cursor-pointer bg-transparent
-                                ${
-                                    isSelected
-                                        ? 'border-accent-primary bg-accent-primary/5 shadow-[0_0_0_1px_rgba(35,131,226,0.3)] scale-[1.02]'
-                                        : 'border-border-subtle hover:border-border-focused hover:bg-bg-hover/50'
-                                }
-                            `}
+                            aria-pressed={isSelected}
+                            className={`group relative flex flex-col items-center gap-2 rounded-xl border bg-bg-sidebar/40 p-5 transition-all duration-200 ease-out active:scale-[0.985] ${
+                                isSelected
+                                    ? 'border-accent-primary/60 bg-accent-primary/[0.04] ring-1 ring-accent-primary/40 shadow-lg shadow-accent-primary/[0.08]'
+                                    : 'border-border-subtle hover:border-border-focused hover:bg-bg-sidebar'
+                            }`}
                         >
                             {/* Checkmark badge */}
-                            {isSelected && (
-                                <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-accent-primary flex items-center justify-center">
-                                    <Check size={12} className="text-white" strokeWidth={3} />
-                                </div>
-                            )}
+                            <span
+                                className={`absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-accent-primary text-white transition-all duration-200 ${
+                                    isSelected
+                                        ? 'opacity-100 scale-100'
+                                        : 'opacity-0 scale-50'
+                                }`}
+                            >
+                                <Check size={11} strokeWidth={3} />
+                            </span>
 
                             {/* Flag */}
-                            <span className="text-3xl leading-none">{language.flag}</span>
+                            <span
+                                className={`text-[34px] leading-none transition-transform duration-200 ${
+                                    isSelected
+                                        ? 'scale-105'
+                                        : 'group-hover:scale-105'
+                                }`}
+                            >
+                                {language.flag}
+                            </span>
 
-                            {/* Language name */}
-                            <span className={`text-sm font-medium ${isSelected ? 'text-accent-primary' : 'text-text-primary'}`}>
+                            {/* Name */}
+                            <span
+                                className={`text-sm font-semibold transition-colors duration-200 ${
+                                    isSelected
+                                        ? 'text-text-primary'
+                                        : 'text-text-secondary group-hover:text-text-primary'
+                                }`}
+                            >
                                 {language.name}
                             </span>
 
