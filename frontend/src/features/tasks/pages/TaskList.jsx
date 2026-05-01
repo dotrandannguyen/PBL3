@@ -163,8 +163,31 @@ const parseLocalDateTime = (value) => {
 
 const parseDueDateForCompare = (value) => {
   if (!value) return null;
-  const dateObj = new Date(`${value}T23:59:59`);
+  if (isDateOnlyValue(value)) {
+    const dateObj = new Date(`${value}T23:59:59`);
+    return Number.isNaN(dateObj.getTime()) ? null : dateObj;
+  }
+  const dateObj = new Date(value);
   return Number.isNaN(dateObj.getTime()) ? null : dateObj;
+};
+
+const REMINDER_OFFSETS = {
+  NONE: null,
+  MINUTES_5: -5,
+  MINUTES_15: -15,
+  HOUR_1: -60,
+};
+
+const computeReminderAt = (preset, dueValue) => {
+  if (!preset || preset === "NONE") return null;
+  if (!dueValue) return null;
+  const offset = REMINDER_OFFSETS[preset];
+  if (offset == null) return null;
+  const dueDate = new Date(dueValue);
+  if (Number.isNaN(dueDate.getTime())) return null;
+  const reminderDate = new Date(dueDate.getTime() + offset * 60 * 1000);
+  if (reminderDate.getTime() <= Date.now()) return null;
+  return reminderDate.toISOString();
 };
 
 /* ═══════════════════════════════════════════════════════════════════════ */
@@ -190,6 +213,7 @@ const TaskList = ({ title = "To Do List" }) => {
     tasks, allTasks, loading, error, activeFilter,
     fetchTasks, addTask, removeTask, toggleTask,
     updateTaskData, scheduleTaskData, setFilter,
+    pagination,
   } = useTasks();
 
   const {
@@ -204,6 +228,9 @@ const TaskList = ({ title = "To Do List" }) => {
 
   // ── State ──────────────────────────────────────────────
   const [removingIds, setRemovingIds] = useState(() => new Set());
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(pagination?.limit || 20);
+
   const [newTaskText, setNewTaskText] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newTaskDueAt, setNewTaskDueAt] = useState("");
@@ -218,7 +245,9 @@ const TaskList = ({ title = "To Do List" }) => {
   const [editScheduledAt, setEditScheduledAt] = useState("");
   const [editOriginalScheduledAt, setEditOriginalScheduledAt] = useState("");
   const [editPriority, setEditPriority] = useState("");
+  const [editReminder, setEditReminder] = useState(undefined);
   const [newTaskPriority, setNewTaskPriority] = useState("MEDIUM");
+  const [newTaskReminder, setNewTaskReminder] = useState("NONE");
   const [schedulingId, setSchedulingId] = useState(null);
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState(readCollapsedGroups);
@@ -268,7 +297,9 @@ const TaskList = ({ title = "To Do List" }) => {
   }, [hasStartEndConflict, hasDueStartConflict, hasDueEndConflict, newTaskDueAt, newTaskEndAt]);
 
   // ── Effects ────────────────────────────────────────────
-  useEffect(() => { fetchTasks(); }, []);
+  useEffect(() => {
+    fetchTasks({ page, limit });
+  }, [fetchTasks, page, limit]);
 
   useEffect(() => {
     if (loading) return;
@@ -279,6 +310,10 @@ const TaskList = ({ title = "To Do List" }) => {
   useEffect(() => {
     if (initialFilterState.statusFilter !== "all") setFilter(initialFilterState.statusFilter);
   }, [initialFilterState.statusFilter, setFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [limit]);
 
   useEffect(() => {
     const next = new URLSearchParams();
@@ -343,11 +378,12 @@ const TaskList = ({ title = "To Do List" }) => {
       dueDate: resolvedDueAt,
       startAt: parsedStartAt ? parsedStartAt.toISOString() : null,
       priority: newTaskPriority,
+      reminderAt: computeReminderAt(newTaskReminder, resolvedDueAtInput),
     });
     if (!createdTask) return;
     setNewTaskText(""); setNewTaskDescription(""); setNewTaskDueAt("");
     setNewTaskStartAt(""); setNewTaskEndAt(""); setIsCreateScheduleOpen(false);
-    setNewTaskPriority("MEDIUM"); setNewTaskError("");
+    setNewTaskPriority("MEDIUM"); setNewTaskReminder("NONE"); setNewTaskError("");
   };
 
   const handleToggleTask = async (id, currentCompleted) => {
@@ -379,11 +415,7 @@ const TaskList = ({ title = "To Do List" }) => {
     setEditDescription(task.description || "");
     setEditPriority(task.priority || "MEDIUM");
     if (task.dueDate) {
-      const dateObj = new Date(task.dueDate);
-      const year = dateObj.getFullYear();
-      const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-      const day = String(dateObj.getDate()).padStart(2, "0");
-      setEditDate(`${year}-${month}-${day}`);
+      setEditDate(toDateTimeLocal(task.dueDate));
     } else {
       setEditDate("");
     }
@@ -395,6 +427,7 @@ const TaskList = ({ title = "To Do List" }) => {
   const handleCancelEdit = () => {
     setEditingId(null); setEditText(""); setEditDescription("");
     setEditDate(""); setEditScheduledAt(""); setEditOriginalScheduledAt(""); setEditPriority("");
+    setEditReminder(undefined);
   };
 
   const handleSaveEdit = async () => {
@@ -409,6 +442,7 @@ const TaskList = ({ title = "To Do List" }) => {
       description: editDescription.trim() || null,
       priority: editPriority || "MEDIUM",
       dueDate: normalizedEditDueAt,
+      reminderAt: editReminder !== undefined ? computeReminderAt(editReminder, editDate) : undefined,
     });
     if (!didUpdateTask) return;
 
@@ -506,6 +540,15 @@ const TaskList = ({ title = "To Do List" }) => {
         if (editingId === task.id) { setEditPriority(priority); return; }
         handlePriorityChange(task.id, priority);
       }}
+      onReminderChange={(presetValue) => {
+        if (editingId === task.id) {
+          setEditReminder(presetValue);
+          return;
+        }
+        const reminderAt = computeReminderAt(presetValue, task.dueDate || task.date);
+        updateTaskData(task.id, { reminderAt });
+      }}
+      editReminder={editingId === task.id ? editReminder : undefined}
       isDeleting={removingIds.has(task.id)}
       isScheduling={schedulingId === task.id}
       onOpenDashboard={() => setSelectedTaskId(task.id)}
@@ -616,7 +659,7 @@ const TaskList = ({ title = "To Do List" }) => {
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <input
-                type="date"
+                type="datetime-local"
                 className={`rounded border bg-white/10 px-2 py-1 text-xs ${
                   hasDueStartConflict || hasDueEndConflict
                     ? "border-red-400 text-red-200"
@@ -668,6 +711,20 @@ const TaskList = ({ title = "To Do List" }) => {
                   </div>
                 )}
               </div>
+
+              <select
+                className={`cursor-pointer rounded border border-border-subtle bg-white/5 px-2 py-1 text-xs transition-colors hover:bg-white/10 focus:border-accent-primary focus:outline-none ${
+                  newTaskReminder !== "NONE" ? "text-amber-400" : "text-text-secondary"
+                }`}
+                value={newTaskReminder}
+                onChange={(e) => setNewTaskReminder(e.target.value)}
+                title="Nhắc nhở"
+              >
+                <option value="NONE">Không nhắc</option>
+                <option value="MINUTES_5">Nhắc 5 phút trước</option>
+                <option value="MINUTES_15">Nhắc 15 phút trước</option>
+                <option value="HOUR_1">Nhắc 1 giờ trước</option>
+              </select>
 
               {newTaskDueAt && (
                 <button type="button" className="rounded border border-border-subtle px-2 py-1 text-xs text-text-secondary hover:bg-white/5"
@@ -768,6 +825,49 @@ const TaskList = ({ title = "To Do List" }) => {
               <p className="text-text-tertiary text-sm">No tasks yet</p>
             </div>
           )}
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4 text-xs text-text-tertiary">
+          <div>
+            Trang {page} / {pagination?.totalPages || 1} ·{" "}
+            {pagination?.totalItems || allTasks.length} công việc
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-text-tertiary">Hiển thị</label>
+            <select
+              className="rounded border border-border-subtle bg-white/5 px-2 py-1 text-xs text-text-primary"
+              value={limit}
+              onChange={(event) => setLimit(Number(event.target.value))}
+            >
+              {[10, 20, 50, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              className="rounded border border-border-subtle px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-white/5 disabled:opacity-50"
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              disabled={loading || page <= 1}
+            >
+              Trước
+            </button>
+            <button
+              type="button"
+              className="rounded border border-border-subtle px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-white/5 disabled:opacity-50"
+              onClick={() =>
+                setPage((prev) =>
+                  Math.min(prev + 1, pagination?.totalPages || 1),
+                )
+              }
+              disabled={loading || page >= (pagination?.totalPages || 1)}
+            >
+              Sau
+            </button>
+          </div>
         </div>
       </div>
 

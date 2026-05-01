@@ -74,6 +74,7 @@ Table tasks {
   description String
   status TaskStatus [not null, default: 'PENDING']
   priority TaskPriority [not null, default: 'MEDIUM']
+  type TaskType [not null, default: 'TODO']
   dueDate DateTime
   reminderAt DateTime
   completedAt DateTime
@@ -90,6 +91,7 @@ Table tasks {
   taskTags task_tags [not null]
   activities task_activities [not null]
   notifications notifications [not null]
+  linkedEvents events [not null]
 }
 
 Table events {
@@ -98,14 +100,21 @@ Table events {
   title String [not null]
   date DateTime [not null]
   time String [not null]
+  endDate DateTime
+  endTime String
   color String [not null, default: '#3b82f6']
   location String
   description String
   repeat EventRepeat [not null, default: 'NONE']
   reminder EventReminder [not null, default: 'NONE']
+  startAt DateTime
+  endAt DateTime
+  reminderAt DateTime
+  linkedTaskId String
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [default: `now()`, not null]
   user users [not null]
+  linkedTask tasks
 }
 
 Table tags {
@@ -164,14 +173,18 @@ Table sync_logs {
 Table notifications {
   id String [pk]
   userId String [not null]
+  source NotifSource
+  sourceId String
   taskId String
   type NotifType [not null]
   title String
   content String
+  notifKey String [unique]
   scheduledAt DateTime [not null]
   sentAt DateTime
   status NotifStatus [not null, default: 'PENDING']
   retryCount Int [not null, default: 0]
+  isRead Boolean [not null, default: false]
   createdAt DateTime [default: `now()`, not null]
   user users [not null]
   task tasks
@@ -235,9 +248,25 @@ Enum SyncResource {
   GITHUB_PULL_REQUESTS
 }
 
+Enum TaskType {
+  TODO
+  SCHEDULED
+}
+
+Enum NotifSource {
+  TASK
+  EVENT
+}
+
 Enum NotifType {
   EMAIL_REMINDER
   SYSTEM_ALERT
+  TASK_REMINDER
+  TASK_DUE
+  TASK_START
+  EVENT_START
+  EVENT_END
+  EVENT_REMINDER
 }
 
 Enum NotifStatus {
@@ -273,6 +302,8 @@ Ref: integrations.userId > users.id
 Ref: tasks.userId > users.id
 
 Ref: events.userId > users.id [delete: Cascade]
+
+Ref: events.linkedTaskId > tasks.id [delete: Set Null]
 
 Ref: tags.userId > users.id
 

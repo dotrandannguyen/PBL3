@@ -1,13 +1,16 @@
 import prisma from '../../config/database.js';
-import { TaskStatus } from '@prisma/client';
+import { TaskStatus, TaskSource } from '@prisma/client';
 
 const taskSelect = {
 	id: true,
+	userId: true,
 	title: true,
 	description: true,
+	type: true,
 	status: true,
 	priority: true,
 	dueDate: true,
+	reminderAt: true,
 	scheduledAt: true,
 	sourceType: true,
 	sourceId: true,
@@ -24,36 +27,50 @@ const taskSelect = {
  * Clean architecture: Repository chỉ giao tiếp với database
  */
 export const taskRepository = {
+	buildTasksWhere: (userId, query = {}) => {
+		const where = {
+			userId,
+			deletedAt: null,
+			AND: [
+				{
+					OR: [{ sourceType: TaskSource.MANUAL }, { isConverted: true }],
+				},
+			],
+		};
+
+		if (query.completed !== undefined) {
+			where.AND.push({
+				status:
+					query.completed === true || query.completed === 'true'
+						? TaskStatus.DONE
+						: { in: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS] },
+			});
+		} else {
+			where.AND.push({
+				status: {
+					in: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS, TaskStatus.DONE],
+				},
+			});
+		}
+
+		if (query.search) {
+			where.AND.push({
+				title: {
+					contains: query.search,
+					mode: 'insensitive',
+				},
+			});
+		}
+
+		return where;
+	},
 	/**
 	 * Lấy danh sách tasks với pagination và filter
 	 * @param {String} userId
 	 * @param {Object} query - { completed, search, skip, take }
 	 */
 	findMany: async (userId, query = {}) => {
-		const where = {
-			userId,
-			deletedAt: null,
-		};
-
-		if (query.completed !== undefined) {
-			where.status =
-				query.completed === true || query.completed === 'true'
-					? 'DONE'
-					: { in: ['PENDING', 'IN_PROGRESS'] };
-		} else {
-			where.OR = [
-				{ status: TaskStatus.PENDING },
-				{ status: TaskStatus.IN_PROGRESS },
-				{ status: TaskStatus.DONE },
-			];
-		}
-
-		if (query.search) {
-			where.title = {
-				contains: query.search,
-				mode: 'insensitive',
-			};
-		}
+		const where = taskRepository.buildTasksWhere(userId, query);
 
 		return await prisma.task.findMany({
 			where,
@@ -72,30 +89,7 @@ export const taskRepository = {
 	 * Đếm tổng số tasks (cho pagination metadata)
 	 */
 	countTasks: async (userId, query = {}) => {
-		const where = {
-			userId,
-			deletedAt: null,
-		};
-
-		if (query.completed !== undefined) {
-			where.status =
-				query.completed === true || query.completed === 'true'
-					? 'DONE'
-					: { in: ['PENDING', 'IN_PROGRESS'] };
-		} else {
-			where.OR = [
-				{ status: TaskStatus.PENDING },
-				{ status: TaskStatus.IN_PROGRESS },
-				{ status: TaskStatus.DONE },
-			];
-		}
-
-		if (query.search) {
-			where.title = {
-				contains: query.search,
-				mode: 'insensitive',
-			};
-		}
+		const where = taskRepository.buildTasksWhere(userId, query);
 
 		return await prisma.task.count({ where });
 	},
@@ -126,7 +120,9 @@ export const taskRepository = {
 				description: taskData.description ?? null,
 				status: taskData.status ?? 'PENDING',
 				priority: taskData.priority ?? 'MEDIUM',
+				type: taskData.type ?? 'TODO',
 				dueDate: taskData.dueDate ?? null,
+				reminderAt: taskData.reminderAt ?? null,
 				scheduledAt: taskData.scheduledAt ?? null,
 				sourceMetadata: taskData.sourceMetadata ?? null,
 			},
@@ -331,7 +327,7 @@ export const taskRepository = {
 	 * UPSERT task vào INBOX
 	 * Nếu task với (userId + sourceId) tồn tại → SKIP nếu đã converted, nếu còn INBOX thì update
 	 * Nếu không tồn tại → create mới
-	 * ✅ Tránh overwrite PENDING/DONE tasks khi re-sync
+	 * Tránh overwrite PENDING/DONE tasks khi re-sync
 	 * @param {String} userId - ID của user
 	 * @param {Object} taskData - { title, description, priority, sourceType, sourceId, sourceLink, sourceMetadata }
 	 * @returns {Object} Task object từ database
@@ -348,10 +344,10 @@ export const taskRepository = {
 			});
 
 			if (existing) {
-				// ✅ Nếu task đã được convert (isConverted = true), skip update để giữ status PENDING/DONE
+				// Nếu task đã được convert (isConverted = true), skip update để giữ status PENDING/DONE
 				if (existing.isConverted) {
 					console.log(
-						`⏭️  [UPSERT] Task "${existing.title}" đã được convert, skip re-sync.`,
+						`[UPSERT] Task "${existing.title}" đã được convert, skip re-sync.`,
 					);
 					return existing;
 				}

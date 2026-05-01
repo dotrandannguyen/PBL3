@@ -13,6 +13,7 @@ import { refreshSchema } from './dto/requests/refresh.request.js';
 
 const authRouter = express.Router();
 
+// register và login 
 authRouter.post(
 	'/register',
 	validateRequestMiddleware(registerSchema),
@@ -28,11 +29,13 @@ authRouter.post(
 authRouter.post('/logout',authGuard,authController.logout);
 authRouter.post(
 	'/refresh',
-	refreshLimiter,
+	// refreshLimiter,
 	validateRequestMiddleware(refreshSchema),
 	authController.refresh,
 );
 
+
+// Google login 
 authRouter.get('/google/url', authController.getGoogleUrl);
 
 authRouter.get(
@@ -41,6 +44,8 @@ authRouter.get(
 	authController.googleCallback,
 );
 
+
+// Github login
 authRouter.get('/github/url', authController.getGithubUrl);
 authRouter.get('/github/callback', authController.githubCallback);
 

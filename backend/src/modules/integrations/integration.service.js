@@ -9,11 +9,12 @@ import { githubService } from '../auth/github.service.js';
 import { taskRepository } from '../tasks/task.repository.js';
 import axios from 'axios';
 import prisma from '../../config/database.js';
+import { googleService } from '../auth/google.service.js';
 
 export const integrationService = {
 	getGmailPreview: async (userId) => {
 		// Logic to fetch Gmail preview for the user
-		const integration = await integrationRepository.getIntegrationGmailPreview(
+		const integration = await integrationRepository.getIntegrationByProvider(
 			userId,
 			'GOOGLE',
 		);
@@ -22,32 +23,23 @@ export const integrationService = {
 			throw new NotFoundException('Bạn chưa kết nối với Google.');
 		}
 
-		// Giải mã access token nếu cần thiết và gọi API của Google để lấy preview
-		const accessToken = encryptionUtils.decrypt(integration.accessTokenEncrypted);
-
 		// console.log('Decrypted Access Token:', accessToken);
 
-		// Khởi tạo client Google API
-		// Cấp đủ Client ID, Secret và Refresh Token để googleapis tự động gia hạn Access Token khi hết hạn (sau 1h)
-		const oauth2Client = new google.auth.OAuth2(
-			process.env.GOOGLE_CLIENT_ID,
-			process.env.GOOGLE_CLIENT_SECRET
-		);
-		
-		const credentials = { access_token: accessToken };
-		if (integration.refreshTokenEncrypted) {
-			credentials.refresh_token = encryptionUtils.decrypt(integration.refreshTokenEncrypted);
-		}
-		oauth2Client.setCredentials(credentials);
-		
+		// Khởi tạo client Google API và lấy preview (ví dụ: tên tài khoản, email, avatar)
+		// phải enable Gmail API trong Google Cloud Console và cấp quyền phù hợp
+		const oauth2Client = googleService.getValidGoogleClient(integration);
 		const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
 		try {
+			// Sử dụng cú pháp của Gmail: {} nghĩa là OR (hoặc)
+			// Tìm các thư chưa đọc VÀ có chứa 1 trong các từ khóa này
+			const searchQuery =
+				'is:unread {"task" "công việc" "nhiệm vụ" "báo cáo" "deadline" "bug" "fix"}';
 			const response = await gmail.users.messages.list({
 				userId: 'me',
 				labelIds: ['INBOX'],
 				maxResults: 10,
-				// q: 'task is:unread', // BỎ BỘ LỌC NÀY ĐI vì nếu email không có chữ "task" hoặc đã đọc thì sẽ không ra gì cả
+				q: searchQuery, // Chỉ lấy email chưa đọc để preview
 			});
 
 			const messages = response.data.messages || [];
@@ -77,21 +69,26 @@ export const integrationService = {
 						from: from,
 						date: date,
 						snippet: msgDetail.data.snippet, // Đoạn text xem trước ngắn
+						labelIds: msgDetail.data.labelIds || [],
 						link: `https://mail.google.com/mail/u/0/#inbox/${msg.id}`,
 					};
 				}),
 			);
+			const filteredMessages =
+				await integrationService.filterEmails(detailedMessages);
+
+			if (filteredMessages.length === 0) return [];
 
 			// === BƯỚC MỚI: Lưu tất cả emails vào database và return task IDs ===
 			// Lưu tất cả emails vào INBOX (không filter "task" nữa)
 			const tasksBySourceId = await integrationService.saveTasksToInbox(
 				userId,
-				detailedMessages,
+				filteredMessages,
 				'GMAIL',
 			);
 
-			// ✅ Match emails với saved tasks by sourceId (email.id)
-			const emailsWithTaskIds = detailedMessages.map((email) => {
+			// Match emails với saved tasks by sourceId (email.id)
+			const emailsWithTaskIds = filteredMessages.map((email) => {
 				const savedTask = tasksBySourceId[email.id];
 				return {
 					...email,
@@ -111,7 +108,7 @@ export const integrationService = {
 
 	getGithubPreview: async (userId) => {
 		// Logic to fetch Github preview for the
-		const integration = await integrationRepository.getIntegrationGmailPreview(
+		const integration = await integrationRepository.getIntegrationByProvider(
 			userId,
 			'GITHUB',
 		);
@@ -154,7 +151,7 @@ export const integrationService = {
 				'GITHUB',
 			);
 
-			// ✅ Match issues với saved tasks by sourceId (issue.id)
+			// Match issues với saved tasks by sourceId (issue.id)
 			const issuesWithTaskIds = formattedIssues.map((issue) => {
 				const savedTask = tasksBySourceId[String(issue.id)];
 				return {
@@ -189,35 +186,63 @@ export const integrationService = {
 		const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
 		try {
-			// Lấy lịch sử thay đổi từ historyId (nơi email mới được nhận)
+			// Lấy lịch sử thay đổi từ historyId
 			const historyResponse = await gmail.users.history.list({
 				userId: 'me',
 				startHistoryId: historyId,
-				// Chỉ lấy email chưa đọc (UNREAD label)
+				// Bỏ qua filter, lấy mọi thứ thay đổi
 			});
 
 			const historyRecords = historyResponse.data.history || [];
 			if (historyRecords.length === 0) {
-				console.log('📭 [GMAIL] Không có history mới.');
+				console.log('[GMAIL] Không có history mới.');
 				return [];
 			}
 
-			// Extract messageId từ history records
-			// History có thể chứa ADDED, MODIFIED, DELETED actions
-			const messageIds = [];
+			// Dùng Set để tránh trùng lặp messageId
+			const messageIdSet = new Set();
+
 			historyRecords.forEach((record) => {
+				// Lay tat ca thu moi duoc them vao (khong can nhan ngay luc nay)
 				if (record.messagesAdded) {
 					record.messagesAdded.forEach((item) => {
-						messageIds.push(item.message.id);
+						messageIdSet.add(item.message.id);
+					});
+				}
+
+				// Lay them cac thu vua duoc gan nhan INBOX
+				if (record.labelsAdded) {
+					record.labelsAdded.forEach((item) => {
+						if (item.labelIds && item.labelIds.includes('INBOX')) {
+							messageIdSet.add(item.message.id);
+						}
 					});
 				}
 			});
 
-			console.log(`📬 [GMAIL] Tìm thấy ${messageIds.length} email mới từ history.`);
+			const messageIds = Array.from(messageIdSet);
+			console.log(
+				`[GMAIL] Tim thay ${messageIds.length} email co bien dong trong history.`,
+			);
 			return messageIds;
 		} catch (error) {
-			console.error('❌ Lỗi lấy Gmail history:', error);
-			throw error;
+			// NẾU LỖI LÀ DO HISTORY ID HẾT HẠN (404)
+			if (error.code === 404 || error.response?.status === 404) {
+				console.warn(
+					'[GMAIL] HistoryID đã quá hạn, fallback sang quét 5 thư mới nhất.',
+				);
+				// Lấy 5 thư mới nhất thay vì dùng history
+				const fallbackRes = await gmail.users.messages.list({
+					userId: 'me',
+					maxResults: 5,
+					labelIds: ['INBOX'],
+				});
+				const msgs = fallbackRes.data.messages || [];
+				return msgs.map((m) => m.id);
+			}
+
+			console.error('Lỗi lấy Gmail history:', error.message);
+			return []; // Đừng throw error để tránh treo server
 		}
 	},
 
@@ -237,6 +262,7 @@ export const integrationService = {
 
 			const message = msgResponse.data;
 			const headers = message.payload.headers || [];
+			const labelIds = message.labelIds || [];
 
 			// Extract headers
 			const getHeader = (name) => headers.find((h) => h.name === name)?.value || '';
@@ -297,10 +323,11 @@ export const integrationService = {
 				body: bodyContent,
 				attachments,
 				snippet: message.snippet,
+				labelIds,
 				link: `https://mail.google.com/mail/u/0/#inbox/${messageId}`,
 			};
 		} catch (error) {
-			console.error(`❌ Lỗi lấy chi tiết email ${messageId}:`, error);
+			console.error(`Lỗi lấy chi tiết email ${messageId}:`, error);
 			throw error;
 		}
 	},
@@ -312,26 +339,38 @@ export const integrationService = {
 	 * @returns {Array} Filtered emails
 	 */
 	filterEmails: async (emails, gmail = null) => {
-		console.log(`🔍 [GMAIL] Lọc ${emails.length} email theo điều kiện...`);
+		console.log(`[GMAIL] Lọc ${emails.length} email theo điều kiện...`);
 
 		const filteredEmails = emails.filter((email) => {
-			const searchText = `${email.subject} ${email.body}`.toLowerCase();
-			const hasTaskKeyword = searchText.includes('task');
-
-			if (hasTaskKeyword) {
-				console.log(`✅ [GMAIL] Email "${email.subject}" chứa từ "task"`);
-				return true;
-			} else {
+			if (!email.labelIds || !email.labelIds.includes('INBOX')) {
 				console.log(
-					`⏭️ [GMAIL] Email "${email.subject}" không chứa từ "task" - bỏ qua`,
+					`[GMAIL] Bo qua: "${email.subject}" vi khong nam trong INBOX.`,
 				);
 				return false;
 			}
+
+			const bodyText = email.body || email.snippet || '';
+			const searchText = `${email.subject} ${bodyText}`.toLowerCase();
+
+			// Mở rộng từ khóa (Tiếng Việt & Anh)
+			const keywords = [
+				'task',
+				'công việc',
+				'nhiệm vụ',
+				'báo cáo',
+				'deadline',
+				'bug',
+				'fix',
+			];
+			const hasTaskKeyword = keywords.some((kw) => searchText.includes(kw));
+
+			if (hasTaskKeyword) {
+				console.log(`[GMAIL] Giữ lại email: "${email.subject}"`);
+				return true;
+			}
+			return false;
 		});
 
-		console.log(
-			`✨ [GMAIL] Kết quả: ${filteredEmails.length}/${emails.length} emails đáp ứng điều kiện`,
-		);
 		return filteredEmails;
 	},
 
@@ -344,7 +383,7 @@ export const integrationService = {
 	 */
 	getGithubRepositories: async (userId) => {
 		// Lấy integration GitHub của user
-		const integration = await integrationRepository.getIntegrationGmailPreview(
+		const integration = await integrationRepository.getIntegrationByProvider(
 			userId,
 			'GITHUB',
 		);
@@ -359,7 +398,22 @@ export const integrationService = {
 		try {
 			// Gọi githubService để lấy danh sách repositories
 			const repositories = await githubService.getUserRepositories(accessToken);
-			return repositories;
+
+			const webhookData = integration.webhookData || {};
+			const githubData = webhookData.github || {};
+			const hooksByRepoId = githubData.hooks || {};
+			const hooksByRepoName = githubData.hookIds || {};
+
+			return repositories.map((repo) => {
+				const repoKey = String(repo.id);
+				const hookEntry =
+					hooksByRepoId[repoKey] || hooksByRepoName[repo.name] || null;
+				return {
+					...repo,
+					webhookEnabled: Boolean(hookEntry?.hookId),
+					webhookId: hookEntry?.hookId || null,
+				};
+			});
 		} catch (error) {
 			console.error('❌ [GITHUB] Lỗi lấy danh sách repositories:', error.message);
 			throw new UnauthorizedException(
@@ -376,7 +430,7 @@ export const integrationService = {
 	 */
 	setupGithubWebhooks: async (userId, repositoryIds) => {
 		// Lấy integration GitHub của user
-		const integration = await integrationRepository.getIntegrationGmailPreview(
+		const integration = await integrationRepository.getIntegrationByProvider(
 			userId,
 			'GITHUB',
 		);
@@ -392,9 +446,12 @@ export const integrationService = {
 			// Lấy danh sách repositories của user
 			const allRepositories = await githubService.getUserRepositories(accessToken);
 
+			const repositoryIdSet = new Set(
+				repositoryIds.map((repoId) => String(repoId)),
+			);
 			// Filter chỉ lấy các repo theo repositoryIds
 			const selectedRepositories = allRepositories.filter((repo) =>
-				repositoryIds.includes(repo.id),
+				repositoryIdSet.has(String(repo.id)),
 			);
 
 			if (selectedRepositories.length === 0) {
@@ -416,16 +473,31 @@ export const integrationService = {
 				if (!currentWebhookData.github) {
 					currentWebhookData.github = {};
 				}
+				if (!currentWebhookData.github.hooks) {
+					currentWebhookData.github.hooks = {};
+				}
 				if (!currentWebhookData.github.hookIds) {
 					currentWebhookData.github.hookIds = {};
 				}
 
 				// Thêm thông tin webhook mới vào
 				setupResult.success.forEach((item) => {
-					currentWebhookData.github.hookIds[item.repo] = {
+					const repoKey = String(item.repoId);
+					currentWebhookData.github.hooks[repoKey] = {
 						hookId: item.webhookId,
-						createdAt: new Date().toISOString(),
+						repoId: item.repoId,
+						owner: item.owner,
+						name: item.name,
+						fullName: item.fullName,
+						enabledAt: new Date().toISOString(),
 					};
+
+					if (item.name) {
+						currentWebhookData.github.hookIds[item.name] = {
+							hookId: item.webhookId,
+							createdAt: new Date().toISOString(),
+						};
+					}
 				});
 
 				// Cập nhật Integration với webhook data mới
@@ -442,7 +514,7 @@ export const integrationService = {
 				});
 
 				console.log(
-					`✅ [GITHUB] Đã lưu webhook data cho ${setupResult.success.length} repositories`,
+					`[GITHUB] Đã lưu webhook data cho ${setupResult.success.length} repositories`,
 				);
 			}
 
@@ -451,6 +523,91 @@ export const integrationService = {
 			console.error('❌ [GITHUB] Lỗi setup webhooks:', error.message);
 			throw error;
 		}
+	},
+
+	/**
+	 * Tắt webhook cho một repository
+	 * @param {string} userId - User ID
+	 * @param {string|number} repositoryId - Repo ID
+	 * @returns {Object} Disable result
+	 */
+	disableGithubWebhook: async (userId, repositoryId) => {
+		const integration = await integrationRepository.getIntegrationByProvider(
+			userId,
+			'GITHUB',
+		);
+
+		if (!integration) {
+			throw new NotFoundException('Bạn chưa kết nối với GitHub.');
+		}
+
+		const accessToken = encryptionUtils.decrypt(integration.accessTokenEncrypted);
+		const repoKey = String(repositoryId);
+
+		const webhookData = integration.webhookData || {};
+		const githubData = webhookData.github || {};
+		const hooksByRepoId = githubData.hooks || {};
+		let hookEntry = hooksByRepoId[repoKey] || null;
+
+		if (!hookEntry || !hookEntry.hookId || !hookEntry.owner || !hookEntry.name) {
+			const allRepositories = await githubService.getUserRepositories(accessToken);
+			const targetRepo = allRepositories.find(
+				(repo) => String(repo.id) === repoKey,
+			);
+
+			if (targetRepo) {
+				const fallbackHook = githubData.hookIds?.[targetRepo.name] || null;
+				if (fallbackHook?.hookId) {
+					hookEntry = {
+						hookId: fallbackHook.hookId,
+						owner: targetRepo.owner,
+						name: targetRepo.name,
+						fullName: targetRepo.fullName,
+					};
+				}
+			}
+		}
+
+		if (!hookEntry?.hookId) {
+			throw new NotFoundException('Webhook chưa được bật cho repository này.');
+		}
+
+		await githubService.deleteWebhookForRepo(
+			accessToken,
+			hookEntry.owner,
+			hookEntry.name,
+			hookEntry.hookId,
+		);
+
+		if (hooksByRepoId[repoKey]) {
+			delete hooksByRepoId[repoKey];
+		}
+		if (hookEntry.name && githubData.hookIds?.[hookEntry.name]) {
+			delete githubData.hookIds[hookEntry.name];
+		}
+
+		await prisma.integration.update({
+			where: {
+				userId_provider: {
+					userId,
+					provider: 'GITHUB',
+				},
+			},
+			data: {
+				webhookData: {
+					...webhookData,
+					github: {
+						...githubData,
+						hooks: hooksByRepoId,
+					},
+				},
+			},
+		});
+
+		return {
+			repositoryId: repoKey,
+			disabled: true,
+		};
 	},
 
 	/**

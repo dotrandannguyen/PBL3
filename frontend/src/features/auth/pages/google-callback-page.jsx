@@ -14,18 +14,17 @@ export function GoogleCallbackPage() {
     handled.current = true;
 
     const accessToken = searchParams.get("accessToken");
-    const refreshToken = searchParams.get("refreshToken");
     const userRaw = searchParams.get("user");
     const error = searchParams.get("error");
 
-    if (error || !accessToken || !refreshToken || !userRaw) {
+    if (error || !accessToken || !userRaw) {
       navigate("/auth/login?error=oauth_failed", { replace: true });
       return;
     }
 
     try {
       const user = JSON.parse(userRaw);
-      loginWithOAuth({ accessToken, refreshToken, user });
+      loginWithOAuth({ accessToken, user });
     } catch {
       navigate("/auth/login?error=oauth_failed", { replace: true });
     }

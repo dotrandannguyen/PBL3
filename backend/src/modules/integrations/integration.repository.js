@@ -1,7 +1,8 @@
 import prisma from '../../config/database.js';
 
 export const integrationRepository = {
-	getIntegrationGmailPreview: async (userId, provider) => {
+	//FIX BUG-05: Đổi tên hàm cho chuẩn xác (không bị giới hạn tên theo Gmail)
+	getIntegrationByProvider: async (userId, provider) => {
 		return await prisma.integration.findUnique({
 			where: {
 				userId_provider: {

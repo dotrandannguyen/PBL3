@@ -1,11 +1,61 @@
-import prisma from '../../config/database.js';
 import { taskRepository } from './task.repository.js';
 import { NotFoundException, OptionalException } from '../../common/exceptions/index.js';
 import { StatusCodes } from 'http-status-codes';
 import { eventRepository } from '../events/event.repository.js';
+import {
+	scheduleForTask,
+	cancelAllForTarget,
+	rescheduleTask,
+	scheduleTaskV2,
+	rescheduleTaskV2,
+	cancelTaskJobsV2,
+} from '../notifications/notification.schedule.js';
 
 const DEFAULT_TASK_EVENT_COLOR = '#2383e2';
 const CALENDAR_METADATA_KEY = 'calendar';
+
+const parseDateValue = (value) => {
+	if (!value) {
+		return null;
+	}
+
+	const parsed = new Date(value);
+	if (Number.isNaN(parsed.getTime())) {
+		return null;
+	}
+
+	return parsed;
+};
+
+const isSameInstant = (a, b) => {
+	const dateA = parseDateValue(a);
+	const dateB = parseDateValue(b);
+
+	if (!dateA && !dateB) {
+		return true;
+	}
+
+	if (!dateA || !dateB) {
+		return false;
+	}
+
+	return dateA.getTime() === dateB.getTime();
+};
+
+const hasScheduleSource = (task) =>
+	Boolean(task?.dueDate || task?.scheduledAt || task?.reminderAt);
+
+/**
+ * Resolve TaskType từ task data
+ * - Có scheduledAt (startAt) -> SCHEDULED
+ * - Không có -> TODO
+ */
+const resolveTaskType = (task) => (task?.scheduledAt ? 'SCHEDULED' : 'TODO');
+
+const hasSchedulingChange = (beforeTask, afterTask) =>
+	!isSameInstant(beforeTask?.dueDate, afterTask?.dueDate) ||
+	!isSameInstant(beforeTask?.scheduledAt, afterTask?.scheduledAt) ||
+	!isSameInstant(beforeTask?.reminderAt, afterTask?.reminderAt);
 
 /**
  * Task Service - Business Logic Layer
@@ -72,13 +122,23 @@ export const taskService = {
 	 * @param {Object} data - { title, description?, priority?, dueDate?, startAt? }
 	 */
 	createTask: async (userId, data) => {
+		const dueDate = parseDateValue(data.dueDate);
+		const scheduledAt = parseDateValue(data.startAt);
+		const reminderAt = parseDateValue(data.reminderAt);
+
+		if (reminderAt && reminderAt.getTime() <= Date.now()) {
+			throw new OptionalException('Thời gian nhắc nhở phải ở tương lai.');
+		}
+
 		const taskData = {
 			title: data.title,
 			description: data.description ?? null,
 			priority: data.priority ?? 'MEDIUM',
-			dueDate: data.dueDate ? new Date(data.dueDate) : null,
-			scheduledAt: data.startAt ? new Date(data.startAt) : null,
+			dueDate,
+			reminderAt,
+			scheduledAt,
 			status: 'PENDING',
+			type: scheduledAt ? 'SCHEDULED' : 'TODO',
 		};
 
 		const task = await taskRepository.create(userId, taskData);
@@ -100,15 +160,20 @@ export const taskService = {
 
 		const createdTask = await taskRepository.findById(userId, task.id);
 
+		if (hasScheduleSource(createdTask)) {
+			// v2: schedule theo type
+			await scheduleTaskV2(createdTask);
+		}
+
 		return mapTask(createdTask);
 	},
 
 	/**
-	 * Cập nhật task (title, description, priority, dueDate, status)
+	 * Cập nhật task (title, description, priority, dueDate, startAt, status, type)
 	 *
 	 * @param {String} userId
 	 * @param {String} taskId
-	 * @param {Object} data - { title?, description?, priority?, dueDate?, status? }
+	 * @param {Object} data - v2: { title?, description?, priority?, dueDate?, startAt?, reminderAt?, status?, type? }
 	 */
 	updateTask: async (userId, taskId, data) => {
 		const existingTask = await taskRepository.findById(userId, taskId);
@@ -130,6 +195,17 @@ export const taskService = {
 		if (data.dueDate !== undefined) {
 			updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
 		}
+		// v2: startAt là alias của scheduledAt
+		if (data.startAt !== undefined) {
+			updateData.scheduledAt = data.startAt ? new Date(data.startAt) : null;
+		}
+		if (data.reminderAt !== undefined) {
+			const nextReminderAt = parseDateValue(data.reminderAt);
+			if (nextReminderAt && nextReminderAt.getTime() <= Date.now()) {
+				throw new OptionalException('Thời gian nhắc nhở phải ở tương lai.');
+			}
+			updateData.reminderAt = nextReminderAt;
+		}
 
 		if (data.status !== undefined) {
 			updateData.status = data.status;
@@ -143,18 +219,56 @@ export const taskService = {
 			}
 		}
 
+		// v2: type — FE có thể gửi tường minh, hoặc auto-resolve từ scheduledAt
+		if (data.type !== undefined) {
+			updateData.type = data.type;
+		} else if (updateData.scheduledAt !== undefined) {
+			// Auto-resolve type từ scheduledAt nếu FE không gửi type
+			updateData.type = updateData.scheduledAt ? 'SCHEDULED' : 'TODO';
+		}
+
 		await taskRepository.update(userId, taskId, updateData);
 		const updatedTask = await taskRepository.findById(userId, taskId);
 
-		if (
-			updatedTask?.scheduledAt &&
-			(data.title !== undefined || data.description !== undefined)
-		) {
+		// Sync linked Calendar Event nếu task đã có scheduledAt
+		// (title/description thay đổi hoặc startAt/dueDate thay đổi)
+		const scheduleTimingChanged =
+			data.startAt !== undefined || data.dueDate !== undefined;
+		const metadataChanged =
+			data.title !== undefined || data.description !== undefined;
+
+		if (updatedTask?.scheduledAt && (scheduleTimingChanged || metadataChanged)) {
 			await upsertScheduledTaskEvent(
 				userId,
 				updatedTask,
 				new Date(updatedTask.scheduledAt),
 			);
+		}
+
+		const becameDone =
+			existingTask.status !== 'DONE' && updatedTask.status === 'DONE';
+		const reopened = existingTask.status === 'DONE' && updatedTask.status !== 'DONE';
+		const scheduleChanged = hasSchedulingChange(existingTask, updatedTask);
+
+		if (becameDone) {
+			console.log(
+				`[TaskService] Cancelling jobs for task ${updatedTask.id} (status=DONE)`,
+			);
+			await cancelTaskJobsV2(updatedTask.id);
+			await cancelAllForTarget('TASK', updatedTask.id); // legacy
+		} else if (
+			(scheduleChanged || reopened) &&
+			hasScheduleSource(updatedTask) &&
+			updatedTask.status !== 'DONE'
+		) {
+			console.log(`[TaskService] Rescheduling task ${updatedTask.id}`);
+			await rescheduleTaskV2(updatedTask);
+		} else if (scheduleChanged && !hasScheduleSource(updatedTask)) {
+			console.log(
+				`[TaskService] Cancelling jobs for task ${updatedTask.id} (no schedule)`,
+			);
+			await cancelTaskJobsV2(updatedTask.id);
+			await cancelAllForTarget('TASK', updatedTask.id); // legacy
 		}
 
 		return mapTask(updatedTask);
@@ -169,6 +283,11 @@ export const taskService = {
 			throw new NotFoundException('Task không tồn tại.');
 		}
 		const nextScheduledAt = startAt ? new Date(startAt) : null;
+
+		if (isSameInstant(existingTask.scheduledAt, nextScheduledAt)) {
+			return mapTask(existingTask);
+		}
+
 		const currentCalendarEventId = getCalendarEventId(existingTask.sourceMetadata);
 
 		if (nextScheduledAt) {
@@ -198,6 +317,13 @@ export const taskService = {
 		}
 
 		const updatedTask = await taskRepository.findById(userId, taskId);
+		// Reschedule v2
+		if (updatedTask.status !== 'DONE' && hasScheduleSource(updatedTask)) {
+			await rescheduleTaskV2(updatedTask);
+		} else {
+			await cancelTaskJobsV2(updatedTask.id);
+			await cancelAllForTarget('TASK', updatedTask.id); // legacy
+		}
 		return mapTask(updatedTask);
 	},
 
@@ -216,6 +342,10 @@ export const taskService = {
 		if (calendarEventId) {
 			await eventRepository.delete(userId, calendarEventId);
 		}
+
+		// Hủy tất cả notification jobs liên quan tới task này
+		await cancelTaskJobsV2(taskId);
+		await cancelAllForTarget('TASK', taskId); // legacy
 
 		const isExternalTask =
 			task.sourceType === 'GMAIL' || task.sourceType === 'GITHUB';
@@ -297,7 +427,7 @@ export const taskService = {
 
 	/**
 	 * Lấy danh sách INBOX tasks (chờ duyệt từ Webhook/Fetch API)
-	 * ✅ QUAN TRỌNG: Fetch TẤT CẢ tasks từ sourceType GMAIL/GITHUB (không filter status)
+	 * QUAN TRỌNG: Fetch TẤT CẢ tasks từ sourceType GMAIL/GITHUB (không filter status)
 	 * Để frontend có thể lookup và merge isConverted flag cho tất cả tasks (kể cả PENDING/DONE)
 	 *
 	 * @param {String} userId - ID của user
@@ -306,50 +436,17 @@ export const taskService = {
 	 */
 	getInboxTasks: async (userId, query) => {
 		// Parse pagination params
-		const page = parseInt(query.page) || 1;
-		const limit = parseInt(query.limit) || 100; // Tăng limit để lấy đủ tasks
+		//FIX BUG-04: Thêm tham số radix 10 để parseInt luôn hoạt động đúng
+		const page = parseInt(query.page, 10) || 1;
+		const limit = parseInt(query.limit, 10) || 20;
 		const skip = (page - 1) * limit;
 
-		// ✅ Fetch TẤT CẢ tasks từ sourceType GMAIL/GITHUB (bất kể status)
-		// Không dùng findInbox() vì nó chỉ lấy status=INBOX
-		const tasks = await prisma.task.findMany({
-			where: {
-				userId,
-				sourceType: {
-					in: ['GMAIL', 'GITHUB'],
-				},
-				deletedAt: null,
-			},
-			skip,
-			take: limit,
-			orderBy: [{ createdAt: 'desc' }],
-			select: {
-				id: true,
-				title: true,
-				description: true,
-				status: true,
-				priority: true,
-				sourceType: true,
-				sourceId: true,
-				sourceLink: true,
-				sourceMetadata: true,
-				isConverted: true,
-				dueDate: true,
-				completedAt: true,
-				createdAt: true,
-				updatedAt: true,
-			},
-		});
-
-		const totalItems = await prisma.task.count({
-			where: {
-				userId,
-				sourceType: {
-					in: ['GMAIL', 'GITHUB'],
-				},
-				deletedAt: null,
-			},
-		});
+		// Fetch TẤT CẢ tasks từ sourceType GMAIL/GITHUB (bất kể status)
+		// FIX BUG-15: Dùng repository methods thay vì duplicate prisma query trực tiếp
+		const [tasks, totalItems] = await Promise.all([
+			taskRepository.findInbox(userId, { skip, limit }),
+			taskRepository.countInbox(userId),
+		]);
 
 		// Map database format → API format
 		const mappedTasks = tasks.map((task) => mapTask(task));
@@ -371,7 +468,7 @@ export const taskService = {
 	/**
 	 * Xác nhận INBOX task - chuyển từ INBOX → PENDING
 	 * Người dùng bấm "Thêm vào công việc" ở Inbox sẽ gọi endpoint này
-	 * ✅ Set is_converted = true để tránh sync lại tạo duplicate
+	 * Set is_converted = true để tránh sync lại tạo duplicate
 	 *
 	 * @param {String} userId
 	 * @param {String} taskId
@@ -399,6 +496,12 @@ export const taskService = {
 
 		// Fetch lại task đã update
 		const updatedTask = await taskRepository.findById(userId, taskId);
+
+		// Schedule notification jobs khi confirm INBOX task
+		if (hasScheduleSource(updatedTask)) {
+			await scheduleTaskV2(updatedTask);
+		}
+
 		return mapTask(updatedTask);
 	},
 };
@@ -436,6 +539,11 @@ function buildTaskEventPayload(task, scheduledAt) {
 		description: task.description ?? null,
 		repeat: 'NONE',
 		reminder: 'NONE',
+		// v2: timestamp fields + link back to task
+		startAt: scheduledAt,
+		endAt: task.dueDate ? new Date(task.dueDate) : null,
+		reminderAt: task.reminderAt ? new Date(task.reminderAt) : null,
+		linkedTaskId: task.id, // Rule D: event dẫn xuất từ task
 	};
 }
 
@@ -513,11 +621,13 @@ function mapTask(task) {
 	return {
 		id: task.id,
 		title: task.title,
+		type: task.type || 'TODO',
 		status: task.status,
 		description: task.description,
 		completed: task.status === 'DONE',
 		priority: task.priority,
 		dueDate: task.dueDate,
+		reminderAt: task.reminderAt,
 		scheduledAt: task.scheduledAt,
 		completedAt: task.completedAt,
 		sourceType: task.sourceType,

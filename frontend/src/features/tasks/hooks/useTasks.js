@@ -43,6 +43,7 @@ export function useTasks() {
     loading: context.loading,
     error: context.error,
     activeFilter: context.activeFilter,
+    pagination: context.pagination,
 
     // Methods
     fetchTasks: context.fetchTasks,

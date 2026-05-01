@@ -8,6 +8,7 @@ import {
   PointerSensor,
   pointerWithin,
 } from "@dnd-kit/core";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import CalendarHeader from "../components/CalendarHeader";
 import CalendarGrid from "../components/CalendarGrid";
@@ -17,6 +18,7 @@ import EventModal from "../components/EventModal";
 import { CalendarEventUI } from "../components/CalendarEvent";
 import {
   getEvents,
+  getEvent,
   createEvent,
   updateEvent,
   deleteEvent,
@@ -53,27 +55,53 @@ const toHHMM = (isoValue) => {
   return `${hours}:${minutes}`;
 };
 
-const mapApiEventToUiEvent = (event) => ({
-  ...event,
-  id: String(event.id),
-  reminder: normalizeReminder(event.reminder),
-  endAt: event.endAt || null,
-  endDate:
-    event.endDate || (event.endAt ? event.endAt.slice(0, 10) : event.date),
-  endTime: event.endTime || toHHMM(event.endAt),
-});
+const toIsoIfValid = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null;
+  }
+
+  return parsedDate.toISOString();
+};
+
+const mapApiEventToUiEvent = (event) => {
+  const normalizedEndAt = event.endAt || event.eventEndAt || null;
+
+  return {
+    ...event,
+    id: String(event.id),
+    reminder: normalizeReminder(event.reminder),
+    endAt: normalizedEndAt,
+    endDate:
+      event.endDate ||
+      (normalizedEndAt ? normalizedEndAt.slice(0, 10) : event.date),
+    endTime: event.endTime || toHHMM(normalizedEndAt),
+  };
+};
 
 const toApiPayload = (eventData) => {
   const isAllDay = Boolean(eventData.isAllDay);
+  const normalizedDate = eventData.date;
+  const normalizedTime = isAllDay ? "00:00" : eventData.time || "09:00";
   const endTime = isAllDay ? null : eventData.endTime || null;
   const endDate = isAllDay
     ? null
-    : eventData.endDate || (endTime ? eventData.date : null);
+    : eventData.endDate || (endTime ? normalizedDate : null);
+  const resolvedEndDate = endDate || normalizedDate;
+  const resolvedStartAt =
+    eventData.startAt || `${normalizedDate}T${normalizedTime}:00`;
+  const resolvedEndAt =
+    eventData.endAt ||
+    (!isAllDay && endTime ? `${resolvedEndDate}T${endTime}:00` : null);
 
   return {
     title: eventData.title?.trim() || "",
-    date: eventData.date,
-    time: isAllDay ? "00:00" : eventData.time || "09:00",
+    date: normalizedDate,
+    time: normalizedTime,
     endDate,
     endTime,
     color: eventData.color || DEFAULT_EVENT_COLOR,
@@ -81,6 +109,9 @@ const toApiPayload = (eventData) => {
     description: eventData.description?.trim() || null,
     repeat: "NONE",
     reminder: normalizeReminder(eventData.reminder),
+    startAt: toIsoIfValid(resolvedStartAt),
+    endAt: toIsoIfValid(resolvedEndAt),
+    reminderAt: toIsoIfValid(eventData.reminderAt),
   };
 };
 
@@ -118,6 +149,7 @@ const resolveCalendarError = (error, fallbackMessage) => {
  * Layout (Sidebar + outer container) được xử lý bởi DashboardLayout.
  */
 export function CalendarPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [events, setEvents] = useState([]);
@@ -128,14 +160,18 @@ export function CalendarPage() {
   const [viewMode, setViewMode] = useState("month");
   const [dropPreview, setDropPreview] = useState(null);
   const [draggedRect, setDraggedRect] = useState(null);
+  const pendingEventId = searchParams.get("eventId");
   // shape: { dateKey, mins, top, dayIdx, durationMins }
   const dragJustEndedRef = useRef(false);
-  // Real pointer position tracked via window listener — more accurate than
-  // dragged-element rect for translating drop position to time.
   const dragPointerRef = useRef({ x: 0, y: 0 });
   const dragOffsetRef = useRef({ x: 0, y: 0 });
-  // Cache of which event we're dragging so we can build a drop preview
   const draggingEventRef = useRef(null);
+
+  const clearEventIdQuery = useCallback(() => {
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete("eventId");
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const loadEvents = useCallback(async () => {
     try {
@@ -161,6 +197,86 @@ export function CalendarPage() {
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
   }, [loadEvents]);
+
+  useEffect(() => {
+    if (!pendingEventId) {
+      return;
+    }
+
+    const normalizedEventId = String(pendingEventId);
+    const eventInList = events.find(
+      (eventItem) => String(eventItem.id) === normalizedEventId,
+    );
+
+    if (eventInList) {
+      if (eventInList.date) {
+        setSelectedDate(new Date(`${eventInList.date}T00:00:00`));
+      }
+      setEditingEvent(eventInList);
+      setPrefillRange(null);
+      setShowModal(true);
+      clearEventIdQuery();
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadEventById = async () => {
+      try {
+        const response = await getEvent(normalizedEventId);
+        const foundEvent = extractEvent(response);
+
+        if (!foundEvent || cancelled) {
+          return;
+        }
+
+        const normalizedEvent = mapApiEventToUiEvent(foundEvent);
+
+        if (normalizedEvent.date) {
+          setSelectedDate(new Date(`${normalizedEvent.date}T00:00:00`));
+        }
+
+        setEvents((previousEvents) => {
+          const exists = previousEvents.some(
+            (eventItem) => eventItem.id === normalizedEvent.id,
+          );
+
+          if (exists) {
+            return previousEvents.map((eventItem) =>
+              eventItem.id === normalizedEvent.id
+                ? { ...eventItem, ...normalizedEvent }
+                : eventItem,
+            );
+          }
+
+          return [...previousEvents, normalizedEvent];
+        });
+
+        setEditingEvent(normalizedEvent);
+        setPrefillRange(null);
+        setShowModal(true);
+      } catch (error) {
+        if (!cancelled) {
+          const message = resolveCalendarError(
+            error,
+            "Không thể mở sự kiện cần chỉnh sửa.",
+          );
+          toast.error(message);
+          console.error("Open event from URL error:", error);
+        }
+      } finally {
+        if (!cancelled) {
+          clearEventIdQuery();
+        }
+      }
+    };
+
+    loadEventById();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clearEventIdQuery, events, pendingEventId]);
 
   const handlePrev = () => {
     if (viewMode === "month") {

@@ -5,6 +5,7 @@ import { integrationService } from './integration.service.js';
 import { integrationRepository } from './integration.repository.js';
 import { encryptionUtils } from '../../common/utils/encryption.js';
 import { taskRepository } from '../tasks/task.repository.js';
+import { googleService } from '../auth/google.service.js';
 
 export const webhookController = {
 	handleGithub: async (req, res) => {
@@ -21,13 +22,25 @@ export const webhookController = {
 				console.error('🚨 [WEBHOOK] Thiếu chữ ký hoặc Secret Key.');
 				return;
 			}
+			// fix lỗi crash khi GitHub gửi payload rỗng (ping test) hoặc không có body
+			if (!req.rawBody) {
+				console.error('[WEBHOOK] Thiếu rawBody (payload trống). Bỏ qua request.');
+				return;
+			}
 
 			const hmac = crypto.createHmac('sha256', secret);
 			// Hàm băm dùng dữ liệu gốc (rawBody) đã được cấu hình trong app.js
 			const digest = 'sha256=' + hmac.update(req.rawBody).digest('hex');
 
-			if (signature !== digest) {
-				console.error('🚨 [WEBHOOK] Chữ ký không hợp lệ! Bỏ qua request.');
+			//fix timming attack dùng crypto.timingSafeEqual
+			// Lưu ý: timingSafeEqual yêu cầu 2 biến phải là dạng Buffer và có cùng độ dài.
+			const signatureBuffer = Buffer.from(signature);
+			const digestBuffer = Buffer.from(digest);
+			if (
+				signatureBuffer.length !== digestBuffer.length ||
+				!crypto.timingSafeEqual(signatureBuffer, digestBuffer)
+			) {
+				console.error('[WEBHOOK] Chữ ký không hợp lệ! Bỏ qua request.');
 				return;
 			}
 
@@ -41,28 +54,48 @@ export const webhookController = {
 				(payload.action === 'opened' || payload.action === 'assigned')
 			) {
 				const issue = payload.issue;
-				// Người liên quan: ưu tiên người được giao, nếu chưa có ai thì tính người tạo
-				const targetUser = payload.assignee || issue.user;
+				// 3. Xác định đối tượng cần nhận thông báo
+				// - Event "assigned": dùng payload.assignee (người vừa được giao)
+				// - Event "opened": dùng issue.assignees nếu có, không thì issue.user (người tạo)
+				let targetUsers = [];
+				if (payload.action === 'assigned' && payload.assignee) {
+					targetUsers = [payload.assignee];
+				} else if (
+					payload.action === 'opened' &&
+					issue.assignees &&
+					issue.assignees.length > 0
+				) {
+					targetUsers = issue.assignees;
+				} else {
+					// Fallback: Thông báo cho chính người tạo issue
+					targetUsers = [issue.user];
+				}
 
-				if (!targetUser) return;
+				for (const targetUser of targetUsers) {
+					if (!targetUser) continue;
 
-				// 4. Tìm xem GitHub ID này thuộc về User nào trong Database của bạn
-				const integration = await prisma.integration.findFirst({
-					where: {
-						provider: 'GITHUB',
-						providerUserId: String(targetUser.id), // Tìm người được gán trong hệ thống
-					},
-				});
+					// 4. Tìm xem GitHub ID này thuộc về User nào trong Database của bạn
+					const integration = await prisma.integration.findFirst({
+						where: {
+							provider: 'GITHUB',
+							providerUserId: String(targetUser.id),
+						},
+					});
 
-				if (integration) {
+					if (!integration) {
+						console.log(
+							`[WEBHOOK] Bỏ qua: User GitHub ID ${targetUser.id} chưa liên kết với tài khoản nào trên App.`,
+						);
+						continue;
+					}
+
 					console.log('====================================');
-					console.log('🎉 [WEBHOOK] GITHUB VỪA BẮN DATA VỀ!');
-					console.log('📌 Tiêu đề:', issue.title);
-					console.log('👤 Người xử lý:', targetUser.login);
+					console.log('[WEBHOOK] GITHUB VỪA BẮN DATA VỀ!');
+					console.log('Tiêu đề:', issue.title);
+					console.log('Người xử lý:', targetUser.login);
 					console.log('====================================');
 
 					// 5. Lưu thẳng vào bảng Tasks (INBOX - chờ duyệt)
-					// ✅ Dùng upsert để tránh duplicate khi re-sync
 					const taskData = {
 						title: `[GitHub] ${issue.title}`,
 						description: issue.body || 'Không có mô tả chi tiết.',
@@ -77,9 +110,9 @@ export const webhookController = {
 						taskData,
 					);
 
-					console.log('✅ [WEBHOOK] Đồng bộ thành Task mới thành công!');
+					console.log('[WEBHOOK] Đồng bộ thành Task mới thành công!');
 
-					// ✅ 6. EMIT SOCKET.IO EVENT CHO USER
+					// 6. EMIT SOCKET.IO EVENT CHO USER
 					try {
 						const io = req.app.get('socketio');
 						if (io) {
@@ -88,99 +121,88 @@ export const webhookController = {
 								task: newTask,
 							});
 							console.log(
-								`📡 [SOCKET.IO] Đã gửi sự kiện tới user ${integration.userId}`,
+								`[SOCKET.IO] Đã gửi sự kiện tới user ${integration.userId}`,
 							);
 						}
 					} catch (socketError) {
-						console.error(
-							'⚠️ [SOCKET.IO] Lỗi khi emit event:',
-							socketError.message,
-						);
+						console.error('[SOCKET.IO] Lỗi khi emit event:', socketError.message);
 					}
-				} else {
-					console.log(
-						`⚠️ [WEBHOOK] Bỏ qua: User GitHub ID ${targetUser.id} chưa liên kết với tài khoản nào trên App.`,
-					);
 				}
 			}
 		} catch (error) {
-			console.error('❌ Lỗi xử lý Webhook GitHub:', error);
+			console.error('Lỗi xử lý Webhook GitHub:', error);
 		}
 	},
 	handleGmail: async (req, res) => {
-		// 1. Phản hồi 200 OK ngay lập tức cho Google Cloud Pub/Sub
-		// Google cực kỳ khắt khe, nếu không trả về 200 nhanh, nó sẽ gửi lại liên tục.
+		// 1. Phản hồi 200 OK ngay lập tức để Google không spam gửi lại
 		res.status(200).send('OK');
 
 		try {
-			// 2. Lấy data từ Pub/Sub
 			const message = req.body.message;
 			if (!message || !message.data) return;
 
-			// 3. Dữ liệu Google gửi bị mã hóa Base64, ta phải giải mã nó ra
 			const decodedData = Buffer.from(message.data, 'base64').toString('utf-8');
 			const payload = JSON.parse(decodedData);
-
 			const emailAddress = payload.emailAddress;
-			const historyId = payload.historyId;
 
 			console.log('====================================');
-			console.log('📬 [GMAIL WEBHOOK] TÀI KHOẢN VỪA CÓ SỰ THAY ĐỔI!');
-			console.log('📧 Email:', emailAddress);
-			console.log('🔢 History ID:', historyId);
+			console.log('[GMAIL WEBHOOK] CÓ SỰ THAY ĐỔI TỪ:', emailAddress);
 			console.log('====================================');
 
-			// 4. Tìm user có email này trong DB
 			const integration = await integrationRepository.findIntegrationByEmailAddress(
 				emailAddress,
 				'GOOGLE',
 			);
 
-			if (!integration) {
+			if (!integration) return;
+
+			// Khởi tạo Google Client
+			const oauth2Client = googleService.getValidGoogleClient(integration);
+			const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+			// BƯỚC ĐỘT PHÁ: Bỏ qua History lằng nhằng, Query trực tiếp 5 thư mới nhất!
+			const searchQuery =
+				'is:unread {"task" "công việc" "nhiệm vụ" "báo cáo" "deadline" "bug" "fix"}';
+
+			const listResponse = await gmail.users.messages.list({
+				userId: 'me',
+				labelIds: ['INBOX'],
+				maxResults: 5,
+				q: searchQuery,
+			});
+
+			const messages = listResponse.data.messages || [];
+			if (messages.length === 0) {
 				console.log(
-					`⚠️ [WEBHOOK] Email ${emailAddress} chưa liên kết với tài khoản nào trên App.`,
+					'[GMAIL] Webhook báo thay đổi, nhưng không có thư Task nào chưa đọc.',
 				);
 				return;
 			}
 
-			// 5. Lấy Access Token và decrypt
-			const accessToken = encryptionUtils.decrypt(integration.accessTokenEncrypted);
-
-			// 6. Khởi tạo OAuth2 client với access token
-			const oauth2Client = new google.auth.OAuth2();
-			oauth2Client.setCredentials({ access_token: accessToken });
-
-			// 7. Lấy danh sách message IDs từ history
-			const messageIds = await integrationService.fetchEmailDetailsFromHistory(
-				oauth2Client,
-				historyId,
-			);
-
-			if (messageIds.length === 0) {
-				console.log('📭 [GMAIL] Không có email mới để xử lý.');
-				return;
-			}
-
-			// 8. Lấy chi tiết đầy đủ của mỗi email
-			const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+			// Lấy chi tiết và lọc thư
+			const messageIds = messages.map((m) => m.id);
 			const emailDetails = await Promise.all(
 				messageIds.map((id) => integrationService.getFullEmailDetails(gmail, id)),
 			);
 
-			// 9. Lọc emails theo điều kiện (chưa đọc + có chữ "task")
 			const filteredEmails = await integrationService.filterEmails(
 				emailDetails,
 				gmail,
 			);
 
-			if (filteredEmails.length === 0) {
-				console.log('📭 [GMAIL] Không có email nào đáp ứng điều kiện lọc.');
-				return;
-			}
+			if (filteredEmails.length === 0) return;
 
-			// 10. Lưu mỗi email đó vào bảng Tasks (INBOX - chờ duyệt)
-			// ✅ Dùng upsert để tránh duplicate khi re-sync
+			// Xử lý lưu và bắn Realtime
 			for (const email of filteredEmails) {
+				// QUAN TRỌNG: Kiểm tra xem Task này đã tồn tại trong DB chưa
+				const existingTask = await prisma.task.findFirst({
+					where: {
+						userId: integration.userId,
+						sourceId: email.id,
+						sourceType: 'GMAIL',
+					},
+				});
+
 				const taskData = {
 					title: `[Gmail] ${email.subject}`,
 					description: email.body || 'Không có nội dung chi tiết.',
@@ -202,33 +224,30 @@ export const webhookController = {
 					taskData,
 				);
 
-				console.log(`✅ [GMAIL] Đã lưu email "${email.subject}" thành Task.`);
-
-				// ✅ EMIT SOCKET.IO EVENT CHO USER
-				try {
-					const io = req.app.get('socketio');
-					if (io) {
-						io.to(integration.userId).emit('NEW_INBOX_ITEM', {
-							message: 'Bạn có một email công việc mới!',
-							task: newTask,
-						});
-						console.log(
-							`📡 [SOCKET.IO] Đã gửi sự kiện tới user ${integration.userId}`,
-						);
+				// CHỈ bắn Socket nếu đây là thư mới tinh (Chưa có trong DB)
+				if (!existingTask) {
+					console.log(
+						`[GMAIL] Thư mới: "${email.subject}" -> Đang bắn Socket Realtime!`,
+					);
+					try {
+						const io = req.app.get('socketio');
+						if (io) {
+							io.to(integration.userId).emit('NEW_INBOX_ITEM', {
+								message: 'Bạn có một email công việc mới!',
+								task: newTask,
+							});
+						}
+					} catch (socketError) {
+						console.error('⚠️ [SOCKET.IO] Lỗi:', socketError.message);
 					}
-				} catch (socketError) {
-					console.error(
-						'⚠️ [SOCKET.IO] Lỗi khi emit event:',
-						socketError.message,
+				} else {
+					console.log(
+						`[GMAIL] Thư "${email.subject}" đã xử lý trước đó, Skip Socket.`,
 					);
 				}
 			}
-
-			console.log(
-				`✨ [GMAIL WEBHOOK] Đồng bộ ${filteredEmails.length} email thành công!`,
-			);
 		} catch (error) {
-			console.error('❌ Lỗi xử lý Webhook Gmail:', error);
+			console.error('Lỗi xử lý Webhook Gmail:', error);
 		}
 	},
 };

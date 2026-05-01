@@ -41,6 +41,9 @@ export const updateEventSchema = {
 			description: z.string().max(10000).optional().nullable(),
 			repeat: z.enum(repeatValues).optional(),
 			reminder: z.enum(reminderValues).optional(),
+			startAt: z.string().datetime().optional().nullable(),
+			endAt: z.string().datetime().optional().nullable(),
+			reminderAt: z.string().datetime().optional().nullable(),
 		})
 		.refine((data) => Object.values(data).some((value) => value !== undefined), {
 			message: 'At least one field is required for update',

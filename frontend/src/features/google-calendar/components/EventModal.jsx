@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X, Clock, AlignLeft, Bell, MapPin, Users, Video, ChevronDown, GripHorizontal, Calendar as CalendarIcon } from 'lucide-react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 
@@ -37,8 +37,19 @@ const formatTimeDisplay = (timeStr) => {
     return `${displayH}:${String(m).padStart(2, '0')} ${period}`;
 };
 
-// Calculate duration label
-// getDurationLabel is now defined inside the component to access t()
+const normalizeTimeValue = (timeValue) => {
+    if (!timeValue || typeof timeValue !== 'string') return '';
+    const [hourPart, minutePart] = timeValue.split(':');
+    const hours = Number(hourPart);
+    const minutes = Number(minutePart);
+    if (
+        Number.isNaN(hours) || Number.isNaN(minutes) ||
+        hours < 0 || hours > 23 || minutes < 0 || minutes > 59
+    ) {
+        return '';
+    }
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
 
 // Format date in Vietnamese
 // formatDateLocal is now defined inside the component to access t()
@@ -62,6 +73,17 @@ const toDateOnly = (isoValue) => {
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, '0');
     const day = String(dateObj.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const addDaysToDateString = (dateString, days) => {
+    if (!dateString) return dateString;
+    const parsedDate = new Date(`${dateString}T00:00:00`);
+    if (Number.isNaN(parsedDate.getTime())) return dateString;
+    parsedDate.setDate(parsedDate.getDate() + days);
+    const year = parsedDate.getFullYear();
+    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(parsedDate.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 };
 
@@ -191,7 +213,7 @@ const TimePicker = ({ value, onChange, startTimeRef }) => {
                     style={{ scrollbarWidth: 'thin' }}
                 >
                     {TIME_SLOTS.map(slot => {
-                        const duration = startTimeRef ? getDurationLabel(startTimeRef, slot) : '';
+                        const duration = startTimeRef ? getDurationLabelStatic(startTimeRef, slot) : '';
                         if (startTimeRef && slot <= startTimeRef) return null;
                         const isSelected = slot === value;
 
@@ -219,6 +241,19 @@ const TimePicker = ({ value, onChange, startTimeRef }) => {
     );
 };
 
+// Static duration label for TimePicker (outside component, no t())
+const getDurationLabelStatic = (startTime, endTimeStr) => {
+    if (!startTime || !endTimeStr) return '';
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTimeStr.split(':').map(Number);
+    const diffMins = (eh * 60 + em) - (sh * 60 + sm);
+    if (diffMins <= 0) return '';
+    if (diffMins < 60) return `${diffMins}m`;
+    const hours = diffMins / 60;
+    if (Number.isInteger(hours)) return `${hours}h`;
+    return `${hours.toFixed(1)}h`;
+};
+
 // ─── Custom Select Dropdown (UI from HEAD) ──────
 const CustomSelect = ({ value, onChange, options }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -244,7 +279,7 @@ const CustomSelect = ({ value, onChange, options }) => {
                     e.preventDefault();
                     setIsOpen(!isOpen);
                 }}
-                className={`w-full bg-bg-hover text-text-primary text-[13px] pl-4 pr-3 py-1.5 rounded-full border-none cursor-pointer 
+                className={`w-full bg-bg-hover text-text-primary text-[13px] pl-4 pr-3 py-1.5 rounded-full border-none cursor-pointer
                             focus:outline-none flex justify-between items-center transition-colors hover:bg-bg-active
                             ${isOpen ? 'ring-2 ring-accent-primary/20' : ''}`}
             >
@@ -253,7 +288,7 @@ const CustomSelect = ({ value, onChange, options }) => {
             </button>
 
             <div
-                className={`absolute left-0 right-0 top-[calc(100%+6px)] bg-bg-sidebar border border-border-subtle rounded-xl 
+                className={`absolute left-0 right-0 top-[calc(100%+6px)] bg-bg-sidebar border border-border-subtle rounded-xl
                            shadow-2xl z-50 flex flex-col py-1.5 transition-all duration-200 origin-top
                            ${isOpen ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 translate-y-[-4px] invisible pointer-events-none'}`}
             >
@@ -298,6 +333,22 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
     const [showProfilePopup, setShowProfilePopup] = useState(false);
     const [status, setStatus] = useState('busy');
     const [visibility, setVisibility] = useState('default');
+    const startDateInputRef = useRef(null);
+    const endDateInputRef = useRef(null);
+
+    // Semantic fix from ORIGIN: linkedTaskId is the correct indicator
+    const isTaskLinkedEvent = Boolean(event?.linkedTaskId);
+
+    const openNativeDatePicker = useCallback((inputRef) => {
+        const input = inputRef?.current;
+        if (!input) return;
+        if (typeof input.showPicker === 'function') {
+            input.showPicker();
+            return;
+        }
+        input.focus();
+        input.click();
+    }, []);
 
     // Translated helpers (need t() from context)
     const getDurationLabel = (startTime, endTimeStr) => {
@@ -328,9 +379,6 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
         return t('cal.modal.noReminder');
     };
 
-    // Logic from incoming: detect task-linked events
-    const isTaskLinkedEvent = Boolean(event?.endAt);
-
     // Logic from incoming: resolve calendar owner name
     const calendarOwnerName = useMemo(() => {
         if (event?.calendarOwner && typeof event.calendarOwner === 'string') {
@@ -350,8 +398,8 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
         if (event) {
             setTitle(event.title || '');
             setDate(event.date || '');
-            setTime(event.time || '');
-            setEndTime(event.endTime || toHHMM(event.endAt));
+            setTime(normalizeTimeValue(event.time));
+            setEndTime(normalizeTimeValue(event.endTime) || toHHMM(event.endAt));
             setEndDate(event.endDate || toDateOnly(event.endAt) || event.date || '');
             setIsAllDay(isTaskLinkedEvent ? false : (event.isAllDay || false));
             setDescription(event.description || '');
@@ -367,8 +415,8 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
             const d = String(selectedDate.getDate()).padStart(2, '0');
             setDate(`${y}-${m}-${d}`);
             if (prefillRange) {
-                setTime(prefillRange.startTime || '');
-                setEndTime(prefillRange.endTime || '');
+                setTime(normalizeTimeValue(prefillRange.startTime) || '');
+                setEndTime(normalizeTimeValue(prefillRange.endTime) || '');
                 setEndDate(`${y}-${m}-${d}`);
                 setIsAllDay(false);
             } else {
@@ -430,13 +478,21 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
 
     const handleStartTimeChange = (newTime) => {
         setTime(newTime);
-        if (newTime) {
-            const [h, m] = newTime.split(':').map(Number);
-            const endH = h + 1;
-            if (endH < 24) {
-                setEndTime(`${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+        if (!newTime || !date) return;
+        const [h, m] = newTime.split(':').map(Number);
+        const nextTotalMinutes = h * 60 + m + 60;
+        const nextHour = Math.floor(nextTotalMinutes / 60) % 24;
+        const nextMinute = nextTotalMinutes % 60;
+        setEndTime(`${String(nextHour).padStart(2, '0')}:${String(nextMinute).padStart(2, '0')}`);
+        setEndDate((previousEndDate) => {
+            if (nextTotalMinutes >= 24 * 60) {
+                if (!previousEndDate || previousEndDate === date) {
+                    return addDaysToDateString(date, 1);
+                }
+                return previousEndDate;
             }
-        }
+            return previousEndDate || date;
+        });
     };
 
     // Logic from incoming: separate start/end date handlers
@@ -508,7 +564,6 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                             </button>
                         </div>
 
-
                         {/* ─── Date & Time Section ─── */}
                         <div className="flex items-start gap-3">
                             <Clock size={16} className="mt-1.5 shrink-0 text-text-tertiary" />
@@ -523,16 +578,16 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                             type="button"
                                             className="px-3 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer
                                                        bg-bg-hover text-text-primary hover:bg-bg-active transition-colors border-none"
-                                            onClick={() => document.getElementById('gc-start-date-input').showPicker?.()}
+                                            onClick={() => openNativeDatePicker(startDateInputRef)}
                                         >
                                             {formatDateLocal(date) || t('cal.modal.selectDate')}
                                         </button>
                                         <input
-                                            id="gc-start-date-input"
+                                            ref={startDateInputRef}
                                             type="date"
                                             value={date}
                                             onChange={(e) => handleStartDateChange(e.target.value)}
-                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                            className="absolute inset-0 opacity-0 pointer-events-none"
                                             tabIndex={-1}
                                         />
                                     </div>
@@ -542,7 +597,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                     )}
                                 </div>
 
-                                {/* Row 2: End Date + End Time (logic from incoming) */}
+                                {/* Row 2: End Date + End Time */}
                                 {!isAllDay && (
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <span className="w-[76px] text-[13px] font-medium text-text-secondary">
@@ -553,16 +608,16 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                                 type="button"
                                                 className="px-3 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer
                                                            bg-bg-hover text-text-primary hover:bg-bg-active transition-colors border-none"
-                                                onClick={() => document.getElementById('gc-end-date-input').showPicker?.()}
+                                                onClick={() => openNativeDatePicker(endDateInputRef)}
                                             >
                                                 {formatDateLocal(resolvedEndDateForUi) || t('cal.modal.selectDate')}
                                             </button>
                                             <input
-                                                id="gc-end-date-input"
+                                                ref={endDateInputRef}
                                                 type="date"
                                                 value={resolvedEndDateForUi}
                                                 onChange={(e) => handleEndDateChange(e.target.value)}
-                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                className="absolute inset-0 opacity-0 pointer-events-none"
                                                 tabIndex={-1}
                                             />
                                         </div>
@@ -701,8 +756,8 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                                     value={status}
                                                     onChange={setStatus}
                                                     options={[
-                                                        { value: "busy", label: t('cal.modal.busy') },
-                                                        { value: "free", label: t('cal.modal.free') }
+                                                        { value: 'busy', label: t('cal.modal.busy') },
+                                                        { value: 'free', label: t('cal.modal.free') }
                                                     ]}
                                                 />
                                             </div>
@@ -716,24 +771,24 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                                                     value={visibility}
                                                     onChange={setVisibility}
                                                     options={[
-                                                        { value: "default", label: t('cal.modal.visDefault') },
-                                                        { value: "private", label: t('cal.modal.visPrivate') },
-                                                        { value: "public", label: t('cal.modal.visPublic') }
+                                                        { value: 'default', label: t('cal.modal.visDefault') },
+                                                        { value: 'private', label: t('cal.modal.visPrivate') },
+                                                        { value: 'public', label: t('cal.modal.visPublic') }
                                                     ]}
                                                 />
                                             </div>
 
-                                            {/* Notification (with incoming enum values) */}
+                                            {/* Notification */}
                                             <div className="flex items-center gap-3">
                                                 <Bell size={16} className="text-text-tertiary shrink-0" />
                                                 <CustomSelect
                                                     value={reminder}
                                                     onChange={setReminder}
                                                     options={[
-                                                        { value: "NONE", label: t('cal.modal.noReminder') },
-                                                        { value: "MINUTES_5", label: t('cal.modal.remind5') },
-                                                        { value: "MINUTES_15", label: t('cal.modal.remind15') },
-                                                        { value: "HOUR_1", label: t('cal.modal.remind60') }
+                                                        { value: 'NONE', label: t('cal.modal.noReminder') },
+                                                        { value: 'MINUTES_5', label: t('cal.modal.remind5') },
+                                                        { value: 'MINUTES_15', label: t('cal.modal.remind15') },
+                                                        { value: 'HOUR_1', label: t('cal.modal.remind60') }
                                                     ]}
                                                 />
                                             </div>
@@ -778,7 +833,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
                 </form>
             </div>
 
-            {/* ─── Delete Confirmation (logic from incoming: async onDelete) ─── */}
+            {/* ─── Delete Confirmation ─── */}
             {showConfirmDelete && (
                 <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center">
                     <div className="bg-bg-main rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-border-subtle">

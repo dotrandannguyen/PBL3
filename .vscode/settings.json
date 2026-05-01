@@ -1,0 +1,8 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "/^Set-Location \"d:\\\\DTDN_DOC\\\\HK4 2026\\\\dự án\\\\PBL3\\\\backend\"; node -e \"import\\('\\./src/config/database\\.js'\\)\\.then\\(async \\(\\{default: prisma\\}\\) => \\{ const \\[total, byType, byStatus, byRead\\] = await Promise\\.all\\(\\[ prisma\\.notification\\.count\\(\\), prisma\\.notification\\.groupBy\\(\\{ by: \\['type'\\], _count: \\{ _all: true \\}, orderBy: \\{ type: 'asc' \\} \\}\\), prisma\\.notification\\.groupBy\\(\\{ by: \\['status'\\], _count: \\{ _all: true \\}, orderBy: \\{ status: 'asc' \\} \\}\\), prisma\\.notification\\.groupBy\\(\\{ by: \\['isRead'\\], _count: \\{ _all: true \\}, orderBy: \\{ isRead: 'asc' \\} \\}\\) \\]\\); console\\.log\\(JSON\\.stringify\\(\\{ total, byType, byStatus, byRead \\}, null, 2\\)\\); \\}\\)\\.catch\\(\\(e\\) => \\{ console\\.error\\(e\\); process\\.exit\\(1\\); \\}\\);\"$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
+}

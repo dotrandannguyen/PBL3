@@ -1,6 +1,11 @@
 import { eventRepository } from './event.repository.js';
 import { NotFoundException } from '../../common/exceptions/index.js';
 import prisma from '../../config/database.js';
+import {
+	scheduleEventV2,
+	rescheduleEventV2,
+	cancelEventJobsV2,
+} from '../notifications/notification.schedule.js';
 
 const toDateOnly = (dateString) => new Date(`${dateString}T00:00:00.000Z`);
 const DEFAULT_TASK_EVENT_COLOR = '#2383e2';
@@ -8,22 +13,34 @@ const CALENDAR_METADATA_KEY = 'calendar';
 const DEFAULT_EVENT_SORT = 'date-asc';
 
 const mapEventToResponse = (event, options = {}) => {
-	// Persisted columns take precedence; task-linked fallback fills only when
-	// the event itself has no end set (legacy task-scheduled events).
+	// Persisted columns endDate/endTime — backward compat
 	const persistedEndTime = event.endTime ?? null;
-	const persistedEndDate = event.endDate
-		? event.endDate.toISOString().slice(0, 10)
-		: null;
+	const persistedEndDate = event.endDate ? event.endDate.toISOString().slice(0, 10) : null;
 
 	const endTime = persistedEndTime ?? options.endTime ?? null;
 	const endDate = persistedEndDate ?? options.endDate ?? null;
 
-	let endAt = null;
-	if (endDate && endTime) {
+	// v2: compute endAt từ endDate+endTime, hoặc từ event.endAt
+	const resolvedEndAtInput = options.endAt ?? event.endAt ?? null;
+	const parsedEndAt = resolvedEndAtInput ? new Date(resolvedEndAtInput) : null;
+	const hasValidEndAt = parsedEndAt instanceof Date && !Number.isNaN(parsedEndAt.getTime());
+	let endAt = hasValidEndAt ? parsedEndAt.toISOString() : null;
+	if (!endAt && endDate && endTime) {
 		endAt = new Date(`${endDate}T${endTime}:00`).toISOString();
-	} else if (options.endAt) {
-		endAt = options.endAt;
 	}
+
+	// v2: startAt / reminderAt
+	const parsedStartAt = event.startAt ? new Date(event.startAt) : null;
+	const startAt =
+		parsedStartAt instanceof Date && !Number.isNaN(parsedStartAt.getTime())
+			? parsedStartAt.toISOString()
+			: null;
+
+	const parsedReminderAt = event.reminderAt ? new Date(event.reminderAt) : null;
+	const reminderAt =
+		parsedReminderAt instanceof Date && !Number.isNaN(parsedReminderAt.getTime())
+			? parsedReminderAt.toISOString()
+			: null;
 
 	return {
 		id: event.id,
@@ -38,6 +55,11 @@ const mapEventToResponse = (event, options = {}) => {
 		description: event.description,
 		repeat: event.repeat,
 		reminder: event.reminder,
+		// v2 fields
+		startAt,
+		eventEndAt: endAt,
+		reminderAt,
+		linkedTaskId: event.linkedTaskId ?? null,
 		createdAt: event.createdAt,
 		updatedAt: event.updatedAt,
 	};
@@ -121,6 +143,11 @@ export const eventService = {
 			description: dto.description ?? null,
 			repeat: dto.repeat ?? 'NONE',
 			reminder: dto.reminder ?? 'NONE',
+			// v2 fields
+			startAt: dto.startAt ? new Date(dto.startAt) : null,
+			endAt: dto.endAt ? new Date(dto.endAt) : null,
+			reminderAt: dto.reminderAt ? new Date(dto.reminderAt) : null,
+			linkedTaskId: dto.linkedTaskId ?? null,
 		};
 
 		if (dto.color !== undefined) {
@@ -128,6 +155,10 @@ export const eventService = {
 		}
 
 		const createdEvent = await eventRepository.create(userId, eventData);
+
+		// Schedule event notifications v2 (scheduler sẽ tự skip nếu linkedTaskId)
+		await scheduleEventV2({ ...createdEvent, userId });
+
 		return mapEventToResponse(createdEvent);
 	},
 
@@ -135,6 +166,16 @@ export const eventService = {
 		const existingEvent = await eventRepository.findById(userId, eventId);
 		if (!existingEvent) {
 			throw new NotFoundException('event');
+		}
+
+		// Guard: Nếu event có linkedTaskId, chặn update thờng
+		// FE phải gọi updateTask thay thế (Giai đoạn D)
+		// Hiện tại: vẫn cho phép nhưng log warning
+		if (existingEvent.linkedTaskId) {
+			console.warn(
+				`[EventService] Event ${eventId} có linkedTaskId=${existingEvent.linkedTaskId}, ` +
+					`nên update Task thay vì Event trực tiếp`,
+			);
 		}
 
 		const updateData = {};
@@ -151,6 +192,13 @@ export const eventService = {
 		if (dto.description !== undefined) updateData.description = dto.description;
 		if (dto.repeat !== undefined) updateData.repeat = dto.repeat;
 		if (dto.reminder !== undefined) updateData.reminder = dto.reminder;
+		// v2 fields
+		if (dto.startAt !== undefined)
+			updateData.startAt = dto.startAt ? new Date(dto.startAt) : null;
+		if (dto.endAt !== undefined)
+			updateData.endAt = dto.endAt ? new Date(dto.endAt) : null;
+		if (dto.reminderAt !== undefined)
+			updateData.reminderAt = dto.reminderAt ? new Date(dto.reminderAt) : null;
 
 		await eventRepository.update(userId, eventId, updateData);
 
@@ -158,6 +206,9 @@ export const eventService = {
 		if (!updatedEvent) {
 			throw new NotFoundException('event');
 		}
+
+		// Reschedule event notifications v2 (hàm sẽ remove job cũ trước)
+		await rescheduleEventV2({ ...updatedEvent, userId });
 
 		const endPayload = await getTaskEventEndPayload(userId, updatedEvent.id);
 
@@ -172,6 +223,9 @@ export const eventService = {
 		if (!existingEvent) {
 			throw new NotFoundException('event');
 		}
+
+		// Cancel event scheduler jobs v2 trước khi xóa
+		await cancelEventJobsV2(eventId);
 
 		const unlinkedTaskIds = await unlinkTasksFromEvent(userId, eventId);
 		await eventRepository.delete(userId, eventId);

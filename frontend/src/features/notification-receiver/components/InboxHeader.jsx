@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Settings } from "lucide-react";
 import { useLanguage } from "../../../contexts/LanguageContext";
 
 /**
@@ -8,7 +8,7 @@ import { useLanguage } from "../../../contexts/LanguageContext";
  * @param {Function} onRefresh - Callback khi click nút refresh
  * @param {boolean} isLoading - Trạng thái loading
  */
-export function InboxHeader({ user, onRefresh, isLoading }) {
+export function InboxHeader({ user, onRefresh, isLoading, onOpenSettings }) {
   const { t } = useLanguage();
 
   // Time-of-day greeting
@@ -29,14 +29,25 @@ export function InboxHeader({ user, onRefresh, isLoading }) {
           {t('inbox.subtitle')}
         </p>
       </div>
-      <button
-        onClick={onRefresh}
-        disabled={isLoading}
-        className="p-2.5 rounded-full hover:bg-bg-hover text-text-tertiary transition-colors flex items-center justify-center disabled:opacity-50"
-        title={t('inbox.refresh')}
-      >
-        <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
-      </button>
+      <div className="flex items-center gap-2">
+        {onOpenSettings && (
+          <button
+            onClick={onOpenSettings}
+            className="p-2.5 rounded-full hover:bg-bg-hover text-text-tertiary transition-colors flex items-center justify-center"
+            title={t('inbox.refresh')}
+          >
+            <Settings size={20} />
+          </button>
+        )}
+        <button
+          onClick={onRefresh}
+          disabled={isLoading}
+          className="p-2.5 rounded-full hover:bg-bg-hover text-text-tertiary transition-colors flex items-center justify-center disabled:opacity-50"
+          title={t('inbox.refresh')}
+        >
+          <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
+        </button>
+      </div>
     </div>
   );
 }

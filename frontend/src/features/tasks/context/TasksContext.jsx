@@ -85,7 +85,14 @@ export function TasksProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeFilter, setActiveFilter] = useState("all"); // 'all' | 'done' | 'pending'
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    totalItems: 0,
+    totalPages: 0,
+  });
   const pendingDeletesRef = useRef(new Map());
+  const paginationRef = useRef(pagination);
 
   useEffect(() => {
     return () => {
@@ -95,6 +102,10 @@ export function TasksProvider({ children }) {
       pendingDeletesRef.current.clear();
     };
   }, []);
+
+  useEffect(() => {
+    paginationRef.current = pagination;
+  }, [pagination]);
 
   // ========================================
   // HELPER FUNCTIONS
@@ -130,7 +141,14 @@ export function TasksProvider({ children }) {
       setLoading(true);
       setError(null);
 
-      const response = await getTasks(query);
+      const currentPagination = paginationRef.current || {};
+      const page = query.page ?? currentPagination.page ?? 1;
+      const limit = query.limit ?? currentPagination.limit ?? 20;
+      const response = await getTasks({
+        ...query,
+        page,
+        limit,
+      });
 
       /**
        * Response structure:
@@ -138,6 +156,7 @@ export function TasksProvider({ children }) {
        * So we need response.data?.data?.data to get tasks array (3 layers)
        */
       const taskList = response.data?.data?.data || [];
+      const responsePagination = response.data?.data?.pagination || {};
 
       // Safety check: ensure taskList is array
       if (!Array.isArray(taskList)) {
@@ -147,6 +166,14 @@ export function TasksProvider({ children }) {
       }
 
       setTasks(taskList.map(normalizeTask));
+      setPagination({
+        page: responsePagination.page ?? page,
+        limit: responsePagination.limit ?? limit,
+        totalItems: responsePagination.totalItems ?? taskList.length,
+        totalPages:
+          responsePagination.totalPages ??
+          Math.max(1, Math.ceil(taskList.length / limit)),
+      });
       setError(null);
     } catch (err) {
       const message = resolveTaskApiErrorMessage(err, "Lấy tasks thất bại.");
@@ -178,6 +205,14 @@ export function TasksProvider({ children }) {
 
       // Thêm task mới vào state
       setTasks((prev) => [newTask, ...prev]);
+      setPagination((prev) => {
+        const nextTotal = prev.totalItems + 1;
+        return {
+          ...prev,
+          totalItems: nextTotal,
+          totalPages: Math.max(1, Math.ceil(nextTotal / prev.limit)),
+        };
+      });
       toast.success(`Task "${title}" được tạo thành công!`);
 
       return newTask;
@@ -206,6 +241,17 @@ export function TasksProvider({ children }) {
       const deletedTask = tasks[targetIndex];
 
       setTasks((prev) => prev.filter((task) => task.id !== id));
+      setPagination((prev) => {
+        const nextTotal = Math.max(0, prev.totalItems - 1);
+        const nextTotalPages = Math.max(1, Math.ceil(nextTotal / prev.limit));
+        const nextPage = Math.min(prev.page, nextTotalPages);
+        return {
+          ...prev,
+          page: nextPage,
+          totalItems: nextTotal,
+          totalPages: nextTotalPages,
+        };
+      });
 
       const timeoutId = setTimeout(async () => {
         try {
@@ -217,6 +263,14 @@ export function TasksProvider({ children }) {
           setTasks((prev) =>
             restoreTaskAtIndex(prev, deletedTask, targetIndex),
           );
+          setPagination((prev) => {
+            const nextTotal = prev.totalItems + 1;
+            return {
+              ...prev,
+              totalItems: nextTotal,
+              totalPages: Math.max(1, Math.ceil(nextTotal / prev.limit)),
+            };
+          });
           toast.error(`Lỗi khi xóa task: ${message}`);
           console.error("Delete task error:", err);
         }
@@ -244,6 +298,14 @@ export function TasksProvider({ children }) {
             setTasks((prev) =>
               restoreTaskAtIndex(prev, pendingDelete.task, pendingDelete.index),
             );
+            setPagination((prev) => {
+              const nextTotal = prev.totalItems + 1;
+              return {
+                ...prev,
+                totalItems: nextTotal,
+                totalPages: Math.max(1, Math.ceil(nextTotal / prev.limit)),
+              };
+            });
             toast.success("Đã hoàn tác xóa task");
           },
         },
@@ -307,7 +369,7 @@ export function TasksProvider({ children }) {
       }
 
       delete payload.completedAt;
-      delete payload.scheduledAt;
+      // FIX BUG-08: Đã XÓA `delete payload.scheduledAt` để cho phép cập nhật thời gian lịch trình
 
       const response = await updateTask(id, payload);
 
@@ -387,6 +449,7 @@ export function TasksProvider({ children }) {
     loading,
     error,
     activeFilter,
+    pagination,
 
     // Methods
     fetchTasks,

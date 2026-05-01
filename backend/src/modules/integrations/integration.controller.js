@@ -32,7 +32,7 @@ export const integrationController = {
 		}
 	},
 
-	// 🚀 LẤY DANH SÁCH REPOSITORIES
+	// LấY DANH SÁCH REPOSITORIES
 	getGithubRepositories: async (req, res, next) => {
 		try {
 			const userId = req.user.id;
@@ -48,7 +48,7 @@ export const integrationController = {
 		}
 	},
 
-	// 🚀 CÀI WEBHOOK CHO CÁC REPOSITORIES
+	// CÀI WEBHOOK CHO CÁC REPOSITORIES
 	setupGithubWebhooks: async (req, res, next) => {
 		try {
 			const userId = req.user.id;
@@ -73,6 +73,32 @@ export const integrationController = {
 				message: 'Cả webhook setup hoàn tất',
 				setupCount: result.success.length,
 				failureCount: result.failed.length,
+				data: result,
+			});
+		} catch (error) {
+			next(error);
+		}
+	},
+
+	// 🧹 TẮT WEBHOOK CHO MỘT REPOSITORY
+	disableGithubWebhook: async (req, res, next) => {
+		try {
+			const userId = req.user.id;
+			const { repositoryId } = req.body;
+
+			if (!repositoryId) {
+				return new HttpResponse(res).badRequest({
+					message: 'Yêu cầu repositoryId để tắt webhook',
+				});
+			}
+
+			const result = await integrationService.disableGithubWebhook(
+				userId,
+				repositoryId,
+			);
+
+			return new HttpResponse(res).success({
+				message: 'Tắt webhook thành công',
 				data: result,
 			});
 		} catch (error) {

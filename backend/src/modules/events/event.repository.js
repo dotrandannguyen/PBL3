@@ -12,6 +12,11 @@ const eventSelect = {
 	description: true,
 	repeat: true,
 	reminder: true,
+	// v2 fields
+	startAt: true,
+	endAt: true,
+	reminderAt: true,
+	linkedTaskId: true,
 	createdAt: true,
 	updatedAt: true,
 };

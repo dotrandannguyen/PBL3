@@ -1,13 +1,15 @@
 /**
- * Create Task Request DTO
+ * Create Task Request DTO - v2
  *
  * POST /tasks
  * Body: {
  *   title: string,
  *   description?: string,
  *   priority?: 'LOW'|'MEDIUM'|'HIGH'|'URGENT',
- *   dueDate?: date,
- *   startAt?: ISO datetime | null
+ *   type?: 'TODO'|'SCHEDULED'       // v2: tường minh; nếu không gửi sẻ suy diễn từ startAt
+ *   dueDate?: ISO datetime | null,   // endAt alias nội bộ
+ *   startAt?: ISO datetime | null,   // scheduledAt alias nội bộ (SCHEDULED only)
+ *   reminderAt?: ISO datetime | null
  * }
  */
 import { z } from 'zod';
@@ -21,8 +23,11 @@ export const createTaskSchema = {
 				.max(255, 'Title không được vượt quá 255 ký tự'),
 			description: z.string().max(1000).optional().nullable(),
 			priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
+			// v2: type tường minh; nếu không gửi sẻ auto-resolve từ startAt
+			type: z.enum(['TODO', 'SCHEDULED']).optional(),
 			dueDate: z.string().date().or(z.string().datetime()).optional().nullable(),
 			startAt: z.string().datetime().optional().nullable(),
+			reminderAt: z.string().datetime().optional().nullable(),
 		})
 		.strict(),
 };
