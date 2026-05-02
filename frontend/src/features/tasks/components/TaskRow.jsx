@@ -161,8 +161,8 @@ const TaskRow = ({
 
   return (
     <div
-      className={`group flex items-center gap-3 py-2 px-0 border-b border-border-subtle hover:bg-white/2 transition-colors relative overflow-hidden ${
-        isDeleting ? "animate-row-fade-out pointer-events-none" : ""
+      className={`group flex items-center gap-3 py-2 px-0 border-b border-border-subtle hover:bg-white/2 transition-colors relative ${
+        isDeleting ? "overflow-hidden animate-row-fade-out pointer-events-none" : ""
       }`}
     >
       <TaskCheckbox checked={task.completed === true} onChange={onToggle} />
@@ -267,7 +267,7 @@ const TaskRow = ({
         </button>
 
         {isDateOpen && (
-          <div className="absolute top-full right-0 mt-1 z-10 bg-bg-sidebar border border-border-subtle rounded shadow-lg p-2">
+          <div className="absolute top-full right-0 mt-1 z-50 bg-bg-sidebar border border-border-subtle rounded shadow-lg p-2">
             <input
               type="date"
               className="px-2 py-1 rounded bg-white/10 border border-border-subtle text-text-primary text-xs"
@@ -301,7 +301,7 @@ const TaskRow = ({
         </button>
 
         {isScheduleOpen && (
-          <div className="absolute top-full right-0 mt-1 z-10 w-56 bg-bg-sidebar border border-border-subtle rounded shadow-lg p-2 space-y-2">
+          <div className="absolute top-full right-0 mt-1 z-50 w-56 bg-bg-sidebar border border-border-subtle rounded shadow-lg p-2 space-y-2">
             <label className="flex flex-col gap-1 text-[11px] text-text-secondary">
               <span>Start At</span>
               <input type="datetime-local" className="px-2 py-1 rounded bg-white/10 border border-border-subtle text-text-primary text-xs" value={editScheduledAt || ""} onChange={(e) => onScheduleChange(e.target.value)} />
@@ -331,7 +331,7 @@ const TaskRow = ({
           <span>{getReminderLabel(currentReminder)}</span>
         </button>
         {isReminderOpen && (
-          <div className="absolute top-full right-0 mt-1 z-10 w-48 bg-bg-sidebar border border-border-subtle rounded shadow-lg p-2 space-y-1">
+          <div className="absolute top-full right-0 mt-1 z-50 w-48 bg-bg-sidebar border border-border-subtle rounded shadow-lg p-2 space-y-1">
             <p className="text-[10px] text-text-tertiary px-2 mb-1 uppercase tracking-wider">Nhắc trước Due At</p>
             {[
               { label: "Không nhắc", value: "NONE" },
