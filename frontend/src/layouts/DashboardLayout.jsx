@@ -6,6 +6,7 @@ import {
   WorkspaceProvider,
   useWorkspace,
 } from "@/features/workspace/context/WorkspaceContext";
+import { FloatingChat } from "@/features/ai-chat/components/FloatingChat";
 
 /**
  * DashboardContent — Nội dung layout, consume WorkspaceContext.
@@ -35,6 +36,8 @@ function DashboardContent() {
       <main className="flex-1 flex flex-col bg-bg-main overflow-hidden">
         <Outlet />
       </main>
+      {/* AI Floating Chat - hiển thị ở mọi trang dashboard */}
+      <FloatingChat />
     </div>
   );
 }
