@@ -23,6 +23,7 @@ generator dbml {
 enum IntegrationProvider {
   GOOGLE
   GITHUB
+  SLACK
 
   @@map("integration_provider")
 }
@@ -59,6 +60,7 @@ enum TaskSource {
   MANUAL
   GMAIL
   GITHUB
+  SLACK
 
   @@map("task_source")
 }
