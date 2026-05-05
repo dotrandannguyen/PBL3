@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { integrationAPI } from "../api/integration.api";
 import { getInboxTasks } from "../../tasks/api/task.api";
-import { CloudRain, Github, Mail } from "lucide-react";
+import { CloudRain, Github, Mail, Slack } from "lucide-react";
 import useAuth from "../../auth/hooks/useAuth";
 
 export const useIntegrations = () => {
@@ -13,6 +13,7 @@ export const useIntegrations = () => {
   const [connected, setConnected] = useState({
     gmail: true,
     github: true,
+    slack: true,
   });
 
   const fetchIntegrations = useCallback(async () => {
@@ -20,13 +21,14 @@ export const useIntegrations = () => {
 
     setLoading(true);
     let allItems = [];
-    const newConnectedStatus = { gmail: true, github: true };
+    const newConnectedStatus = { gmail: true, github: true, slack: true };
 
     try {
       // Fetch preview từ API (Gmail + GitHub emails)
-      const [gmailResult, githubResult] = await Promise.allSettled([
+      const [gmailResult, githubResult, slackResult] = await Promise.allSettled([
         integrationAPI.getGmailPreview(),
         integrationAPI.getGithubPreview(),
+        integrationAPI.getSlackPreview(),
       ]);
 
       //Fetch inbox tasks từ DB (để lấy isConverted flag)
@@ -136,6 +138,47 @@ export const useIntegrations = () => {
         githubResult.reason.response?.status === 404
       ) {
         newConnectedStatus.github = false;
+      }
+
+      // Handle Slack response
+      if (slackResult.status === "fulfilled" && slackResult.value.success) {
+        const slackDataArray = Array.isArray(slackResult.value.data?.data)
+          ? slackResult.value.data.data
+          : [];
+
+        const messages = slackDataArray
+          .map((message) => {
+            const task = taskMapById[message.taskId];
+
+            if (task?.status === "ARCHIVED") {
+              return null;
+            }
+
+            return {
+              id: message.taskId || `slack-${message.id}`,
+              source: "slack",
+              sender: message.sender || "Slack",
+              subject: message.channelName
+                ? `#${message.channelName}`
+                : "Slack",
+              preview: message.text || "",
+              time: new Date(message.date || Date.now()),
+              link: message.link,
+              icon: Slack,
+              color: "text-[#4A154B]",
+              status: task?.status || "INBOX",
+              isConverted: task?.isConverted || false,
+              itemData: message,
+            };
+          })
+          .filter(Boolean);
+
+        allItems = [...allItems, ...messages];
+      } else if (
+        slackResult.status === "rejected" &&
+        slackResult.reason.response?.status === 404
+      ) {
+        newConnectedStatus.slack = false;
       }
 
       // Sort combined array by time (newest first)

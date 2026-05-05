@@ -1,4 +1,4 @@
-import { Inbox, Mail, Github, AlertCircle } from "lucide-react";
+import { Inbox, Mail, Github, AlertCircle, Slack } from "lucide-react";
 import { MailListItem } from "./MailListItem";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { SkeletonList } from "@/components/shared";
@@ -63,6 +63,16 @@ export function InboxTabsContainer({
           }`}
         >
           <Github size={18} /> GitHub
+        </button>
+        <button
+          onClick={() => onFilterChange("slack")}
+          className={`flex items-center gap-3 px-6 py-3.5 text-sm font-medium transition-colors border-b-2 ${
+            filter === "slack"
+              ? "border-[#4A154B] text-[#4A154B] bg-[#4A154B]/5"
+              : "border-transparent text-text-tertiary hover:bg-bg-hover"
+          }`}
+        >
+          <Slack size={18} /> Slack
         </button>
       </div>
 

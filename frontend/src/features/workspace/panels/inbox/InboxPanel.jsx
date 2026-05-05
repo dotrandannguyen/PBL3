@@ -10,6 +10,7 @@ import {
   Github,
   Inbox,
   Mail,
+  Slack,
   Plus,
   RefreshCw,
   X,
@@ -665,11 +666,11 @@ const InboxPanel = ({ isOpen, onClose, sidebarCollapsed = false }) => {
                     className="animate-spin text-text-tertiary"
                   />
                 </div>
-              ) : !connected.gmail && !connected.github ? (
+              ) : !connected.gmail && !connected.github && !connected.slack ? (
                 <div className="flex flex-col items-center justify-center py-10 text-text-tertiary opacity-70">
                   <Inbox size={32} className="mb-2" />
                   <p className="text-sm">
-                    Hãy kết nối Gmail hoặc GitHub để xem tin nhắn
+                    Hãy kết nối Gmail, GitHub hoặc Slack để xem tin nhắn
                   </p>
                 </div>
               ) : filteredData.length === 0 ? (
