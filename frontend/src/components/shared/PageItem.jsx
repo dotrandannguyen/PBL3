@@ -1,7 +1,7 @@
 import React from "react";
 import { Pencil, Trash2 } from "lucide-react";
 
-const PageItem = ({ page, onClick, isActive, onDelete, onRename }) => {
+const PageItem = ({ page, onClick, isActive, onDelete, onRename, collapsed = false }) => {
   const [isRenaming, setIsRenaming] = React.useState(false);
   const [renameVal, setRenameVal] = React.useState(page.label);
 
@@ -20,6 +20,21 @@ const PageItem = ({ page, onClick, isActive, onDelete, onRename }) => {
       setIsRenaming(false);
     }
   };
+
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        title={page.label}
+        className={`w-full flex items-center justify-center py-1.5 bg-transparent border-0 text-sm cursor-pointer transition-all ${
+          isActive ? "bg-white/5 text-text-primary" : "text-text-secondary hover:bg-white/3 hover:text-text-primary"
+        }`}
+        onClick={() => onClick(page.id)}
+      >
+        <span>{page.icon}</span>
+      </button>
+    );
+  }
 
   return (
     <button
