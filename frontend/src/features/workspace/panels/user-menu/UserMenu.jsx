@@ -4,11 +4,13 @@ import { UserAvatar } from "../../../../components/shared";
 import useUserMenu from "./useUserMenu";
 import useAuth from "../../../auth/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { useAccountModal } from "../../../setting/contexts/AccountModalContext";
 
 const UserMenu = ({ collapsed = false }) => {
   const { user, logout } = useAuth();
   const { open, setOpen, menuRef } = useUserMenu();
   const navigate = useNavigate();
+  const { open: openAccountModal } = useAccountModal();
 
   const initial =
     user?.fullName?.[0]?.toUpperCase() ||
@@ -18,7 +20,7 @@ const UserMenu = ({ collapsed = false }) => {
 
   const handleProfileClick = () => {
     setOpen(false);
-    navigate("/settings?section=profile");
+    openAccountModal();
   };
 
   return (

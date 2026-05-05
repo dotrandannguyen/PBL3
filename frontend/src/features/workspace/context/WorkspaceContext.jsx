@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext } from "react";
+import React, { createContext, useState, useContext, useCallback } from "react";
 import { FileText, BookOpen, Rocket, CheckSquare } from "lucide-react";
 
 /**
@@ -34,6 +34,7 @@ const WorkspaceContext = createContext(null);
 export function WorkspaceProvider({ children }) {
   const [pages, setPages] = useState(INITIAL_PAGES);
   const [activePage, setActivePage] = useState("todo");
+  const [pendingRenameId, setPendingRenameId] = useState(null);
 
   const handleAddNewList = () => {
     const newPage = {
@@ -44,7 +45,12 @@ export function WorkspaceProvider({ children }) {
     };
     setPages((prev) => [...prev, newPage]);
     setActivePage(newPage.id);
+    setPendingRenameId(newPage.id);
   };
+
+  const clearPendingRename = useCallback(() => {
+    setPendingRenameId(null);
+  }, []);
 
   const handleDeletePage = (id) => {
     setPages((prev) => {
@@ -69,6 +75,8 @@ export function WorkspaceProvider({ children }) {
         handleAddNewList,
         handleDeletePage,
         handleRenamePage,
+        pendingRenameId,
+        clearPendingRename,
       }}
     >
       {children}

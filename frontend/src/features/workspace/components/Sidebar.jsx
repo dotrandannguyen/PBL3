@@ -21,6 +21,8 @@ const Sidebar = ({
   onPageClick,
   onDeletePage,
   onRenamePage,
+  pendingRenameId,
+  onClearPendingRename,
 }) => {
   const { t } = useLanguage();
   const { count: unreadInbox } = useUnreadInbox();
@@ -136,6 +138,8 @@ const Sidebar = ({
               onDelete={onDeletePage}
               onRename={onRenamePage}
               collapsed={collapsed}
+              autoStartRename={page.id === pendingRenameId}
+              onAutoRenameStart={onClearPendingRename}
             />
           ))}
           {!collapsed && privatePages.length === 0 && (
