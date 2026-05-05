@@ -1,9 +1,9 @@
 import React from 'react';
-import { User, Settings, Link as LinkIcon, Bell, Globe } from 'lucide-react';
+import { User, Settings, Link as LinkIcon, Bell, Globe, ExternalLink } from 'lucide-react';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { useAccountModal } from '../contexts/AccountModalContext';
 
 const SECTIONS = [
-    { id: 'profile',       labelKey: 'nav.profile',       icon: User },
     { id: 'general',       labelKey: 'nav.general',       icon: Settings },
     { id: 'integrations',  labelKey: 'nav.integrations',  icon: LinkIcon },
     { id: 'notifications', labelKey: 'nav.notifications', icon: Bell },
@@ -18,12 +18,30 @@ const SECTIONS = [
  */
 const SettingsSidebar = ({ activeSection, onNavClick }) => {
     const { t } = useLanguage();
+    const { open: openAccountModal } = useAccountModal();
 
     return (
         <div className="px-3 py-6">
             <h2 className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary">
                 {t('settings.section.label') || 'Settings'}
             </h2>
+
+            {/* Shortcut: open Account modal */}
+            <button
+                type="button"
+                onClick={openAccountModal}
+                className="group mb-3 flex w-full items-center gap-2.5 rounded-lg border border-border-subtle bg-bg-sidebar/60 px-3 py-2 text-left text-[13px] text-text-secondary transition-all duration-150 hover:bg-white/[0.04] hover:text-text-primary active:scale-[0.99]"
+            >
+                <User
+                    size={15}
+                    className="shrink-0 text-text-tertiary group-hover:text-accent-primary transition-colors"
+                />
+                <span className="flex-1 truncate">Hồ sơ & Tài khoản</span>
+                <ExternalLink
+                    size={12}
+                    className="text-text-tertiary opacity-0 group-hover:opacity-100 transition-opacity"
+                />
+            </button>
 
             <nav className="flex flex-col gap-0.5">
                 {SECTIONS.map((section) => {

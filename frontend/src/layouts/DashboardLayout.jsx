@@ -7,6 +7,8 @@ import {
   useWorkspace,
 } from "@/features/workspace/context/WorkspaceContext";
 import { UnreadInboxProvider } from "@/features/notification-receiver/context/UnreadInboxContext";
+import { AccountModalProvider } from "@/features/setting/contexts/AccountModalContext";
+import AccountModal from "@/features/setting/components/AccountModal";
 
 /**
  * DashboardContent — Nội dung layout, consume WorkspaceContext.
@@ -20,6 +22,8 @@ function DashboardContent() {
     handleAddNewList,
     handleDeletePage,
     handleRenamePage,
+    pendingRenameId,
+    clearPendingRename,
   } = useWorkspace();
   const location = useLocation();
 
@@ -33,6 +37,8 @@ function DashboardContent() {
         onAddNewList={handleAddNewList}
         onDeletePage={handleDeletePage}
         onRenamePage={handleRenamePage}
+        pendingRenameId={pendingRenameId}
+        onClearPendingRename={clearPendingRename}
       />
       <main className="flex-1 flex flex-col bg-bg-main overflow-hidden">
         {/* Keyed wrapper: re-mounts on route change → triggers fade-in */}
@@ -43,6 +49,7 @@ function DashboardContent() {
           <Outlet />
         </div>
       </main>
+      <AccountModal />
     </div>
   );
 }
@@ -55,7 +62,9 @@ export function DashboardLayout() {
   return (
     <WorkspaceProvider>
       <UnreadInboxProvider>
-        <DashboardContent />
+        <AccountModalProvider>
+          <DashboardContent />
+        </AccountModalProvider>
       </UnreadInboxProvider>
     </WorkspaceProvider>
   );

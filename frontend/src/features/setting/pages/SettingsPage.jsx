@@ -4,26 +4,39 @@ import { ArrowLeft } from 'lucide-react';
 import SettingsSidebar from '../components/SettingsSidebar';
 import SettingsContent from '../components/SettingsContent';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { useAccountModal } from '../contexts/AccountModalContext';
+
+const VALID_SECTIONS = new Set(['general', 'integrations', 'notifications', 'language']);
 
 const SettingsPage = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { open: openAccountModal } = useAccountModal();
+  const initialSection = searchParams.get('section');
   const [activeSection, setActiveSection] = useState(
-    searchParams.get('section') || 'profile'
+    VALID_SECTIONS.has(initialSection) ? initialSection : 'general'
   );
 
   const contentScrollRef = useRef(null);
 
   useEffect(() => {
     const section = searchParams.get('section');
-    if (section) {
+    if (!section) return;
+    // Legacy: ?section=profile → open modal instead
+    if (section === 'profile') {
+      openAccountModal();
+      setSearchParams({}, { replace: true });
+      return;
+    }
+    if (VALID_SECTIONS.has(section)) {
       const timer = setTimeout(() => {
         contentScrollRef.current?.scrollToSection(section);
       }, 150);
       setSearchParams({}, { replace: true });
       return () => clearTimeout(timer);
     }
+    setSearchParams({}, { replace: true });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNavClick = (id) => {

@@ -4,11 +4,13 @@ import { UserAvatar } from "../../../../components/shared";
 import useUserMenu from "./useUserMenu";
 import useAuth from "../../../auth/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { useAccountModal } from "../../../setting/contexts/AccountModalContext";
 
-const UserMenu = () => {
+const UserMenu = ({ collapsed = false }) => {
   const { user, logout } = useAuth();
   const { open, setOpen, menuRef } = useUserMenu();
   const navigate = useNavigate();
+  const { open: openAccountModal } = useAccountModal();
 
   const initial =
     user?.fullName?.[0]?.toUpperCase() ||
@@ -18,24 +20,29 @@ const UserMenu = () => {
 
   const handleProfileClick = () => {
     setOpen(false);
-    navigate("/settings?section=profile");
+    openAccountModal();
   };
 
   return (
     <div className="relative" ref={menuRef}>
       <button
         type="button"
-        className="w-full flex items-center px-3.5 py-3 cursor-pointer border-0 bg-transparent hover:bg-white/3 transition-colors text-left mb-1 gap-2"
+        title={collapsed ? displayName : undefined}
+        className={`w-full flex items-center ${collapsed ? "justify-center px-0 py-3" : "px-3.5 py-3"} cursor-pointer border-0 bg-transparent hover:bg-white/3 transition-colors text-left mb-1 gap-2`}
         onClick={() => setOpen(!open)}
       >
         <UserAvatar initial={initial} />
-        <span className="flex-1 overflow-hidden text-ellipsis font-medium text-text-primary">
-          {displayName}
-        </span>
-        <ChevronDown
-          size={14}
-          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-        />
+        {!collapsed && (
+          <>
+            <span className="flex-1 overflow-hidden text-ellipsis font-medium text-text-primary">
+              {displayName}
+            </span>
+            <ChevronDown
+              size={14}
+              className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+            />
+          </>
+        )}
       </button>
 
       {open && (

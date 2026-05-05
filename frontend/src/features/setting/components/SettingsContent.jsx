@@ -1,11 +1,10 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import ProfileSection from './sections/ProfileSection';
 import GeneralSection from './sections/GeneralSection';
 import IntegrationsSection from './sections/IntegrationsSection';
 import NotificationsSection from './sections/NotificationsSection';
 import LanguageSection from './sections/LanguageSection';
 
-const SECTION_IDS = ['profile', 'general', 'integrations', 'notifications', 'language'];
+const SECTION_IDS = ['general', 'integrations', 'notifications', 'language'];
 
 /**
  * SettingsContent — scrollable container with scroll-spy + programmatic scroll.
@@ -82,17 +81,8 @@ const SettingsContent = ({ onSectionChange, scrollRef }) => {
         <div ref={containerRef} className="relative h-full overflow-y-auto">
             <div className="mx-auto w-full max-w-[760px] px-8 pt-12 pb-32 lg:px-12">
                 <div
-                    id="section-profile"
-                    ref={(el) => (sectionsRef.current[0] = el)}
-                >
-                    <ProfileSection />
-                </div>
-
-                <SectionDivider />
-
-                <div
                     id="section-general"
-                    ref={(el) => (sectionsRef.current[1] = el)}
+                    ref={(el) => (sectionsRef.current[0] = el)}
                 >
                     <GeneralSection />
                 </div>
@@ -101,7 +91,7 @@ const SettingsContent = ({ onSectionChange, scrollRef }) => {
 
                 <div
                     id="section-integrations"
-                    ref={(el) => (sectionsRef.current[2] = el)}
+                    ref={(el) => (sectionsRef.current[1] = el)}
                 >
                     <IntegrationsSection />
                 </div>
@@ -110,7 +100,7 @@ const SettingsContent = ({ onSectionChange, scrollRef }) => {
 
                 <div
                     id="section-notifications"
-                    ref={(el) => (sectionsRef.current[3] = el)}
+                    ref={(el) => (sectionsRef.current[2] = el)}
                 >
                     <NotificationsSection />
                 </div>
@@ -119,7 +109,7 @@ const SettingsContent = ({ onSectionChange, scrollRef }) => {
 
                 <div
                     id="section-language"
-                    ref={(el) => (sectionsRef.current[4] = el)}
+                    ref={(el) => (sectionsRef.current[3] = el)}
                 >
                     <LanguageSection />
                 </div>
