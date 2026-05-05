@@ -141,7 +141,7 @@ const TaskRow = ({
         />
       ) : (
         <div
-          className="flex-1 min-w-0 flex items-center gap-1.5 relative"
+          className="flex-1 min-w-0 flex items-center gap-1 relative"
           onMouseEnter={() => {
             clearTimeout(tooltipTimeoutRef.current);
             tooltipTimeoutRef.current = setTimeout(() => setShowTooltip(true), 400);
@@ -151,25 +151,26 @@ const TaskRow = ({
             setShowTooltip(false);
           }}
         >
-            {showTooltip && <TaskTooltip task={task} currentUser={user} />}
-            <button
-              type="button"
-              className={`flex-1 min-w-0 bg-transparent border-none px-0 py-1 text-sm text-left cursor-text transition-colors truncate ${task.completed === true ? "text-text-tertiary" : "text-text-primary"
-                }`}
-              onClick={onEdit}
-            >
-              {task.title || task.text}
-            </button>
-            <button
-                type="button"
-                onClick={() => onOpenDashboard && onOpenDashboard(task)}
-                className="opacity-0 group-hover:opacity-100 p-1 flex items-center justify-center rounded-md hover:bg-white/10 text-text-tertiary hover:text-text-primary transition-all cursor-pointer border-none bg-transparent flex-shrink-0"
-                title={t('task.row.openDetail')}
-            >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-                </svg>
-            </button>
+          {showTooltip && <TaskTooltip task={task} currentUser={user} />}
+          <button
+            type="button"
+            className={`min-w-0 bg-transparent border-none px-0 py-1 text-sm text-left cursor-text transition-colors truncate ${
+              task.completed === true ? "text-text-tertiary" : "text-text-primary"
+            }`}
+            onClick={onEdit}
+          >
+            {task.title || task.text}
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenDashboard && onOpenDashboard(task)}
+            className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 flex items-center justify-center rounded-md hover:bg-white/10 text-text-tertiary hover:text-text-primary transition-all cursor-pointer border-none bg-transparent"
+            title={t('task.row.openDetail')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+            </svg>
+          </button>
         </div>
       )}
 
@@ -235,7 +236,7 @@ const TaskRow = ({
           return (
             <button
               type="button"
-              className={`flex items-center gap-1 px-1.5 py-1 rounded-md text-xs transition-colors whitespace-nowrap border-none bg-transparent cursor-pointer ${
+              className={`flex items-center gap-1 px-1.5 py-1 rounded-md text-xs transition-colors whitespace-nowrap border-none bg-transparent cursor-pointer min-w-[140px] ${
                 hasDueDate
                   ? "text-text-secondary hover:bg-white/5"
                   : "text-text-tertiary hover:bg-white/5"
@@ -254,6 +255,7 @@ const TaskRow = ({
             <input
               type="date"
               className="px-2 py-1 rounded bg-white/10 border border-border-subtle text-text-primary text-xs"
+              style={{ colorScheme: 'dark' }}
               value={dueDateValue || getTodayDate()}
               onChange={(e) => { onDateChange(e.target.value); setIsDateOpen(false); }}
             />

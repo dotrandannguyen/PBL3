@@ -304,6 +304,7 @@ const TaskList = ({ title = "To Do List" }) => {
     setNewTaskText(""); setNewTaskDescription(""); setNewTaskDueAt("");
     setNewTaskPriority("MEDIUM"); setNewTaskReminder("NONE"); setNewTaskError("");
     setShowDescription(false);
+    handleCollapseComposer();
   };
 
   const handleToggleTask = async (id, currentCompleted) => {
@@ -504,13 +505,13 @@ const TaskList = ({ title = "To Do List" }) => {
             className="mb-4 overflow-hidden rounded-xl border border-border-subtle bg-bg-sidebar/40 transition-colors focus-within:border-accent-primary/40"
           >
             {/* ── Title row ─────────────────────────────────── */}
-            <div className="flex items-start gap-2.5 px-4 pt-4">
+            <div className="flex items-start gap-2.5 px-4 pt-6 pb-3">
               <div className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-text-tertiary">
                 <Plus size={16} />
               </div>
               <input
                 ref={newTaskInputRef}
-                className="flex-1 border-none bg-transparent py-0.5 text-[15px] font-medium text-text-primary outline-none placeholder-text-tertiary"
+                className="flex-1 border-none bg-transparent py-2 text-[15px] font-medium text-text-primary outline-none placeholder-text-tertiary"
                 placeholder="Bạn cần làm gì?"
                 value={newTaskText}
                 onChange={(e) => {
@@ -591,6 +592,7 @@ const TaskList = ({ title = "To Do List" }) => {
                 ref={dateInputRef}
                 type="date"
                 className="sr-only"
+                style={{ colorScheme: 'dark' }}
                 value={newTaskDueAt}
                 onChange={(e) => {
                   setNewTaskDueAt(e.target.value);
