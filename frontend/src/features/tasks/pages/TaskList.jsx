@@ -155,7 +155,7 @@ const TaskList = ({ title = "To Do List" }) => {
   // ── State ──────────────────────────────────────────────
   const [removingIds, setRemovingIds] = useState(() => new Set());
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(pagination?.limit || 20);
+  const [limit, setLimit] = useState(pagination?.limit || 14);
 
   const [newTaskText, setNewTaskText] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
@@ -787,48 +787,50 @@ const TaskList = ({ title = "To Do List" }) => {
           )}
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4 text-xs text-text-tertiary">
-          <div>
-            Trang {page} / {pagination?.totalPages || 1} ·{" "}
-            {pagination?.totalItems || allTasks.length} công việc
-          </div>
+        {(pagination?.totalPages || 1) > 1 && (
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4 text-xs text-text-tertiary">
+            <div>
+              Trang {page} / {pagination?.totalPages || 1} ·{" "}
+              {pagination?.totalItems || allTasks.length} công việc
+            </div>
 
-          <div className="flex items-center gap-2">
-            <label className="text-text-tertiary">Hiển thị</label>
-            <select
-              className="rounded border border-border-subtle bg-white/5 px-2 py-1 text-xs text-text-primary"
-              value={limit}
-              onChange={(event) => setLimit(Number(event.target.value))}
-            >
-              {[10, 20, 50, 100].map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <label className="text-text-tertiary">Hiển thị</label>
+              <select
+                className="rounded border border-border-subtle bg-white/5 px-2 py-1 text-xs text-text-primary"
+                value={limit}
+                onChange={(event) => setLimit(Number(event.target.value))}
+              >
+                {[10, 14, 20, 50, 100].map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
 
-            <button
-              type="button"
-              className="rounded border border-border-subtle px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-white/5 disabled:opacity-50"
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              disabled={loading || page <= 1}
-            >
-              Trước
-            </button>
-            <button
-              type="button"
-              className="rounded border border-border-subtle px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-white/5 disabled:opacity-50"
-              onClick={() =>
-                setPage((prev) =>
-                  Math.min(prev + 1, pagination?.totalPages || 1),
-                )
-              }
-              disabled={loading || page >= (pagination?.totalPages || 1)}
-            >
-              Sau
-            </button>
+              <button
+                type="button"
+                className="rounded border border-border-subtle px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-white/5 disabled:opacity-50"
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={loading || page <= 1}
+              >
+                Trước
+              </button>
+              <button
+                type="button"
+                className="rounded border border-border-subtle px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-white/5 disabled:opacity-50"
+                onClick={() =>
+                  setPage((prev) =>
+                    Math.min(prev + 1, pagination?.totalPages || 1),
+                  )
+                }
+                disabled={loading || page >= (pagination?.totalPages || 1)}
+              >
+                Sau
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* TaskSlideOver — UI from HEAD */}

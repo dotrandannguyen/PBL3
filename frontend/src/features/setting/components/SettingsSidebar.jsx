@@ -36,7 +36,7 @@ const SettingsSidebar = ({ activeSection, onNavClick }) => {
                     size={15}
                     className="shrink-0 text-text-tertiary group-hover:text-accent-primary transition-colors"
                 />
-                <span className="flex-1 truncate">Hồ sơ & Tài khoản</span>
+                <span className="flex-1 truncate">{t('account.title')}</span>
                 <ExternalLink
                     size={12}
                     className="text-text-tertiary opacity-0 group-hover:opacity-100 transition-opacity"

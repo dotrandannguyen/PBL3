@@ -9,6 +9,8 @@ import {
 import { UnreadInboxProvider } from "@/features/notification-receiver/context/UnreadInboxContext";
 import { AccountModalProvider } from "@/features/setting/contexts/AccountModalContext";
 import AccountModal from "@/features/setting/components/AccountModal";
+import { SearchModalProvider } from "@/features/search/contexts/SearchModalContext";
+import SearchModal from "@/features/search/components/SearchModal";
 
 /**
  * DashboardContent — Nội dung layout, consume WorkspaceContext.
@@ -50,6 +52,7 @@ function DashboardContent() {
         </div>
       </main>
       <AccountModal />
+      <SearchModal />
     </div>
   );
 }
@@ -63,7 +66,9 @@ export function DashboardLayout() {
     <WorkspaceProvider>
       <UnreadInboxProvider>
         <AccountModalProvider>
-          <DashboardContent />
+          <SearchModalProvider>
+            <DashboardContent />
+          </SearchModalProvider>
         </AccountModalProvider>
       </UnreadInboxProvider>
     </WorkspaceProvider>

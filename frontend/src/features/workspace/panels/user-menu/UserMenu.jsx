@@ -5,12 +5,14 @@ import useUserMenu from "./useUserMenu";
 import useAuth from "../../../auth/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useAccountModal } from "../../../setting/contexts/AccountModalContext";
+import { useLanguage } from "../../../../contexts/LanguageContext";
 
 const UserMenu = ({ collapsed = false }) => {
   const { user, logout } = useAuth();
   const { open, setOpen, menuRef } = useUserMenu();
   const navigate = useNavigate();
   const { open: openAccountModal } = useAccountModal();
+  const { t } = useLanguage();
 
   const initial =
     user?.fullName?.[0]?.toUpperCase() ||
@@ -65,7 +67,7 @@ const UserMenu = ({ collapsed = false }) => {
             onClick={handleProfileClick}
           >
             <User size={14} />
-            <span>Hồ sơ & Tài khoản</span>
+            <span>{t('userMenu.profile')}</span>
           </button>
 
           <button
@@ -77,7 +79,7 @@ const UserMenu = ({ collapsed = false }) => {
             }}
           >
             <Settings size={14} />
-            <span>Cài đặt</span>
+            <span>{t('userMenu.settings')}</span>
           </button>
 
           <div className="border-t border-border-subtle mt-1">
@@ -90,7 +92,7 @@ const UserMenu = ({ collapsed = false }) => {
               }}
             >
               <LogOut size={14} />
-              <span>Đăng xuất</span>
+              <span>{t('userMenu.logout')}</span>
             </button>
           </div>
         </div>
