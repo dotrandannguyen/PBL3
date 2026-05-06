@@ -9,7 +9,7 @@
  * - BYOK: API Key nhận từ Header 'x-gemini-key'
  */
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { aiService } from './ai.service.js';
 import { authGuard } from '../../common/middleware/index.js';
 
@@ -19,7 +19,7 @@ const aiRouter = Router();
 const aiLimiter = rateLimit({
 	windowMs: 60 * 1000, // 1 phút
 	max: 10,
-	keyGenerator: (req) => req.user?.id || req.ip, // Rate limit theo userId
+	keyGenerator: (req) => req.user?.id || ipKeyGenerator(req.ip), // Rate limit theo userId, fallback theo IP
 	standardHeaders: true,
 	legacyHeaders: false,
 	message: {
