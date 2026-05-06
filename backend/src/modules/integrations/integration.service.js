@@ -174,6 +174,96 @@ export const integrationService = {
 		}
 	},
 
+	getSlackPreview: async (userId) => {
+		const integration = await integrationRepository.getIntegrationByProvider(
+			userId,
+			'SLACK',
+		);
+		if (!integration) {
+			throw new NotFoundException('Bạn chưa kết nối với Slack.');
+		}
+
+		const accessToken = encryptionUtils.decrypt(integration.accessTokenEncrypted);
+		const slackUserId = integration.providerUserId
+			? String(integration.providerUserId)
+			: null;
+		const slackClient = axios.create({
+			baseURL: 'https://slack.com/api',
+			headers: { Authorization: `Bearer ${accessToken}` },
+		});
+
+		try {
+			const listDirect = await slackClient.get('/conversations.list', {
+				params: { types: 'im,mpim', limit: 10 },
+			});
+
+			const directChannels = listDirect.data?.channels || [];
+			let targetChannel = directChannels[0] || null;
+			let channelName = targetChannel?.name || 'direct-message';
+
+			if (!targetChannel) {
+				const listChannels = await slackClient.get('/conversations.list', {
+					params: { types: 'public_channel,private_channel', limit: 10 },
+				});
+
+				const channels = listChannels.data?.channels || [];
+				targetChannel = channels[0] || null;
+				channelName = targetChannel?.name || 'channel';
+			}
+
+			if (!targetChannel) {
+				return [];
+			}
+
+			const history = await slackClient.get('/conversations.history', {
+				params: { channel: targetChannel.id, limit: 10 },
+			});
+
+			const messages = history.data?.messages || [];
+			if (messages.length === 0) return [];
+
+			const formattedMessages = messages
+				.filter((message) => Boolean(message?.text))
+				.filter((message) => {
+					if (!slackUserId) return true;
+					const senderId = message.user || message.bot_id || null;
+					if (!senderId) return false;
+					return String(senderId) !== slackUserId;
+				})
+				.map((message) => ({
+					id: message.ts,
+					text: message.text,
+					userId: message.user || message.bot_id || 'slack',
+					ts: message.ts,
+					channelId: targetChannel.id,
+					channelName,
+					link: `https://slack.com/app_redirect?channel=${targetChannel.id}&message_ts=${message.ts}`,
+				}));
+
+			const tasksBySourceId = await integrationService.saveTasksToInbox(
+				userId,
+				formattedMessages,
+				'SLACK',
+			);
+
+			return formattedMessages.map((message) => {
+				const savedTask = tasksBySourceId[message.id];
+				return {
+					...message,
+					taskId: savedTask?.id || null,
+				};
+			});
+		} catch (error) {
+			console.error('Lỗi gọi Slack API:', {
+				status: error.response?.status,
+				message: error.response?.data?.error || error.message,
+			});
+			throw new UnauthorizedException(
+				'Không thể lấy dữ liệu Slack. Vui lòng kiểm tra scope quyền và token hợp lệ.',
+			);
+		}
+	},
+
 	// ========== GMAIL WEBHOOK FUNCTIONS ==========
 
 	/**
@@ -660,6 +750,26 @@ export const integrationService = {
 							repository: task.repository,
 							creator: task.creator,
 							createdAt: task.createdAt,
+						},
+					};
+				} else if (sourceType === 'SLACK') {
+					const previewText = task.text?.trim() || 'Tin nhan Slack';
+					const titleText =
+						previewText.length > 80
+							? `${previewText.slice(0, 77)}...`
+							: previewText;
+					taskData = {
+						title: `[Slack] ${titleText}`,
+						description: task.text || 'Không có nội dung chi tiết.',
+						priority: 'MEDIUM',
+						sourceType: 'SLACK',
+						sourceId: String(task.id),
+						sourceLink: task.link,
+						sourceMetadata: {
+							channelId: task.channelId,
+							channelName: task.channelName,
+							userId: task.userId,
+							ts: task.ts,
 						},
 					};
 				}

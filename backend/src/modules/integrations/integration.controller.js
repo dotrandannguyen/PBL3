@@ -32,6 +32,20 @@ export const integrationController = {
 		}
 	},
 
+	previewSlack: async (req, res, next) => {
+		try {
+			const userId = req.user.id;
+			const messages = await integrationService.getSlackPreview(userId);
+			return new HttpResponse(res).success({
+				message: 'Lấy 10 tin nhắn Slack mới nhất thành công',
+				total: messages.length,
+				data: messages,
+			});
+		} catch (error) {
+			next(error);
+		}
+	},
+
 	// LấY DANH SÁCH REPOSITORIES
 	getGithubRepositories: async (req, res, next) => {
 		try {
