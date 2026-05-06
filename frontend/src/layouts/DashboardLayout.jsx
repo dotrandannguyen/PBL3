@@ -9,8 +9,8 @@ import {
 import { UnreadInboxProvider } from "@/features/notification-receiver/context/UnreadInboxContext";
 import { AccountModalProvider } from "@/features/setting/contexts/AccountModalContext";
 import AccountModal from "@/features/setting/components/AccountModal";
-import { SearchModalProvider } from "@/features/search/contexts/SearchModalContext";
-import SearchModal from "@/features/search/components/SearchModal";
+import { SearchModalProvider } from "@/features/workspace/search/contexts/SearchModalContext";
+import SearchModal from "@/features/workspace/search/components/SearchModal";
 import { FloatingChat } from "@/features/ai-chat/components/FloatingChat";
 
 /**

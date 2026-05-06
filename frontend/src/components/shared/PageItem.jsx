@@ -1,5 +1,5 @@
 import React from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, ChevronRight } from "lucide-react";
 
 const PageItem = ({
   page,
@@ -10,6 +10,10 @@ const PageItem = ({
   collapsed = false,
   autoStartRename = false,
   onAutoRenameStart,
+  hasChildren = false,
+  isExpanded = false,
+  onToggleExpand,
+  depth = 0,
 }) => {
   const [isRenaming, setIsRenaming] = React.useState(false);
   const [renameVal, setRenameVal] = React.useState(page.label);
@@ -64,17 +68,38 @@ const PageItem = ({
     );
   }
 
+  const paddingClass = depth > 0 ? "pl-8 pr-3.5" : "px-3.5";
+
   return (
     <button
       type="button"
-      className={`w-full flex items-center gap-2.5 px-3.5 py-1.5 bg-transparent border-0 text-sm font-medium text-left cursor-pointer transition-all ${
+      className={`w-full flex items-center gap-2 ${paddingClass} py-1.5 bg-transparent border-0 text-sm font-medium text-left cursor-pointer transition-all ${
         isActive
           ? "bg-white/5 text-text-primary"
           : "text-text-secondary hover:bg-white/3 hover:text-text-primary"
       }`}
       onClick={() => onClick(page.id)}
     >
-      <span className="text-sm">{page.icon}</span>
+      {hasChildren ? (
+        <span
+          role="button"
+          tabIndex={-1}
+          className="flex items-center justify-center w-4 h-4 -ml-0.5 rounded hover:bg-white/10 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleExpand?.(page.id);
+          }}
+        >
+          <ChevronRight
+            size={12}
+            className={`transition-transform duration-150 ${isExpanded ? "rotate-90" : ""}`}
+          />
+        </span>
+      ) : (
+        depth === 0 && <span className="w-4 shrink-0" aria-hidden="true" />
+      )}
+
+      <span className={`text-sm ${depth > 0 ? "opacity-70" : ""}`}>{page.icon}</span>
 
       {isRenaming ? (
         <input

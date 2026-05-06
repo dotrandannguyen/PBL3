@@ -1,7 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@1,6..72,400;1,6..72,500&display=swap');
 @import "tailwindcss";
 
 /* Tailwind v4 Theme Configuration */
 @theme {
+  /* ── Landing page tokens (Notion light theme) ──────────── */
+  --color-notion-bg: #FFFFFF;
+  --color-notion-text: #191919;
+  --color-notion-secondary: #F7F7F5;
+  --color-notion-border: #E9E9E7;
+  --radius-notion: 4px;
+  --font-serif: "Newsreader", serif;
+
   /* Colors - Notion Dark Mode */
   --color-bg-main: #191919;
   --color-bg-sidebar: #202020;
@@ -394,6 +403,37 @@ body {
   background: rgba(35, 131, 226, 0.28);
 }
 
+/* Default link styling — but allow Tailwind text-* utilities on links */
+a:not([class*="text-"]) {
+  @apply text-inherit;
+}
 a {
-  @apply text-inherit no-underline;
+  text-decoration: none;
+}
+
+/* ── Landing page utilities (Notion light theme) ──────────────────────── */
+@utility notion-border {
+  @apply border border-notion-border;
+}
+
+@utility notion-shadow {
+  @apply shadow-[0_1px_2px_rgba(0,0,0,0.05)];
+}
+
+@utility notion-card {
+  @apply notion-border notion-shadow bg-white rounded-notion;
+}
+
+/* Scope Inter font + tracking only inside landing page wrapper */
+.landing-root {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+.landing-root h1,
+.landing-root h2,
+.landing-root h3,
+.landing-root h4,
+.landing-root h5,
+.landing-root h6 {
+  letter-spacing: -0.02em;
 }

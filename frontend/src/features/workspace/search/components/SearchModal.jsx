@@ -10,8 +10,8 @@ import {
   CheckSquare,
 } from "lucide-react";
 import { useSearchModal } from "../contexts/SearchModalContext";
-import { useWorkspace } from "../../workspace/context/WorkspaceContext";
-import { getTasks } from "../../tasks/api/task.api";
+import { useWorkspace } from "../../context/WorkspaceContext";
+import { getTasks } from "../../../tasks/api/task.api";
 
 const formatDueDate = (value) => {
   if (!value) return null;
