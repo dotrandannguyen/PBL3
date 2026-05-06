@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   X,
   User,
@@ -19,13 +25,16 @@ import { toast } from "sonner";
 import useAuth from "../../auth/hooks/useAuth";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useAccountModal } from "../contexts/AccountModalContext";
+import { getCurrentUser, updateCurrentUser } from "../api/user.api";
 
 /* ─── Tiny helper ─────────────────────────────────────────────────── */
 const InfoRow = ({ icon: Icon, label, children, mono = false }) => (
   <div className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
     <div className="flex items-center gap-2.5 min-w-0">
       {Icon && <Icon size={13} className="shrink-0 text-text-tertiary" />}
-      <span className="text-[12px] font-medium text-text-tertiary">{label}</span>
+      <span className="text-[12px] font-medium text-text-tertiary">
+        {label}
+      </span>
     </div>
     <div
       className={`min-w-0 truncate text-[12.5px] ${
@@ -66,11 +75,33 @@ const AccountModal = () => {
   // Load from localStorage when modal opens / user changes
   useEffect(() => {
     if (!user?.id) return;
-    const savedAvatar = localStorage.getItem(`avatar-${user.id}`);
-    setAvatarPreview(savedAvatar || null);
-    const savedBio = localStorage.getItem(`bio-${user.id}`);
-    setBio(savedBio || "");
-  }, [user?.id, isOpen]);
+    setAvatarPreview(user?.avatarUrl || null);
+    setBio(user?.bio || "");
+  }, [user?.id, user?.avatarUrl, user?.bio, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !user?.id) return;
+    let isActive = true;
+
+    const fetchProfile = async () => {
+      try {
+        const response = await getCurrentUser();
+        const profile = response?.data?.data;
+        if (!isActive || !profile) return;
+        updateUserInStorage(profile);
+        if (profile.fullName) setFullName(profile.fullName);
+        if (profile.avatarUrl) setAvatarPreview(profile.avatarUrl);
+        if (profile.bio !== undefined) setBio(profile.bio || "");
+      } catch (error) {
+        console.warn("Không thể đồng bộ profile từ server", error);
+      }
+    };
+
+    fetchProfile();
+    return () => {
+      isActive = false;
+    };
+  }, [isOpen, user?.id, updateUserInStorage]);
 
   useEffect(() => {
     if (user?.fullName) setFullName(user.fullName);
@@ -119,8 +150,12 @@ const AccountModal = () => {
     if (!container || !el) return;
     isProgrammaticRef.current = true;
     setActiveSection(id);
-    container.scrollTo({ top: Math.max(0, el.offsetTop - 16), behavior: "smooth" });
-    if (programmaticTimerRef.current) clearTimeout(programmaticTimerRef.current);
+    container.scrollTo({
+      top: Math.max(0, el.offsetTop - 16),
+      behavior: "smooth",
+    });
+    if (programmaticTimerRef.current)
+      clearTimeout(programmaticTimerRef.current);
     programmaticTimerRef.current = setTimeout(() => {
       isProgrammaticRef.current = false;
     }, 600);
@@ -139,38 +174,53 @@ const AccountModal = () => {
     reader.onload = (event) => {
       const base64 = event.target.result;
       setAvatarPreview(base64);
-      if (user?.id) localStorage.setItem(`avatar-${user.id}`, base64);
       toast.success(t("account.toast.avatarUpdated"));
     };
     reader.readAsDataURL(file);
   };
   const handleRemoveAvatar = () => {
     setAvatarPreview(null);
-    if (user?.id) localStorage.removeItem(`avatar-${user.id}`);
     toast.success(t("account.toast.avatarRemoved"));
   };
 
   // ── Save / Reset ──────────────────────────────────────────────
-  const hasChanges = useMemo(
-    () =>
+  const hasChanges = useMemo(() => {
+    const currentAvatar = user?.avatarUrl || null;
+    return (
       fullName.trim() !== (user?.fullName || "") ||
-      bio !== (localStorage.getItem(`bio-${user?.id}`) || ""),
-    [fullName, bio, user]
-  );
+      bio !== (user?.bio || "") ||
+      (avatarPreview || null) !== currentAvatar
+    );
+  }, [fullName, bio, avatarPreview, user]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
-    setTimeout(() => {
-      updateUserInStorage({ fullName: fullName.trim() || user?.fullName });
-      if (user?.id) localStorage.setItem(`bio-${user.id}`, bio);
-      setIsSaving(false);
+    try {
+      const response = await updateCurrentUser({
+        fullName: fullName.trim() || null,
+        avatarUrl: avatarPreview || null,
+        bio: bio.trim() || null,
+      });
+      const updated = response?.data?.data;
+      if (updated) {
+        updateUserInStorage(updated);
+      }
       toast.success(t("account.toast.saved"));
-    }, 300);
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        t("account.toast.saveFailed") ||
+        "Lưu thông tin thất bại";
+      toast.error(message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleResetChanges = () => {
     setFullName(user?.fullName || "");
-    setBio(localStorage.getItem(`bio-${user?.id}`) || "");
+    setBio(user?.bio || "");
   };
 
   const handleCopyId = async () => {
@@ -198,6 +248,19 @@ const AccountModal = () => {
         year: "numeric",
       })
     : "N/A";
+
+  const providerMeta = (() => {
+    switch (user?.provider) {
+      case "google":
+        return { label: t("account.provider.google"), tone: "blue" };
+      case "github":
+        return { label: "GitHub", tone: "slate" };
+      case "slack":
+        return { label: "Slack", tone: "purple" };
+      default:
+        return { label: t("account.provider.local"), tone: "emerald" };
+    }
+  })();
 
   if (!isOpen) return null;
 
@@ -316,13 +379,21 @@ const AccountModal = () => {
                           title={t("account.identity.changeAvatar")}
                         >
                           {avatarPreview ? (
-                            <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" />
+                            <img
+                              src={avatarPreview}
+                              alt="Avatar"
+                              className="h-full w-full object-cover"
+                            />
                           ) : (
-                            <span className="flex h-full w-full items-center justify-center">{initial}</span>
+                            <span className="flex h-full w-full items-center justify-center">
+                              {initial}
+                            </span>
                           )}
                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-black/55 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                             <Camera size={16} className="text-white" />
-                            <span className="text-[9.5px] font-medium uppercase tracking-wide text-white/90">{t("account.identity.changeAvatar")}</span>
+                            <span className="text-[9.5px] font-medium uppercase tracking-wide text-white/90">
+                              {t("account.identity.changeAvatar")}
+                            </span>
                           </div>
                         </button>
                         {avatarPreview && (
@@ -347,7 +418,9 @@ const AccountModal = () => {
                         <p className="truncate text-base font-semibold text-text-primary">
                           {user?.fullName || user?.email || "—"}
                         </p>
-                        <p className="mt-0.5 truncate text-[12.5px] text-text-tertiary">{user?.email}</p>
+                        <p className="mt-0.5 truncate text-[12.5px] text-text-tertiary">
+                          {user?.email}
+                        </p>
                         <div className="mt-3 flex items-center gap-2">
                           <button
                             type="button"
@@ -357,39 +430,68 @@ const AccountModal = () => {
                             <Camera size={12} />
                             {t("account.identity.changeAvatar")}
                           </button>
-                          <span className="text-[10.5px] text-text-tertiary">{t("account.identity.avatarHint")}</span>
+                          <span className="text-[10.5px] text-text-tertiary">
+                            {t("account.identity.avatarHint")}
+                          </span>
                         </div>
                       </div>
                     </div>
                     <div className="border-t border-border-subtle bg-white/[0.015] p-6 lg:border-l lg:border-t-0">
-                      <InfoRow icon={Shield} label={t("account.identity.accountType")}>
-                        {user?.provider === "google" ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2 py-0.5 text-[11px] font-semibold text-blue-400 ring-1 ring-blue-500/20">
-                            <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                            {t("account.provider.google")}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-400 ring-1 ring-emerald-500/20">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                            {t("account.provider.local")}
-                          </span>
-                        )}
+                      <InfoRow
+                        icon={Shield}
+                        label={t("account.identity.accountType")}
+                      >
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${
+                            providerMeta.tone === "blue"
+                              ? "bg-blue-500/10 text-blue-400 ring-blue-500/20"
+                              : providerMeta.tone === "slate"
+                                ? "bg-slate-500/10 text-slate-300 ring-slate-500/20"
+                                : providerMeta.tone === "purple"
+                                  ? "bg-purple-500/10 text-purple-300 ring-purple-500/20"
+                                  : "bg-emerald-500/10 text-emerald-400 ring-emerald-500/20"
+                          }`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              providerMeta.tone === "blue"
+                                ? "bg-blue-400"
+                                : providerMeta.tone === "slate"
+                                  ? "bg-slate-300"
+                                  : providerMeta.tone === "purple"
+                                    ? "bg-purple-300"
+                                    : "bg-emerald-400"
+                            }`}
+                          />
+                          {providerMeta.label}
+                        </span>
                       </InfoRow>
-                      <InfoRow icon={CalendarDays} label={t("account.identity.memberSince")}>
+                      <InfoRow
+                        icon={CalendarDays}
+                        label={t("account.identity.memberSince")}
+                      >
                         {memberSince}
                       </InfoRow>
-                      <InfoRow icon={Fingerprint} label={t("account.identity.userId")}>
+                      <InfoRow
+                        icon={Fingerprint}
+                        label={t("account.identity.userId")}
+                      >
                         <button
                           type="button"
                           onClick={handleCopyId}
                           className="group inline-flex items-center gap-1.5 rounded px-1 text-text-tertiary transition-colors hover:text-text-primary border-none bg-transparent cursor-pointer"
                           title={t("account.identity.copyId")}
                         >
-                          <span className="font-mono">{user?.id ? `…${user.id.slice(-10)}` : "N/A"}</span>
+                          <span className="font-mono">
+                            {user?.id ? `…${user.id.slice(-10)}` : "N/A"}
+                          </span>
                           {idCopied ? (
                             <Check size={11} className="text-emerald-400" />
                           ) : (
-                            <Copy size={11} className="opacity-0 transition-opacity group-hover:opacity-100" />
+                            <Copy
+                              size={11}
+                              className="opacity-0 transition-opacity group-hover:opacity-100"
+                            />
                           )}
                         </button>
                       </InfoRow>
@@ -411,7 +513,10 @@ const AccountModal = () => {
                   </div>
                   <div className="space-y-5 p-6">
                     <div className="space-y-1.5">
-                      <label htmlFor="account-fullname" className="block text-[11.5px] font-medium text-text-secondary">
+                      <label
+                        htmlFor="account-fullname"
+                        className="block text-[11.5px] font-medium text-text-secondary"
+                      >
                         {t("profile.label.fullName")}
                       </label>
                       <input
@@ -425,9 +530,14 @@ const AccountModal = () => {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[11.5px] font-medium text-text-secondary">{t("profile.label.email")}</label>
+                      <label className="block text-[11.5px] font-medium text-text-secondary">
+                        {t("profile.label.email")}
+                      </label>
                       <div className="relative max-w-lg">
-                        <Mail size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+                        <Mail
+                          size={14}
+                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
+                        />
                         <input
                           type="email"
                           value={user?.email || ""}
@@ -435,11 +545,16 @@ const AccountModal = () => {
                           className="h-10 w-full cursor-not-allowed rounded-lg border border-border-subtle/60 bg-white/[0.015] pl-9 pr-3 text-[13.5px] text-text-tertiary"
                         />
                       </div>
-                      <p className="text-[11.5px] text-text-tertiary">{t("profile.email.hint")}</p>
+                      <p className="text-[11.5px] text-text-tertiary">
+                        {t("profile.email.hint")}
+                      </p>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label htmlFor="account-bio" className="block text-[11.5px] font-medium text-text-secondary">
+                      <label
+                        htmlFor="account-bio"
+                        className="block text-[11.5px] font-medium text-text-secondary"
+                      >
                         {t("account.personal.bio")}
                       </label>
                       <textarea
@@ -452,7 +567,9 @@ const AccountModal = () => {
                         className="w-full max-w-lg resize-none rounded-lg border border-border-subtle bg-bg-main/60 px-3 py-2 text-[13.5px] text-text-primary placeholder-text-tertiary outline-none transition-all duration-150 focus:border-accent-primary focus:bg-bg-main focus:ring-2 focus:ring-accent-primary/20"
                       />
                       <div className="flex max-w-lg items-center justify-end">
-                        <span className={`text-[11px] tabular-nums ${bio.length > 180 ? "text-yellow-400" : "text-text-tertiary"}`}>
+                        <span
+                          className={`text-[11px] tabular-nums ${bio.length > 180 ? "text-yellow-400" : "text-text-tertiary"}`}
+                        >
                           {bio.length}/200
                         </span>
                       </div>
@@ -482,7 +599,9 @@ const AccountModal = () => {
                             disabled={isSaving}
                             className="rounded-md bg-accent-primary px-4 py-1.5 text-[12px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-accent-hover hover:shadow-accent-primary/25 hover:shadow-md active:scale-[0.97] disabled:opacity-60 border-none cursor-pointer"
                           >
-                            {isSaving ? t("profile.btn.saving") : t("profile.btn.save")}
+                            {isSaving
+                              ? t("profile.btn.saving")
+                              : t("profile.btn.save")}
                           </button>
                         </div>
                       </div>
@@ -509,7 +628,9 @@ const AccountModal = () => {
                           <KeyRound size={14} />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[13px] font-medium text-text-primary">{t("account.security.password")}</p>
+                          <p className="text-[13px] font-medium text-text-primary">
+                            {t("account.security.password")}
+                          </p>
                           <p className="mt-0.5 text-[12px] text-text-tertiary">
                             {user?.provider === "google"
                               ? t("account.security.password.googleHint")
@@ -526,7 +647,9 @@ const AccountModal = () => {
                         <button
                           type="button"
                           className="rounded-md border border-border-subtle bg-bg-main/60 px-3 py-1.5 text-[12px] font-medium text-text-secondary transition-all duration-150 hover:bg-white/[0.04] hover:text-text-primary active:scale-[0.97] cursor-pointer"
-                          onClick={() => toast.info(t("account.toast.featureWIP"))}
+                          onClick={() =>
+                            toast.info(t("account.toast.featureWIP"))
+                          }
                         >
                           {t("account.security.password.changeBtn")}
                         </button>
@@ -538,14 +661,20 @@ const AccountModal = () => {
                           <Smartphone size={14} />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[13px] font-medium text-text-primary">{t("account.security.sessions")}</p>
-                          <p className="mt-0.5 text-[12px] text-text-tertiary">{t("account.security.sessions.hint")}</p>
+                          <p className="text-[13px] font-medium text-text-primary">
+                            {t("account.security.sessions")}
+                          </p>
+                          <p className="mt-0.5 text-[12px] text-text-tertiary">
+                            {t("account.security.sessions.hint")}
+                          </p>
                         </div>
                       </div>
                       <button
                         type="button"
                         className="rounded-md border border-border-subtle bg-bg-main/60 px-3 py-1.5 text-[12px] font-medium text-text-secondary transition-all duration-150 hover:bg-white/[0.04] hover:text-text-primary active:scale-[0.97] cursor-pointer"
-                        onClick={() => toast.info(t("account.toast.featureWIP"))}
+                        onClick={() =>
+                          toast.info(t("account.toast.featureWIP"))
+                        }
                       >
                         {t("account.security.sessions.viewBtn")}
                       </button>
@@ -571,7 +700,9 @@ const AccountModal = () => {
                   <div className="px-6 py-5">
                     <div className="flex items-center justify-between gap-4">
                       <div className="min-w-0">
-                        <p className="text-[13px] font-medium text-text-primary">{t("account.danger.delete.title")}</p>
+                        <p className="text-[13px] font-medium text-text-primary">
+                          {t("account.danger.delete.title")}
+                        </p>
                         <p className="mt-0.5 text-[12px] text-text-tertiary">
                           {t("account.danger.delete.hint")}
                         </p>

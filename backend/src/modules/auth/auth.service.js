@@ -60,7 +60,7 @@ export const authService = {
 		// 5. Hash và lưu refresh token vào database
 		const refreshTokenHash = await bcrypt.hash(tokens.refreshToken, SALT_ROUNDS);
 		await authRepository.updateRefreshTokenHash(newUser.id, refreshTokenHash);
-		return new AuthResponseDto(newUser, tokens);
+		return new AuthResponseDto(newUser, tokens, 'local');
 	},
 
 	login: async (dto) => {
@@ -94,7 +94,7 @@ export const authService = {
 		const refreshTokenHash = await bcrypt.hash(tokens.refreshToken, SALT_ROUNDS);
 		await authRepository.updateRefreshTokenHash(user.id, refreshTokenHash);
 
-		return new AuthResponseDto(user, tokens);
+		return new AuthResponseDto(user, tokens, 'local');
 	},
 	logout: async (userId) => {
 		if (!userId) {

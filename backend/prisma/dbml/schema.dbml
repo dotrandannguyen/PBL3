@@ -10,6 +10,11 @@ Table users {
   refreshTokenHash String
   fullName String
   avatarUrl String
+  bio String
+  theme String
+  language String
+  timeFormat String
+  timezone String
   isActive Boolean [not null, default: true]
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [default: `now()`, not null]
@@ -22,6 +27,7 @@ Table users {
   taskActivities task_activities [not null]
   syncLogs sync_logs [not null]
   notifications notifications [not null]
+  notificationPreference notification_preferences
   auditLogs audit_logs [not null]
 
   Note: 'Người dùng hệ thống'
@@ -202,6 +208,17 @@ Table audit_logs {
   user users
 }
 
+Table notification_preferences {
+  userId String [pk]
+  email Boolean [not null, default: true]
+  push Boolean [not null, default: true]
+  sound Boolean [not null, default: false]
+  digest Boolean [not null, default: true]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [default: `now()`, not null]
+  user users [not null]
+}
+
 Enum IntegrationProvider {
   GOOGLE
   GITHUB
@@ -326,3 +343,5 @@ Ref: notifications.userId > users.id
 Ref: notifications.taskId > tasks.id
 
 Ref: audit_logs.userId > users.id
+
+Ref: notification_preferences.userId - users.id [delete: Cascade]

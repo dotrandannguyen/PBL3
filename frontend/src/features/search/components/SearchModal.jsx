@@ -1,6 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, X, ArrowRight, Loader, FileText, Calendar, CheckSquare } from "lucide-react";
+import {
+  Search,
+  X,
+  ArrowRight,
+  Loader,
+  FileText,
+  Calendar,
+  CheckSquare,
+} from "lucide-react";
 import { useSearchModal } from "../contexts/SearchModalContext";
 import { useWorkspace } from "../../workspace/context/WorkspaceContext";
 import { getTasks } from "../../tasks/api/task.api";
@@ -61,7 +69,8 @@ const SearchModal = () => {
       try {
         const res = await getTasks({ search: trimmed, limit: 10, page: 1 });
         if (cancelled) return;
-        const items = res?.data?.data || res?.data || [];
+        const payload = res?.data?.data;
+        const items = payload?.data ?? res?.data?.data ?? res?.data ?? [];
         setTaskResults(Array.isArray(items) ? items : []);
       } catch (err) {
         if (!cancelled) setTaskResults([]);
@@ -263,15 +272,21 @@ const SearchModal = () => {
           <div className="flex items-center justify-between border-t border-border-subtle bg-bg-sidebar/30 px-4 py-2 text-[11px] text-text-tertiary">
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-1">
-                <kbd className="rounded border border-border-subtle bg-white/5 px-1.5 py-0.5 font-mono">↵</kbd>
+                <kbd className="rounded border border-border-subtle bg-white/5 px-1.5 py-0.5 font-mono">
+                  ↵
+                </kbd>
                 Mở
               </span>
               <span className="inline-flex items-center gap-1">
-                <kbd className="rounded border border-border-subtle bg-white/5 px-1.5 py-0.5 font-mono">⌘K</kbd>
+                <kbd className="rounded border border-border-subtle bg-white/5 px-1.5 py-0.5 font-mono">
+                  ⌘K
+                </kbd>
                 Tìm kiếm
               </span>
             </div>
-            <span>{filteredWorkspaces.length + taskResults.length} kết quả</span>
+            <span>
+              {filteredWorkspaces.length + taskResults.length} kết quả
+            </span>
           </div>
         </div>
       </div>

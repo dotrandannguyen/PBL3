@@ -3,8 +3,7 @@ import { Mail, Bell, Volume2, Calendar } from 'lucide-react';
 import useAuth from '../../../auth/hooks/useAuth';
 import { useLanguage } from '../../../../contexts/LanguageContext';
 import { Toggle } from '@/components/shared';
-
-const STORAGE_KEY_PREFIX = 'notif';
+import { getNotificationPreferences, updateNotificationPreferences } from '../../api/user.api';
 
 const DEFAULTS = {
     email: true,
@@ -16,30 +15,45 @@ const DEFAULTS = {
 const NotificationsSection = () => {
     const { user } = useAuth();
     const { t } = useLanguage();
-    const storageKey = user?.id
-        ? `${STORAGE_KEY_PREFIX}-${user.id}`
-        : STORAGE_KEY_PREFIX;
-
     const [prefs, setPrefs] = useState(DEFAULTS);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        try {
-            const saved = localStorage.getItem(storageKey);
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                // eslint-disable-next-line react-hooks/set-state-in-effect
-                setPrefs({ ...DEFAULTS, ...parsed });
+        const fetchPrefs = async () => {
+            try {
+                if (!user?.id) return;
+                setIsLoading(true);
+                const res = await getNotificationPreferences();
+                const data = res.data?.data;
+                if (data) {
+                    setPrefs({
+                        email: data.email ?? DEFAULTS.email,
+                        push: data.push ?? DEFAULTS.push,
+                        sound: data.sound ?? DEFAULTS.sound,
+                        digest: data.digest ?? DEFAULTS.digest,
+                    });
+                }
+            } catch (error) {
+                console.error("Failed to fetch notification preferences:", error);
+            } finally {
+                setIsLoading(false);
             }
-        } catch {
-            /* corrupted — keep defaults */
+        };
+        fetchPrefs();
+    }, [user?.id]);
+
+    const toggle = async (key) => {
+        const newPrefs = { ...prefs, [key]: !prefs[key] };
+        // Optimistic update
+        setPrefs(newPrefs);
+        try {
+            await updateNotificationPreferences({ [key]: newPrefs[key] });
+        } catch (error) {
+            console.error("Failed to update notification preferences:", error);
+            // Revert on error
+            setPrefs(prefs);
         }
-    }, [storageKey]);
-
-    useEffect(() => {
-        localStorage.setItem(storageKey, JSON.stringify(prefs));
-    }, [storageKey, prefs]);
-
-    const toggle = (key) => setPrefs((p) => ({ ...p, [key]: !p[key] }));
+    };
 
     const items = [
         {
