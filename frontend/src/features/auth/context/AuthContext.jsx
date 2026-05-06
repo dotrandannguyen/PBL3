@@ -112,6 +112,19 @@ export const AuthProvider = ({ children }) => {
     navigate("/auth/login", { replace: true });
   }, [navigate]);
 
+  /**
+   * Update user fields in localStorage + React state (no backend call).
+   * Used by Settings > Profile to save name/avatar changes.
+   * @param {Object} updatedFields — fields to merge into the current user object
+   */
+  const updateUserInStorage = useCallback((updatedFields) => {
+    setUser((prev) => {
+      const updated = { ...prev, ...updatedFields };
+      localStorage.setItem("user", JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -123,6 +136,7 @@ export const AuthProvider = ({ children }) => {
         loginWithOAuth,
         register,
         logout,
+        updateUserInStorage,
       }}
     >
       {children}

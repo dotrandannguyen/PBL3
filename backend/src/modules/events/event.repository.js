@@ -5,6 +5,8 @@ const eventSelect = {
 	title: true,
 	date: true,
 	time: true,
+	endDate: true,
+	endTime: true,
 	color: true,
 	location: true,
 	description: true,

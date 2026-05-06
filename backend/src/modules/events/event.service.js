@@ -13,13 +13,23 @@ const CALENDAR_METADATA_KEY = 'calendar';
 const DEFAULT_EVENT_SORT = 'date-asc';
 
 const mapEventToResponse = (event, options = {}) => {
+	// Persisted columns endDate/endTime — backward compat
+	const persistedEndTime = event.endTime ?? null;
+	const persistedEndDate = event.endDate ? event.endDate.toISOString().slice(0, 10) : null;
+
+	const endTime = persistedEndTime ?? options.endTime ?? null;
+	const endDate = persistedEndDate ?? options.endDate ?? null;
+
+	// v2: compute endAt từ endDate+endTime, hoặc từ event.endAt
 	const resolvedEndAtInput = options.endAt ?? event.endAt ?? null;
 	const parsedEndAt = resolvedEndAtInput ? new Date(resolvedEndAtInput) : null;
-	const hasValidEndAt =
-		parsedEndAt instanceof Date && !Number.isNaN(parsedEndAt.getTime());
-	const endAt = hasValidEndAt ? parsedEndAt.toISOString() : null;
-	const endTime = options.endTime ?? (hasValidEndAt ? toTimeHM(parsedEndAt) : null);
+	const hasValidEndAt = parsedEndAt instanceof Date && !Number.isNaN(parsedEndAt.getTime());
+	let endAt = hasValidEndAt ? parsedEndAt.toISOString() : null;
+	if (!endAt && endDate && endTime) {
+		endAt = new Date(`${endDate}T${endTime}:00`).toISOString();
+	}
 
+	// v2: startAt / reminderAt
 	const parsedStartAt = event.startAt ? new Date(event.startAt) : null;
 	const startAt =
 		parsedStartAt instanceof Date && !Number.isNaN(parsedStartAt.getTime())
@@ -38,6 +48,7 @@ const mapEventToResponse = (event, options = {}) => {
 		date: event.date.toISOString().slice(0, 10),
 		time: event.time,
 		endTime,
+		endDate,
 		endAt,
 		color: event.color,
 		location: event.location,
@@ -126,6 +137,8 @@ export const eventService = {
 			title: dto.title,
 			date: toDateOnly(dto.date),
 			time: dto.time,
+			endDate: dto.endDate ? toDateOnly(dto.endDate) : null,
+			endTime: dto.endTime ?? null,
 			location: dto.location ?? null,
 			description: dto.description ?? null,
 			repeat: dto.repeat ?? 'NONE',
@@ -146,7 +159,7 @@ export const eventService = {
 		// Schedule event notifications v2 (scheduler sẽ tự skip nếu linkedTaskId)
 		await scheduleEventV2({ ...createdEvent, userId });
 
-		return mapEventToResponse(createdEvent, { endTime: null, endAt: null });
+		return mapEventToResponse(createdEvent);
 	},
 
 	updateEvent: async (userId, eventId, dto) => {
@@ -170,6 +183,10 @@ export const eventService = {
 		if (dto.title !== undefined) updateData.title = dto.title;
 		if (dto.date !== undefined) updateData.date = toDateOnly(dto.date);
 		if (dto.time !== undefined) updateData.time = dto.time;
+		if (dto.endDate !== undefined) {
+			updateData.endDate = dto.endDate ? toDateOnly(dto.endDate) : null;
+		}
+		if (dto.endTime !== undefined) updateData.endTime = dto.endTime ?? null;
 		if (dto.color !== undefined) updateData.color = dto.color;
 		if (dto.location !== undefined) updateData.location = dto.location;
 		if (dto.description !== undefined) updateData.description = dto.description;

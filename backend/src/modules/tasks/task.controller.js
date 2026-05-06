@@ -157,4 +157,48 @@ export const taskController = {
 			next(error);
 		}
 	},
+
+	/**
+	 * GET /tasks/trash
+	 * Lấy danh sách tasks đã xoá
+	 */
+	getTrash: async (req, res, next) => {
+		try {
+			const userId = req.user.id;
+			const result = await taskService.getTrashTasks(userId, req.query);
+			return new HttpResponse(res).success(result);
+		} catch (error) {
+			next(error);
+		}
+	},
+
+	/**
+	 * PATCH /tasks/:id/restore
+	 * Khôi phục task đã xoá
+	 */
+	restore: async (req, res, next) => {
+		try {
+			const userId = req.user.id;
+			const taskId = req.params.id;
+			const result = await taskService.restoreTask(userId, taskId);
+			return new HttpResponse(res).success(result);
+		} catch (error) {
+			next(error);
+		}
+	},
+
+	/**
+	 * DELETE /tasks/:id/permanent
+	 * Xoá vĩnh viễn task khỏi hệ thống
+	 */
+	permanentDelete: async (req, res, next) => {
+		try {
+			const userId = req.user.id;
+			const taskId = req.params.id;
+			const result = await taskService.permanentDeleteTask(userId, taskId);
+			return new HttpResponse(res).success(result);
+		} catch (error) {
+			next(error);
+		}
+	},
 };

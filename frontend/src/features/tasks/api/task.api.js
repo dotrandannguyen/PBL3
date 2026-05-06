@@ -143,3 +143,46 @@ export const confirmInboxTask = (id) =>
  */
 export const getInboxTasks = (query = {}) =>
   apiClient.get("/v1/api/tasks/inbox", { params: query });
+
+/**
+ * GET /v1/api/tasks/trash
+ *
+ * Lấy danh sách tasks đã xoá (soft-deleted)
+ *
+ * @param {Object} query - Tuỳ chọn query params:
+ *   - page: number (default: 1)
+ *   - limit: number (default: 50)
+ *   - search: string
+ *
+ * @returns {Promise} Response object:
+ *   {
+ *     data: {
+ *       data: [...tasks],
+ *       pagination: { page, limit, totalItems, totalPages }
+ *     }
+ *   }
+ */
+export const getTrashTasks = (query = {}) =>
+  apiClient.get("/v1/api/tasks/trash", { params: query });
+
+/**
+ * PATCH /v1/api/tasks/:id/restore
+ *
+ * Khôi phục task đã xoá (set deletedAt = null)
+ *
+ * @param {string} id - Task ID
+ * @returns {Promise} Restored task object
+ */
+export const restoreTask = (id) =>
+  apiClient.patch(`/v1/api/tasks/${id}/restore`);
+
+/**
+ * DELETE /v1/api/tasks/:id/permanent
+ *
+ * Xoá vĩnh viễn task khỏi hệ thống (hard delete)
+ *
+ * @param {string} id - Task ID
+ * @returns {Promise} Confirmation response
+ */
+export const permanentDeleteTask = (id) =>
+  apiClient.delete(`/v1/api/tasks/${id}/permanent`);

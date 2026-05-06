@@ -219,7 +219,7 @@ const resolveNotificationTone = (notification = {}) => {
   };
 };
 
-const InboxPanel = ({ isOpen, onClose }) => {
+const InboxPanel = ({ isOpen, onClose, sidebarCollapsed = false }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -416,16 +416,18 @@ const InboxPanel = ({ isOpen, onClose }) => {
       {/* Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-y-0 left-0 md:left-60 right-0 bg-black/60 z-30"
+          className={`fixed inset-y-0 left-0 right-0 bg-black/60 z-30 transition-[left] duration-200 ease-in-out ${
+            sidebarCollapsed ? "md:left-14" : "md:left-60"
+          }`}
           onClick={onClose}
         />
       )}
 
       {/* Notification Center Panel */}
       <div
-        className={`fixed top-0 left-0 md:left-60 h-screen w-full md:w-[28rem] bg-bg-sidebar border-l border-border-subtle flex flex-col z-40 transition-transform duration-300 overflow-hidden ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed top-0 left-0 h-screen w-full md:w-[28rem] bg-bg-sidebar border-l border-border-subtle flex flex-col z-40 transition-[transform,left] duration-200 ease-in-out overflow-hidden ${
+          sidebarCollapsed ? "md:left-14" : "md:left-60"
+        } ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         {/* Header */}
         <header className="flex items-center justify-between px-4 py-4 border-b border-border-subtle shrink-0">

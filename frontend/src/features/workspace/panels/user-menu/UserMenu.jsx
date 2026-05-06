@@ -1,12 +1,18 @@
 import React from "react";
-import { ChevronDown, LogOut, User } from "lucide-react";
+import { ChevronDown, LogOut, User, Settings } from "lucide-react";
 import { UserAvatar } from "../../../../components/shared";
 import useUserMenu from "./useUserMenu";
 import useAuth from "../../../auth/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+import { useAccountModal } from "../../../setting/contexts/AccountModalContext";
+import { useLanguage } from "../../../../contexts/LanguageContext";
 
-const UserMenu = () => {
+const UserMenu = ({ collapsed = false }) => {
   const { user, logout } = useAuth();
   const { open, setOpen, menuRef } = useUserMenu();
+  const navigate = useNavigate();
+  const { open: openAccountModal } = useAccountModal();
+  const { t } = useLanguage();
 
   const initial =
     user?.fullName?.[0]?.toUpperCase() ||
@@ -14,21 +20,31 @@ const UserMenu = () => {
     "U";
   const displayName = user?.fullName || user?.email || "User";
 
+  const handleProfileClick = () => {
+    setOpen(false);
+    openAccountModal();
+  };
+
   return (
     <div className="relative" ref={menuRef}>
       <button
         type="button"
-        className="w-full flex items-center px-3.5 py-3 cursor-pointer border-0 bg-transparent hover:bg-white/3 transition-colors text-left mb-1 gap-2"
+        title={collapsed ? displayName : undefined}
+        className={`w-full flex items-center ${collapsed ? "justify-center px-0 py-3" : "px-3.5 py-3"} cursor-pointer border-0 bg-transparent hover:bg-white/3 transition-colors text-left mb-1 gap-2`}
         onClick={() => setOpen(!open)}
       >
         <UserAvatar initial={initial} />
-        <span className="flex-1 overflow-hidden text-ellipsis font-medium text-text-primary">
-          {displayName}
-        </span>
-        <ChevronDown
-          size={14}
-          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-        />
+        {!collapsed && (
+          <>
+            <span className="flex-1 overflow-hidden text-ellipsis font-medium text-text-primary">
+              {displayName}
+            </span>
+            <ChevronDown
+              size={14}
+              className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+            />
+          </>
+        )}
       </button>
 
       {open && (
@@ -48,23 +64,37 @@ const UserMenu = () => {
           <button
             type="button"
             className="w-full flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-white/3 text-sm transition-colors border-0 bg-transparent cursor-pointer"
-            onClick={() => setOpen(false)}
+            onClick={handleProfileClick}
           >
             <User size={14} />
-            <span>Profile</span>
+            <span>{t('userMenu.profile')}</span>
           </button>
 
           <button
             type="button"
-            className="w-full flex items-center gap-2 px-3 py-2 text-red-500 hover:bg-red-500/10 text-sm transition-colors border-0 bg-transparent cursor-pointer"
+            className="w-full flex items-center gap-2 px-3 py-2 text-text-secondary hover:bg-white/3 text-sm transition-colors border-0 bg-transparent cursor-pointer"
             onClick={() => {
               setOpen(false);
-              logout();
+              navigate("/settings");
             }}
           >
-            <LogOut size={14} />
-            <span>Log out</span>
+            <Settings size={14} />
+            <span>{t('userMenu.settings')}</span>
           </button>
+
+          <div className="border-t border-border-subtle mt-1">
+            <button
+              type="button"
+              className="w-full flex items-center gap-2 px-3 py-2 text-red-500 hover:bg-red-500/10 text-sm transition-colors border-0 bg-transparent cursor-pointer"
+              onClick={() => {
+                setOpen(false);
+                logout();
+              }}
+            >
+              <LogOut size={14} />
+              <span>{t('userMenu.logout')}</span>
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -72,3 +102,5 @@ const UserMenu = () => {
 };
 
 export default UserMenu;
+
+
