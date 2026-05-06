@@ -10,47 +10,57 @@
  *   const { theme, setTheme } = useTheme();
  */
 
-import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useContext,
+  useCallback,
+} from "react";
+import { updateCurrentUser } from "../features/setting/api/user.api";
 
 const ThemeContext = createContext(null);
 
-const THEME_STORAGE_KEY = 'app-theme';
+export function ThemeProvider({
+  children,
+  userId,
+  initialTheme,
+  onUserUpdate,
+}) {
+  const [theme, setThemeState] = useState(
+    initialTheme === "light" ? "light" : "dark",
+  );
 
-/**
- * Resolve the localStorage key for the current user.
- * Falls back to a generic key when no user is available.
- */
-const getStorageKey = (userId) =>
-  userId ? `${THEME_STORAGE_KEY}-${userId}` : THEME_STORAGE_KEY;
-
-export function ThemeProvider({ children, userId }) {
-  const [theme, setThemeState] = useState(() => {
-    const key = getStorageKey(userId);
-    const stored = localStorage.getItem(key);
-    return stored === 'light' ? 'light' : 'dark'; // default dark
-  });
-
-  // Re-read from storage when userId changes (login / logout)
   useEffect(() => {
-    const key = getStorageKey(userId);
-    const stored = localStorage.getItem(key);
-    const resolved = stored === 'light' ? 'light' : 'dark';
+    const resolved = initialTheme === "light" ? "light" : "dark";
     setThemeState(resolved);
-  }, [userId]);
+  }, [initialTheme]);
 
   // Apply data-theme attribute to <html> whenever theme changes
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
   const setTheme = useCallback(
-    (newTheme) => {
-      const value = newTheme === 'light' ? 'light' : 'dark';
+    async (newTheme) => {
+      const value = newTheme === "light" ? "light" : "dark";
       setThemeState(value);
-      const key = getStorageKey(userId);
-      localStorage.setItem(key, value);
+
+      if (!userId) {
+        return;
+      }
+
+      try {
+        const response = await updateCurrentUser({ theme: value });
+        const updated = response?.data?.data;
+        if (updated && typeof onUserUpdate === "function") {
+          onUserUpdate(updated);
+        }
+      } catch (error) {
+        console.warn("Không thể lưu theme lên server", error);
+      }
     },
-    [userId],
+    [userId, onUserUpdate],
   );
 
   return (
@@ -63,7 +73,7 @@ export function ThemeProvider({ children, userId }) {
 export function useTheme() {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error('useTheme must be used within a <ThemeProvider>');
+    throw new Error("useTheme must be used within a <ThemeProvider>");
   }
   return context;
 }

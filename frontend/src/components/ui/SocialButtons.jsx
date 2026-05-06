@@ -2,6 +2,7 @@ import React from "react";
 import {
   getGoogleAuthUrl,
   getGithubAuthUrl,
+  getSlackAuthUrl,
 } from "../../features/auth/api/auth.api";
 
 // Google 'G' Logo SVG
@@ -33,6 +34,32 @@ export const GitHubIcon = () => (
   </svg>
 );
 
+// Slack Logo SVG
+export const SlackIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24">
+    <path fill="#36C5F0" d="M6.1 13.3a2.1 2.1 0 1 1-2.1-2.1h2.1v2.1z" />
+    <path
+      fill="#36C5F0"
+      d="M7.2 13.3a2.1 2.1 0 0 1 4.2 0v5.3a2.1 2.1 0 1 1-4.2 0v-5.3z"
+    />
+    <path fill="#2EB67D" d="M10.7 6.1A2.1 2.1 0 1 1 12.8 4v2.1h-2.1z" />
+    <path
+      fill="#2EB67D"
+      d="M10.7 7.2a2.1 2.1 0 0 1 0 4.2H5.4a2.1 2.1 0 1 1 0-4.2h5.3z"
+    />
+    <path fill="#ECB22E" d="M17.9 10.7a2.1 2.1 0 1 1 2.1 2.1h-2.1v-2.1z" />
+    <path
+      fill="#ECB22E"
+      d="M16.8 10.7a2.1 2.1 0 0 1-4.2 0V5.4a2.1 2.1 0 1 1 4.2 0v5.3z"
+    />
+    <path fill="#E01E5A" d="M13.3 17.9a2.1 2.1 0 1 1-2.1 2.1v-2.1h2.1z" />
+    <path
+      fill="#E01E5A"
+      d="M13.3 16.8a2.1 2.1 0 0 1 0-4.2h5.3a2.1 2.1 0 1 1 0 4.2h-5.3z"
+    />
+  </svg>
+);
+
 const SocialButtons = ({ mode = "login" }) => {
   const prefix = mode === "login" ? "Continue with" : "Sign up with";
 
@@ -56,6 +83,16 @@ const SocialButtons = ({ mode = "login" }) => {
     }
   };
 
+  const handleSlackClick = async () => {
+    try {
+      const res = await getSlackAuthUrl();
+      const url = res.data?.data?.url;
+      if (url) window.location.href = url;
+    } catch (err) {
+      console.error("Failed to get Slack auth URL:", err.message);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <button
@@ -73,6 +110,14 @@ const SocialButtons = ({ mode = "login" }) => {
       >
         <GitHubIcon />
         <span>{prefix} GitHub</span>
+      </button>
+      <button
+        type="button"
+        onClick={handleSlackClick}
+        className="w-full py-3 px-4 bg-white/3 border border-border-subtle text-text-primary rounded-lg cursor-pointer text-sm font-medium grid grid-cols-[24px_1fr] items-center gap-3 text-left transition-all duration-200 hover:bg-white/8 hover:-translate-y-px hover:border-[#4A154B] hover:shadow-[0_0_0_1px_rgba(74,21,75,0.35)]"
+      >
+        <SlackIcon />
+        <span>{prefix} Slack</span>
       </button>
     </div>
   );

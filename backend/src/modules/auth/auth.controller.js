@@ -88,7 +88,7 @@ export const authController = {
 			setRefreshCookie(res, data.refreshToken); //Set Cookie trực tiếp ở Backend
 			const params = new URLSearchParams({
 				accessToken: data.accessToken,
-				user: JSON.stringify(data.user),
+				user: JSON.stringify({ ...data.user, provider: 'google' }),
 			});
 			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
 		} catch (error) {
@@ -115,7 +115,7 @@ export const authController = {
 			const data = await githubService.handleCallback(code);
 			const params = new URLSearchParams({
 				accessToken: data.accessToken,
-				user: JSON.stringify(data.user),
+				user: JSON.stringify({ ...data.user, provider: 'github' }),
 			});
 			setRefreshCookie(res, data.refreshToken);
 			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
@@ -144,7 +144,7 @@ export const authController = {
 			const data = await slackService.handleCallback(code);
 			const params = new URLSearchParams({
 				accessToken: data.accessToken,
-				user: JSON.stringify(data.user),
+				user: JSON.stringify({ ...data.user, provider: 'slack' }),
 			});
 			setRefreshCookie(res, data.refreshToken);
 			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
