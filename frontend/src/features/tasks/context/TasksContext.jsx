@@ -68,6 +68,16 @@ const restoreTaskAtIndex = (list, task, index) => {
   return next;
 };
 
+const mergeTaskIntoList = (list, task) => {
+  const existingIndex = list.findIndex((item) => item.id === task.id);
+  if (existingIndex >= 0) {
+    const next = [...list];
+    next[existingIndex] = { ...next[existingIndex], ...task };
+    return { list: next, inserted: false };
+  }
+  return { list: [task, ...list], inserted: true };
+};
+
 /**
  * TasksProvider - Wrapper component cung cấp tasks state cho toàn app
  *
@@ -223,6 +233,39 @@ export function TasksProvider({ children }) {
       console.error("Create task error:", err);
       return null;
     }
+  }, []);
+
+  /**
+   * Add task from external payload (e.g., AI SSE) without API call
+   * @param {Object} taskPayload - Task object from backend
+   */
+  const addTaskFromAi = useCallback((taskPayload) => {
+    if (!taskPayload) {
+      return null;
+    }
+
+    const normalizedTask = normalizeTask(taskPayload);
+    let didInsert = false;
+
+    setTasks((prev) => {
+      const result = mergeTaskIntoList(prev, normalizedTask);
+      didInsert = result.inserted;
+      return result.list;
+    });
+
+    setPagination((prev) => {
+      if (!didInsert) {
+        return prev;
+      }
+      const nextTotal = prev.totalItems + 1;
+      return {
+        ...prev,
+        totalItems: nextTotal,
+        totalPages: Math.max(1, Math.ceil(nextTotal / prev.limit)),
+      };
+    });
+
+    return normalizedTask;
   }, []);
 
   /**
@@ -458,6 +501,7 @@ export function TasksProvider({ children }) {
     toggleTask,
     updateTaskData,
     scheduleTaskData,
+    addTaskFromAi,
     setFilter,
   };
 

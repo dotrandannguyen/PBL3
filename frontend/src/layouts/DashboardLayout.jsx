@@ -11,6 +11,7 @@ import { AccountModalProvider } from "@/features/setting/contexts/AccountModalCo
 import AccountModal from "@/features/setting/components/AccountModal";
 import { SearchModalProvider } from "@/features/search/contexts/SearchModalContext";
 import SearchModal from "@/features/search/components/SearchModal";
+import { FloatingChat } from "@/features/ai-chat/components/FloatingChat";
 
 /**
  * DashboardContent — Nội dung layout, consume WorkspaceContext.
@@ -53,6 +54,8 @@ function DashboardContent() {
       </main>
       <AccountModal />
       <SearchModal />
+      {/* AI Floating Chat - hiển thị ở mọi trang dashboard */}
+      <FloatingChat />
     </div>
   );
 }
