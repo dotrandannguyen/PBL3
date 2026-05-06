@@ -20,6 +20,7 @@ export const translations = {
         // ── Workspace Sidebar ─────────────────────────────────────
         'sidebar.search': 'Tìm kiếm',
         'sidebar.home': 'Trang chủ',
+        'sidebar.dashboard': 'Bảng điều khiển',
         'sidebar.inbox': 'Hộp thư',
         'sidebar.private': 'Riêng tư',
         'sidebar.shared': 'Được chia sẻ',
@@ -305,6 +306,7 @@ export const translations = {
         // ── Workspace Sidebar ─────────────────────────────────────
         'sidebar.search': '検索',
         'sidebar.home': 'ホーム',
+        'sidebar.dashboard': 'ダッシュボード',
         'sidebar.inbox': '受信箱',
         'sidebar.private': 'プライベート',
         'sidebar.shared': '共有',
@@ -586,6 +588,7 @@ export const translations = {
         // ── Workspace Sidebar ─────────────────────────────────────
         'sidebar.search': 'Search',
         'sidebar.home': 'Home',
+        'sidebar.dashboard': 'Dashboard',
         'sidebar.inbox': 'Inbox',
         'sidebar.private': 'Private',
         'sidebar.shared': 'Shared',
