@@ -13,7 +13,7 @@ import { refreshSchema } from './dto/requests/refresh.request.js';
 
 const authRouter = express.Router();
 
-// register và login
+// register và login 
 authRouter.post(
 	'/register',
 	validateRequestMiddleware(registerSchema),
@@ -26,7 +26,7 @@ authRouter.post(
 	validateRequestMiddleware(loginSchema),
 	authController.login,
 );
-authRouter.post('/logout', authGuard, authController.logout);
+authRouter.post('/logout',authGuard,authController.logout);
 authRouter.post(
 	'/refresh',
 	// refreshLimiter,
@@ -34,7 +34,8 @@ authRouter.post(
 	authController.refresh,
 );
 
-// Google login
+
+// Google login 
 authRouter.get('/google/url', authController.getGoogleUrl);
 
 authRouter.get(
@@ -43,12 +44,9 @@ authRouter.get(
 	authController.googleCallback,
 );
 
+
 // Github login
 authRouter.get('/github/url', authController.getGithubUrl);
 authRouter.get('/github/callback', authController.githubCallback);
-
-// Slack login
-authRouter.get('/slack/url', authController.getSlackUrl);
-authRouter.get('/slack/callback', authController.slackCallback);
 
 export default authRouter;

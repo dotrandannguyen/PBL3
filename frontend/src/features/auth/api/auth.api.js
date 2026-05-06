@@ -15,6 +15,3 @@ export const getGoogleAuthUrl = () => apiClient.get("/v1/api/auth/google/url");
 
 /** GET /v1/api/auth/github/url  — returns { data: { url } } */
 export const getGithubAuthUrl = () => apiClient.get("/v1/api/auth/github/url");
-
-/** GET /v1/api/auth/slack/url  — returns { data: { url } } */
-export const getSlackAuthUrl = () => apiClient.get("/v1/api/auth/slack/url");

@@ -16,9 +16,6 @@ integrationRouter.get('/preview/gmail', integrationController.previewGmail);
 // GET /integrations/preview/github
 integrationRouter.get('/preview/github', integrationController.previewGithub);
 
-// GET /integrations/preview/slack
-integrationRouter.get('/preview/slack', integrationController.previewSlack);
-
 // GET /integrations/github/repositories
 integrationRouter.get(
 	'/github/repositories',

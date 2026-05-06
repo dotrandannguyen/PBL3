@@ -205,7 +205,6 @@ Table audit_logs {
 Enum IntegrationProvider {
   GOOGLE
   GITHUB
-  SLACK
 }
 
 Enum IntegrationStatus {
@@ -234,7 +233,6 @@ Enum TaskSource {
   MANUAL
   GMAIL
   GITHUB
-  SLACK
 }
 
 Enum ActivityType {

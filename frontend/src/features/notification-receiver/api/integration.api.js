@@ -9,10 +9,6 @@ export const integrationAPI = {
     const response = await apiClient.get("/v1/api/integrations/preview/github");
     return response.data;
   },
-  getSlackPreview: async () => {
-    const response = await apiClient.get("/v1/api/integrations/preview/slack");
-    return response.data;
-  },
   getGithubRepositories: async () => {
     const response = await apiClient.get(
       "/v1/api/integrations/github/repositories",

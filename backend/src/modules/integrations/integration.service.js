@@ -117,7 +117,6 @@ export const integrationService = {
 		}
 		// giải mã access token
 		const accessToken = encryptionUtils.decrypt(integration.accessTokenEncrypted);
-		const slackUserId = integration.providerUserId;
 
 		try {
 			// Lấy các issue đang open được assign cho user này
@@ -171,125 +170,6 @@ export const integrationService = {
 			});
 			throw new UnauthorizedException(
 				'Không thể lấy dữ liệu GitHub. Vui lòng kiểm tra scope quyền và token hợp lệ.',
-			);
-		}
-	},
-
-	getSlackPreview: async (userId) => {
-		const integration = await integrationRepository.getIntegrationByProvider(
-			userId,
-			'SLACK',
-		);
-
-		if (!integration) {
-			throw new NotFoundException('Bạn chưa kết nối với Slack.');
-		}
-
-		const accessToken = encryptionUtils.decrypt(integration.accessTokenEncrypted);
-		const slackUserId = integration.providerUserId;
-		const slackHeaders = {
-			Authorization: `Bearer ${accessToken}`,
-		};
-
-		try {
-			const channelsResponse = await axios.get(
-				'https://slack.com/api/conversations.list',
-				{
-					headers: slackHeaders,
-					params: {
-						limit: 50,
-						exclude_archived: true,
-						types: 'public_channel,private_channel,im,mpim',
-					},
-				},
-			);
-
-			if (!channelsResponse.data?.ok) {
-				throw new Error(channelsResponse.data?.error || 'Slack API error');
-			}
-
-			const channels = channelsResponse.data.channels || [];
-			const selectedChannel =
-				channels.find((channel) => channel.is_im || channel.is_mpim) ||
-				channels.find((channel) => channel.is_member) ||
-				channels[0];
-
-			if (!selectedChannel) {
-				return [];
-			}
-
-			console.log('[SLACK] Selected channel:', {
-				id: selectedChannel.id,
-				name: selectedChannel.name,
-				isIm: selectedChannel.is_im,
-				isMpim: selectedChannel.is_mpim,
-			});
-
-			const historyResponse = await axios.get(
-				'https://slack.com/api/conversations.history',
-				{
-					headers: slackHeaders,
-					params: {
-						channel: selectedChannel.id,
-						limit: 10,
-					},
-				},
-			);
-
-			if (!historyResponse.data?.ok) {
-				throw new Error(historyResponse.data?.error || 'Slack API error');
-			}
-
-			const messages = historyResponse.data.messages || [];
-			if (messages.length === 0) return [];
-
-			const formattedMessages = messages
-				.filter(
-					(message) =>
-						!message.subtype &&
-						(!message.user || message.user !== slackUserId),
-				)
-				.map((message) => {
-					const timestamp = Number.parseFloat(message.ts);
-					const text = message.text?.trim() || '(Không có nội dung)';
-					const tsNoDot = message.ts.replace('.', '');
-					return {
-						id: message.ts,
-						channelId: selectedChannel.id,
-						channelName: selectedChannel.name,
-						sender: message.username || message.user || 'Slack',
-						text,
-						date: Number.isNaN(timestamp)
-							? ''
-							: new Date(timestamp * 1000).toISOString(),
-						link: `https://slack.com/archives/${selectedChannel.id}/p${tsNoDot}`,
-					};
-				});
-
-			console.log('[SLACK] Messages count:', {
-				beforeFilter: messages.length,
-				afterFilter: formattedMessages.length,
-			});
-
-			if (formattedMessages.length === 0) return [];
-
-			const tasksBySourceId = await integrationService.saveTasksToInbox(
-				userId,
-				formattedMessages,
-				'SLACK',
-			);
-
-			return formattedMessages.map((message) => ({
-				...message,
-				taskId: tasksBySourceId[message.id]?.id || null,
-			}));
-		} catch (error) {
-			console.error('Lỗi gọi Slack API:', {
-				status: error.response?.status,
-				message: error.response?.data?.error || error.message,
-			});
-			throw new UnauthorizedException(
-				'Không thể lấy dữ liệu Slack. Vui lòng kiểm tra quyền truy cập.',
 			);
 		}
 	},
@@ -780,25 +660,6 @@ export const integrationService = {
 							repository: task.repository,
 							creator: task.creator,
 							createdAt: task.createdAt,
-						},
-					};
-				} else if (sourceType === 'SLACK') {
-					const previewText =
-						task.text && task.text.length > 120
-							? `${task.text.slice(0, 120)}...`
-							: task.text || 'Tin nhắn mới';
-					taskData = {
-						title: `[Slack] #${task.channelName}: ${previewText}`,
-						description: task.text || 'Không có nội dung chi tiết.',
-						priority: 'MEDIUM',
-						sourceType: 'SLACK',
-						sourceId: task.id,
-						sourceLink: task.link,
-						sourceMetadata: {
-							channelId: task.channelId,
-							channelName: task.channelName,
-							sender: task.sender,
-							timestamp: task.date,
 						},
 					};
 				}

@@ -3,7 +3,6 @@ import { HttpResponse } from '../../common/dtos/httpResponse.dto.js';
 import { googleService } from './google.service.js';
 import { ClientException } from '../../common/exceptions/index.js';
 import { githubService } from './github.service.js';
-import { slackService } from './slack.service.js';
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
@@ -122,35 +121,6 @@ export const authController = {
 		} catch (error) {
 			console.error('GitHub Callback Error:', error);
 			return res.redirect(`${FRONTEND_URL}/auth/login?error=github_failed`);
-		}
-	},
-
-	getSlackUrl: async (req, res) => {
-		const url = slackService.getAuthUrl();
-		new HttpResponse(res).success({ url });
-	},
-
-	slackCallback: async (req, res) => {
-		try {
-			const { code, error } = req.query || {};
-
-			if (error) {
-				return res.redirect(`${FRONTEND_URL}/auth/login?error=slack_denied`);
-			}
-			if (!code) {
-				return res.redirect(`${FRONTEND_URL}/auth/login?error=slack_no_code`);
-			}
-
-			const data = await slackService.handleCallback(code);
-			const params = new URLSearchParams({
-				accessToken: data.accessToken,
-				user: JSON.stringify(data.user),
-			});
-			setRefreshCookie(res, data.refreshToken);
-			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
-		} catch (error) {
-			console.error('Slack Callback Error:', error);
-			return res.redirect(`${FRONTEND_URL}/auth/login?error=slack_failed`);
 		}
 	},
 };
