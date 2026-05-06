@@ -2,7 +2,11 @@ import React, { useState } from "react";
 import { useIntegrations } from "../hooks/useIntegrations";
 import useInboxSocket from "../hooks/useInboxSocket";
 import useAuth from "../../auth/hooks/useAuth";
-import { getGoogleAuthUrl, getGithubAuthUrl } from "../../auth/api/auth.api";
+import {
+  getGoogleAuthUrl,
+  getGithubAuthUrl,
+  getSlackAuthUrl,
+} from "../../auth/api/auth.api";
 import { toast } from "sonner";
 import {
   InboxHeader,
@@ -87,6 +91,16 @@ export function MailReceiverPage() {
     }
   };
 
+  const handleConnectSlack = async () => {
+    try {
+      const res = await getSlackAuthUrl();
+      if (res.data?.data?.url) window.location.href = res.data.data.url;
+      else if (res.data?.url) window.location.href = res.data.url;
+    } catch (err) {
+      console.error("Failed to get Slack Auth URL");
+    }
+  };
+
   return (
     <div className="flex flex-col h-full w-full bg-bg-main text-text-primary overflow-y-auto">
       <div className="flex-1 px-8 py-8 max-w-5xl w-full mx-auto flex flex-col">
@@ -103,6 +117,7 @@ export function MailReceiverPage() {
           connected={connected}
           onConnectGoogle={handleConnectGoogle}
           onConnectGithub={handleConnectGithub}
+          onConnectSlack={handleConnectSlack}
         />
 
         {/* RECENT ITEMS SECTION */}

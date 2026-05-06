@@ -1,4 +1,4 @@
-import { Inbox, Mail, Github, AlertCircle } from "lucide-react";
+import { Inbox, Mail, Github, AlertCircle, CloudRain } from "lucide-react";
 import { MailListItem } from "./MailListItem";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { SkeletonList } from "@/components/shared";
@@ -7,7 +7,7 @@ import { SkeletonList } from "@/components/shared";
  * @component InboxTabsContainer
  * Container chứa tabs, list mail/issue, và trạng thái loading/error
  * @param {Array} data - Dữ liệu toàn bộ tin nhắn/issue
- * @param {string} filter - Filter hiện tại (all, gmail, github)
+ * @param {string} filter - Filter hiện tại (all, gmail, github, slack)
  * @param {Function} onFilterChange - Callback khi chuyển tab
  * @param {boolean} isLoading - Trạng thái loading
  * @param {string} error - Message lỗi (nếu có)
@@ -42,7 +42,7 @@ export function InboxTabsContainer({
               : "border-transparent text-text-tertiary hover:bg-bg-hover"
           }`}
         >
-          <Inbox size={18} /> {t('inbox.tab.all')}
+          <Inbox size={18} /> {t("inbox.tab.all")}
         </button>
         <button
           onClick={() => onFilterChange("gmail")}
@@ -64,6 +64,16 @@ export function InboxTabsContainer({
         >
           <Github size={18} /> GitHub
         </button>
+        <button
+          onClick={() => onFilterChange("slack")}
+          className={`flex items-center gap-3 px-6 py-3.5 text-sm font-medium transition-colors border-b-2 ${
+            filter === "slack"
+              ? "border-[#4A154B] text-[#4A154B] bg-[#4A154B]/5"
+              : "border-transparent text-text-tertiary hover:bg-bg-hover"
+          }`}
+        >
+          <CloudRain size={18} /> Slack
+        </button>
       </div>
 
       {/* LIST DATA */}
@@ -81,9 +91,9 @@ export function InboxTabsContainer({
               <Inbox size={32} className="opacity-40" />
             </div>
             <p className="text-base font-medium text-text-primary mb-1">
-              {t('inbox.empty.title')}
+              {t("inbox.empty.title")}
             </p>
-            <p className="text-sm">{t('inbox.empty.subtitle')}</p>
+            <p className="text-sm">{t("inbox.empty.subtitle")}</p>
           </div>
         ) : (
           <div className="flex flex-col">

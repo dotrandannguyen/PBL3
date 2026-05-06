@@ -1,8 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Settings, Github, RefreshCw, ExternalLink } from "lucide-react";
+import {
+  Settings,
+  Github,
+  RefreshCw,
+  ExternalLink,
+  CloudRain,
+} from "lucide-react";
 import { toast } from "sonner";
 import { integrationAPI } from "@/features/notification-receiver/api/integration.api";
-import { getGithubAuthUrl } from "@/features/auth/api/auth.api";
+import {
+  getGithubAuthUrl,
+  getSlackAuthUrl,
+} from "@/features/auth/api/auth.api";
 
 const SettingsPanel = ({ isOpen, onClose }) => {
   const [repos, setRepos] = useState([]);
@@ -54,6 +63,16 @@ const SettingsPanel = ({ isOpen, onClose }) => {
       else if (res.data?.url) window.location.href = res.data.url;
     } catch (err) {
       toast.error("Không thể mở đăng nhập GitHub.");
+    }
+  };
+
+  const handleConnectSlack = async () => {
+    try {
+      const res = await getSlackAuthUrl();
+      if (res.data?.data?.url) window.location.href = res.data.data.url;
+      else if (res.data?.url) window.location.href = res.data.url;
+    } catch (err) {
+      toast.error("Không thể mở đăng nhập Slack.");
     }
   };
 
@@ -124,6 +143,26 @@ const SettingsPanel = ({ isOpen, onClose }) => {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4">
+          <section className="space-y-3 pb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                <CloudRain size={16} />
+                Slack
+              </div>
+            </div>
+
+            <div className="rounded-md border border-border-subtle bg-white/5 p-3 text-xs text-text-tertiary">
+              <p className="mb-2">Kết nối Slack để lấy tin nhắn mới nhất.</p>
+              <button
+                type="button"
+                onClick={handleConnectSlack}
+                className="rounded-md bg-[#4A154B] px-3 py-1.5 text-xs font-medium text-white"
+              >
+                Kết nối Slack
+              </button>
+            </div>
+          </section>
+
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
