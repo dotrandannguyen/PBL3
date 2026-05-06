@@ -38,16 +38,16 @@ const InfoRow = ({ icon: Icon, label, children, mono = false }) => (
 );
 
 const NAV_ITEMS = [
-  { id: "identity", label: "Hồ sơ", icon: IdCard },
-  { id: "personal", label: "Thông tin cá nhân", icon: User },
-  { id: "security", label: "Bảo mật", icon: Shield },
-  { id: "danger", label: "Vùng nguy hiểm", icon: AlertTriangle },
+  { id: "identity", labelKey: "account.nav.identity", icon: IdCard },
+  { id: "personal", labelKey: "account.nav.personal", icon: User },
+  { id: "security", labelKey: "account.nav.security", icon: Shield },
+  { id: "danger", labelKey: "account.nav.danger", icon: AlertTriangle },
 ];
 
 const AccountModal = () => {
   const { isOpen, close } = useAccountModal();
   const { user, updateUserInStorage } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   const fileInputRef = useRef(null);
   const scrollContainerRef = useRef(null);
@@ -132,7 +132,7 @@ const AccountModal = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      toast.error(t("profile.toast.avatarTooLarge") || "Ảnh quá lớn (>2MB)");
+      toast.error(t("account.toast.avatarTooLarge"));
       return;
     }
     const reader = new FileReader();
@@ -140,14 +140,14 @@ const AccountModal = () => {
       const base64 = event.target.result;
       setAvatarPreview(base64);
       if (user?.id) localStorage.setItem(`avatar-${user.id}`, base64);
-      toast.success(t("profile.toast.avatarUpdated") || "Đã cập nhật ảnh đại diện");
+      toast.success(t("account.toast.avatarUpdated"));
     };
     reader.readAsDataURL(file);
   };
   const handleRemoveAvatar = () => {
     setAvatarPreview(null);
     if (user?.id) localStorage.removeItem(`avatar-${user.id}`);
-    toast.success("Đã xóa ảnh đại diện");
+    toast.success(t("account.toast.avatarRemoved"));
   };
 
   // ── Save / Reset ──────────────────────────────────────────────
@@ -164,7 +164,7 @@ const AccountModal = () => {
       updateUserInStorage({ fullName: fullName.trim() || user?.fullName });
       if (user?.id) localStorage.setItem(`bio-${user.id}`, bio);
       setIsSaving(false);
-      toast.success(t("profile.toast.saved") || "Đã lưu thay đổi");
+      toast.success(t("account.toast.saved"));
     }, 300);
   };
 
@@ -178,10 +178,10 @@ const AccountModal = () => {
     try {
       await navigator.clipboard.writeText(user.id);
       setIdCopied(true);
-      toast.success("Đã sao chép User ID");
+      toast.success(t("account.toast.idCopied"));
       setTimeout(() => setIdCopied(false), 1600);
     } catch {
-      toast.error("Không thể sao chép");
+      toast.error(t("account.toast.idCopyFailed"));
     }
   };
 
@@ -190,8 +190,9 @@ const AccountModal = () => {
     user?.email?.[0]?.toUpperCase() ||
     "U";
 
+  const localeMap = { vi: "vi-VN", ja: "ja-JP", en: "en-US" };
   const memberSince = user?.createdAt
-    ? new Date(user.createdAt).toLocaleDateString("vi-VN", {
+    ? new Date(user.createdAt).toLocaleDateString(localeMap[lang] || "en-US", {
         day: "2-digit",
         month: "long",
         year: "numeric",
@@ -215,13 +216,13 @@ const AccountModal = () => {
           className="pointer-events-auto flex w-full max-w-[1100px] h-[88vh] max-h-[820px] overflow-hidden rounded-2xl border border-border-subtle bg-bg-main shadow-[0_24px_80px_rgba(0,0,0,0.5)] animate-modal-in"
           role="dialog"
           aria-modal="true"
-          aria-label="Hồ sơ & Tài khoản"
+          aria-label={t("account.title")}
         >
           {/* ── Left nav ────────────────────────────────────── */}
           <aside className="hidden md:flex md:w-[240px] flex-col border-r border-border-subtle bg-bg-sidebar/60">
             <div className="px-5 py-5 border-b border-border-subtle">
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary mb-2">
-                Tài khoản
+                {t("account.sidebar.label")}
               </p>
               <p className="truncate text-sm font-semibold text-text-primary">
                 {user?.fullName || user?.email || "—"}
@@ -267,7 +268,7 @@ const AccountModal = () => {
                           : "text-text-tertiary group-hover:text-text-secondary"
                       }`}
                     />
-                    <span className="truncate">{item.label}</span>
+                    <span className="truncate">{t(item.labelKey)}</span>
                   </button>
                 );
               })}
@@ -280,16 +281,16 @@ const AccountModal = () => {
             <header className="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
               <div>
                 <h2 className="text-lg font-semibold tracking-tight text-text-primary">
-                  Hồ sơ & Tài khoản
+                  {t("account.title")}
                 </h2>
                 <p className="mt-0.5 text-[12px] text-text-tertiary">
-                  Quản lý thông tin cá nhân, bảo mật và cài đặt tài khoản.
+                  {t("account.subtitle")}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={close}
-                title="Đóng (Esc)"
+                title={t("account.close")}
                 className="flex h-8 w-8 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-white/5 hover:text-text-primary border-none bg-transparent cursor-pointer"
               >
                 <X size={18} />
@@ -312,7 +313,7 @@ const AccountModal = () => {
                           type="button"
                           onClick={handleAvatarClick}
                           className="relative h-20 w-20 overflow-hidden rounded-full border border-border-subtle bg-gradient-to-br from-accent-primary/30 to-accent-primary/10 p-0 text-3xl font-semibold text-accent-primary outline-none ring-2 ring-transparent transition-all duration-150 hover:ring-accent-primary/40 active:scale-95"
-                          title="Đổi ảnh đại diện"
+                          title={t("account.identity.changeAvatar")}
                         >
                           {avatarPreview ? (
                             <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" />
@@ -321,7 +322,7 @@ const AccountModal = () => {
                           )}
                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-black/55 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                             <Camera size={16} className="text-white" />
-                            <span className="text-[9.5px] font-medium uppercase tracking-wide text-white/90">Đổi ảnh</span>
+                            <span className="text-[9.5px] font-medium uppercase tracking-wide text-white/90">{t("account.identity.changeAvatar")}</span>
                           </div>
                         </button>
                         {avatarPreview && (
@@ -329,7 +330,7 @@ const AccountModal = () => {
                             type="button"
                             onClick={handleRemoveAvatar}
                             className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-border-subtle bg-bg-sidebar text-text-tertiary opacity-0 shadow-md transition-all duration-150 group-hover:opacity-100 hover:bg-red-500/15 hover:text-red-400 active:scale-90"
-                            title="Xoá ảnh"
+                            title={t("account.identity.removeAvatar")}
                           >
                             <Trash2 size={11} />
                           </button>
@@ -354,35 +355,35 @@ const AccountModal = () => {
                             className="flex h-7 items-center gap-1.5 rounded-md border border-border-subtle bg-bg-main/60 px-2.5 text-[11.5px] font-medium text-text-secondary transition-all duration-150 hover:bg-white/[0.04] hover:text-text-primary active:scale-[0.97]"
                           >
                             <Camera size={12} />
-                            Đổi ảnh
+                            {t("account.identity.changeAvatar")}
                           </button>
-                          <span className="text-[10.5px] text-text-tertiary">JPG/PNG · ≤ 2MB</span>
+                          <span className="text-[10.5px] text-text-tertiary">{t("account.identity.avatarHint")}</span>
                         </div>
                       </div>
                     </div>
                     <div className="border-t border-border-subtle bg-white/[0.015] p-6 lg:border-l lg:border-t-0">
-                      <InfoRow icon={Shield} label="Loại tài khoản">
+                      <InfoRow icon={Shield} label={t("account.identity.accountType")}>
                         {user?.provider === "google" ? (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2 py-0.5 text-[11px] font-semibold text-blue-400 ring-1 ring-blue-500/20">
                             <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                            Google
+                            {t("account.provider.google")}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-400 ring-1 ring-emerald-500/20">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                            Local
+                            {t("account.provider.local")}
                           </span>
                         )}
                       </InfoRow>
-                      <InfoRow icon={CalendarDays} label="Thành viên từ">
+                      <InfoRow icon={CalendarDays} label={t("account.identity.memberSince")}>
                         {memberSince}
                       </InfoRow>
-                      <InfoRow icon={Fingerprint} label="User ID">
+                      <InfoRow icon={Fingerprint} label={t("account.identity.userId")}>
                         <button
                           type="button"
                           onClick={handleCopyId}
                           className="group inline-flex items-center gap-1.5 rounded px-1 text-text-tertiary transition-colors hover:text-text-primary border-none bg-transparent cursor-pointer"
-                          title="Sao chép User ID"
+                          title={t("account.identity.copyId")}
                         >
                           <span className="font-mono">{user?.id ? `…${user.id.slice(-10)}` : "N/A"}</span>
                           {idCopied ? (
@@ -405,26 +406,26 @@ const AccountModal = () => {
                   <div className="border-b border-border-subtle/70 px-6 py-4">
                     <h3 className="flex items-center gap-2 text-[13.5px] font-semibold text-text-primary">
                       <User size={14} className="text-text-tertiary" />
-                      Thông tin cá nhân
+                      {t("account.personal.title")}
                     </h3>
                   </div>
                   <div className="space-y-5 p-6">
                     <div className="space-y-1.5">
                       <label htmlFor="account-fullname" className="block text-[11.5px] font-medium text-text-secondary">
-                        Họ và tên
+                        {t("profile.label.fullName")}
                       </label>
                       <input
                         id="account-fullname"
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Nhập họ và tên..."
+                        placeholder={t("account.personal.fullNamePlaceholder")}
                         className="h-10 w-full max-w-lg rounded-lg border border-border-subtle bg-bg-main/60 px-3 text-[13.5px] text-text-primary placeholder-text-tertiary outline-none transition-all duration-150 focus:border-accent-primary focus:bg-bg-main focus:ring-2 focus:ring-accent-primary/20"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[11.5px] font-medium text-text-secondary">Email</label>
+                      <label className="block text-[11.5px] font-medium text-text-secondary">{t("profile.label.email")}</label>
                       <div className="relative max-w-lg">
                         <Mail size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
                         <input
@@ -434,18 +435,18 @@ const AccountModal = () => {
                           className="h-10 w-full cursor-not-allowed rounded-lg border border-border-subtle/60 bg-white/[0.015] pl-9 pr-3 text-[13.5px] text-text-tertiary"
                         />
                       </div>
-                      <p className="text-[11.5px] text-text-tertiary">Email không thể thay đổi.</p>
+                      <p className="text-[11.5px] text-text-tertiary">{t("profile.email.hint")}</p>
                     </div>
 
                     <div className="space-y-1.5">
                       <label htmlFor="account-bio" className="block text-[11.5px] font-medium text-text-secondary">
-                        Giới thiệu bản thân
+                        {t("account.personal.bio")}
                       </label>
                       <textarea
                         id="account-bio"
                         value={bio}
                         onChange={(e) => setBio(e.target.value)}
-                        placeholder="Viết một vài dòng giới thiệu về bạn..."
+                        placeholder={t("account.personal.bioPlaceholder")}
                         maxLength={200}
                         rows={3}
                         className="w-full max-w-lg resize-none rounded-lg border border-border-subtle bg-bg-main/60 px-3 py-2 text-[13.5px] text-text-primary placeholder-text-tertiary outline-none transition-all duration-150 focus:border-accent-primary focus:bg-bg-main focus:ring-2 focus:ring-accent-primary/20"
@@ -466,7 +467,7 @@ const AccountModal = () => {
                       <div className="flex items-center justify-between gap-3 px-6 py-3">
                         <span className="flex items-center gap-2 text-[12px] text-text-secondary">
                           <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent-primary" />
-                          Có thay đổi chưa lưu
+                          {t("account.personal.unsavedChanges")}
                         </span>
                         <div className="flex items-center gap-2">
                           <button
@@ -474,14 +475,14 @@ const AccountModal = () => {
                             disabled={isSaving}
                             className="rounded-md px-3 py-1.5 text-[12px] font-medium text-text-secondary transition-colors hover:bg-white/[0.04] hover:text-text-primary disabled:opacity-40 border-none bg-transparent cursor-pointer"
                           >
-                            Hoàn tác
+                            {t("account.personal.undo")}
                           </button>
                           <button
                             onClick={handleSave}
                             disabled={isSaving}
                             className="rounded-md bg-accent-primary px-4 py-1.5 text-[12px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-accent-hover hover:shadow-accent-primary/25 hover:shadow-md active:scale-[0.97] disabled:opacity-60 border-none cursor-pointer"
                           >
-                            {isSaving ? "Đang lưu..." : "Lưu thay đổi"}
+                            {isSaving ? t("profile.btn.saving") : t("profile.btn.save")}
                           </button>
                         </div>
                       </div>
@@ -498,7 +499,7 @@ const AccountModal = () => {
                   <div className="border-b border-border-subtle/70 px-6 py-4">
                     <h3 className="flex items-center gap-2 text-[13.5px] font-semibold text-text-primary">
                       <Shield size={14} className="text-text-tertiary" />
-                      Bảo mật tài khoản
+                      {t("account.security.title")}
                     </h3>
                   </div>
                   <div className="divide-y divide-border-subtle/50">
@@ -508,26 +509,26 @@ const AccountModal = () => {
                           <KeyRound size={14} />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[13px] font-medium text-text-primary">Mật khẩu</p>
+                          <p className="text-[13px] font-medium text-text-primary">{t("account.security.password")}</p>
                           <p className="mt-0.5 text-[12px] text-text-tertiary">
                             {user?.provider === "google"
-                              ? "Bạn đăng nhập bằng Google — không có mật khẩu."
-                              : "Thay đổi mật khẩu tài khoản của bạn."}
+                              ? t("account.security.password.googleHint")
+                              : t("account.security.password.localHint")}
                           </p>
                         </div>
                       </div>
                       {user?.provider === "google" ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 ring-1 ring-emerald-500/20">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                          Google Auth
+                          {t("account.security.password.googleBadge")}
                         </span>
                       ) : (
                         <button
                           type="button"
                           className="rounded-md border border-border-subtle bg-bg-main/60 px-3 py-1.5 text-[12px] font-medium text-text-secondary transition-all duration-150 hover:bg-white/[0.04] hover:text-text-primary active:scale-[0.97] cursor-pointer"
-                          onClick={() => toast.info("Tính năng đang phát triển.")}
+                          onClick={() => toast.info(t("account.toast.featureWIP"))}
                         >
-                          Đổi mật khẩu
+                          {t("account.security.password.changeBtn")}
                         </button>
                       )}
                     </div>
@@ -537,16 +538,16 @@ const AccountModal = () => {
                           <Smartphone size={14} />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[13px] font-medium text-text-primary">Phiên đăng nhập</p>
-                          <p className="mt-0.5 text-[12px] text-text-tertiary">Quản lý các thiết bị đang đăng nhập.</p>
+                          <p className="text-[13px] font-medium text-text-primary">{t("account.security.sessions")}</p>
+                          <p className="mt-0.5 text-[12px] text-text-tertiary">{t("account.security.sessions.hint")}</p>
                         </div>
                       </div>
                       <button
                         type="button"
                         className="rounded-md border border-border-subtle bg-bg-main/60 px-3 py-1.5 text-[12px] font-medium text-text-secondary transition-all duration-150 hover:bg-white/[0.04] hover:text-text-primary active:scale-[0.97] cursor-pointer"
-                        onClick={() => toast.info("Tính năng đang phát triển.")}
+                        onClick={() => toast.info(t("account.toast.featureWIP"))}
                       >
-                        Xem phiên
+                        {t("account.security.sessions.viewBtn")}
                       </button>
                     </div>
                   </div>
@@ -561,18 +562,18 @@ const AccountModal = () => {
                   <div className="border-b border-red-500/20 px-6 py-4">
                     <h3 className="flex items-center gap-2 text-[13.5px] font-semibold text-red-300">
                       <AlertTriangle size={14} className="text-red-300" />
-                      Vùng nguy hiểm
+                      {t("account.danger.title")}
                     </h3>
                     <p className="mt-1 text-[11.5px] text-text-tertiary">
-                      Các hành động dưới đây không thể hoàn tác. Hãy chắc chắn trước khi tiếp tục.
+                      {t("account.danger.subtitle")}
                     </p>
                   </div>
                   <div className="px-6 py-5">
                     <div className="flex items-center justify-between gap-4">
                       <div className="min-w-0">
-                        <p className="text-[13px] font-medium text-text-primary">Xóa tài khoản</p>
+                        <p className="text-[13px] font-medium text-text-primary">{t("account.danger.delete.title")}</p>
                         <p className="mt-0.5 text-[12px] text-text-tertiary">
-                          Tất cả dữ liệu công việc, sự kiện, và cài đặt sẽ bị xóa vĩnh viễn.
+                          {t("account.danger.delete.hint")}
                         </p>
                       </div>
                       {!isConfirmingDelete ? (
@@ -581,7 +582,7 @@ const AccountModal = () => {
                           onClick={() => setIsConfirmingDelete(true)}
                           className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-[12px] font-medium text-red-300 transition-all duration-150 hover:bg-red-500/20 hover:text-red-200 active:scale-[0.97] cursor-pointer"
                         >
-                          Xóa tài khoản
+                          {t("account.danger.delete.btn")}
                         </button>
                       ) : (
                         <div className="flex items-center gap-2">
@@ -590,17 +591,17 @@ const AccountModal = () => {
                             onClick={() => setIsConfirmingDelete(false)}
                             className="rounded-md border border-border-subtle bg-bg-main/60 px-3 py-1.5 text-[12px] font-medium text-text-secondary transition-all duration-150 hover:bg-white/[0.04] hover:text-text-primary cursor-pointer"
                           >
-                            Hủy
+                            {t("account.danger.cancel")}
                           </button>
                           <button
                             type="button"
                             onClick={() => {
-                              toast.info("Tính năng đang phát triển.");
+                              toast.info(t("account.toast.featureWIP"));
                               setIsConfirmingDelete(false);
                             }}
                             className="rounded-md bg-red-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-all duration-150 hover:bg-red-600 active:scale-[0.97] border-none cursor-pointer"
                           >
-                            Xác nhận xóa
+                            {t("account.danger.confirm")}
                           </button>
                         </div>
                       )}
