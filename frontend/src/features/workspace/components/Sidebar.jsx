@@ -11,7 +11,7 @@ import { InboxPanel, InvitePanel, UserMenu } from "../panels";
 import { MAIN_NAV_ITEMS, NEXUS_APPS, BOTTOM_NAV_ITEMS } from "../constants";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useUnreadInbox } from "../../notification-receiver/context/UnreadInboxContext";
-import { useSearchModal } from "../../search/contexts/SearchModalContext";
+import { useSearchModal } from "../search/contexts/SearchModalContext";
 
 const COLLAPSED_KEY = "sidebar_collapsed";
 
@@ -108,7 +108,7 @@ const Sidebar = ({
           {MAIN_NAV_ITEMS.map((item) => {
             let isActive = false;
             if (item.id === "inbox") isActive = showInbox;
-            else if (item.id === "home") isActive = currentPath === "/app" && !activePage;
+            else if (item.id === "home") isActive = currentPath === "/";
             else if (item.id === "search") isActive = isSearchOpen;
 
             return (
@@ -121,7 +121,7 @@ const Sidebar = ({
                 collapsed={collapsed}
                 onClick={() => {
                   if (item.id === "inbox") setShowInbox(!showInbox);
-                  else if (item.id === "home") navigate("/app");
+                  else if (item.id === "home") navigate("/");
                   else if (item.id === "search") openSearchModal();
                 }}
               />

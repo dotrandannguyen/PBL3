@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, X, ArrowRight, Loader, FileText, Calendar, CheckSquare } from "lucide-react";
 import { useSearchModal } from "../contexts/SearchModalContext";
-import { useWorkspace } from "../../workspace/context/WorkspaceContext";
-import { getTasks } from "../../tasks/api/task.api";
+import { useWorkspace } from "../../context/WorkspaceContext";
+import { getTasks } from "../../../tasks/api/task.api";
 
 const formatDueDate = (value) => {
   if (!value) return null;
