@@ -147,6 +147,11 @@ model User {
   refreshTokenHash  String?   @map("refresh_token_hash") @db.Text
   fullName          String?   @map("full_name")
   avatarUrl         String?   @map("avatar_url")
+  bio               String?   @db.Text @map("bio")
+  theme             String?   @map("theme")
+  language          String?   @map("language")
+  timeFormat        String?   @map("time_format")
+  timezone          String?   @map("timezone")
 
   isActive          Boolean   @default(true) @map("is_active")
   createdAt         DateTime  @default(now()) @map("created_at")
@@ -162,6 +167,7 @@ model User {
   taskActivities TaskActivity[]
   syncLogs       SyncLog[]
   notifications  Notification[]
+  notificationPreference NotificationPreference?
   auditLogs      AuditLog[]
 
   @@map("users")
@@ -411,4 +417,19 @@ model AuditLog {
   user User? @relation(fields: [userId], references: [id])
 
   @@map("audit_logs")
+}
+
+model NotificationPreference {
+  userId String @id @map("user_id")
+  email  Boolean @default(true)
+  push   Boolean @default(true)
+  sound  Boolean @default(false)
+  digest Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
 }

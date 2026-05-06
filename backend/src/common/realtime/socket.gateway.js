@@ -119,7 +119,7 @@ export const broadcastEvent = (eventName, data) => {
 	const io = getIO();
 	if (!io) {
 		console.error(' [Socket.Gateway] Cannot broadcast: IO not initialized');
-		return false;
+		return false; 
 	}
 
 	try {
