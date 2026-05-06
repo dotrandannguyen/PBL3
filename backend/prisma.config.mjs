@@ -10,6 +10,6 @@ export default defineConfig({
 	schema: 'prisma/schema.prisma',
 	// Chỉ định đường dẫn DB cho các lệnh Migration
 	datasource: {
-		url: process.env.DATABASE_URL,
+		url: process.env.DIRECT_URL,
 	},
 });
