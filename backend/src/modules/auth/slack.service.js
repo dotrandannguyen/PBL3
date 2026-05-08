@@ -4,6 +4,8 @@ import { ClientException } from '../../common/exceptions/index.js';
 import prisma from '../../config/database.js';
 import { encryptionUtils } from '../../common/utils/encryption.js';
 import { generateTokens } from './auth.service.js';
+import { normalizeEmail } from '../../common/utils/normalizeEmail.js';
+import { buildOauthState, parseOauthState } from '../../common/utils/oauthState.js';
 
 const SLACK_AUTH_URL = 'https://slack.com/oauth/v2/authorize';
 const SLACK_TOKEN_URL = 'https://slack.com/api/oauth.v2.access';
@@ -22,18 +24,241 @@ const USER_SCOPES = [
 	'mpim:history',
 ];
 
+const handleLoginAccount = async (userProfile, slackUserId, userToken, team) => {
+	const email = userProfile?.profile?.email;
+	if (!email) {
+		throw new ClientException(400, 'Slack account must have a verified email.');
+	}
+
+	const result = await prisma.$transaction(async (tx) => {
+		const providerUserId = String(slackUserId);
+		const existingAccount = await tx.account.findUnique({
+			where: {
+				provider_providerAccountId: {
+					provider: 'slack',
+					providerAccountId: providerUserId,
+				},
+			},
+		});
+		const existingIntegration = await tx.integration.findUnique({
+			where: {
+				provider_providerUserId: {
+					provider: 'SLACK',
+					providerUserId,
+				},
+			},
+		});
+
+		let user = null;
+		if (existingAccount) {
+			user = await tx.user.findUnique({ where: { id: existingAccount.userId } });
+		} else if (existingIntegration) {
+			user = await tx.user.findUnique({
+				where: { id: existingIntegration.userId },
+			});
+		} else {
+			user = await tx.user.findUnique({ where: { email } });
+		}
+
+		if (!user) {
+			user = await tx.user.create({
+				data: {
+					email,
+					fullName:
+						userProfile.real_name || userProfile.name || email.split('@')[0],
+					avatarUrl: userProfile.profile?.image_192 || null,
+					isActive: true,
+				},
+			});
+		}
+
+		await tx.account.upsert({
+			where: {
+				provider_providerAccountId: {
+					provider: 'slack',
+					providerAccountId: providerUserId,
+				},
+			},
+			update: { updatedAt: new Date() },
+			create: {
+				userId: user.id,
+				type: 'oauth',
+				provider: 'slack',
+				providerAccountId: providerUserId,
+			},
+		});
+
+		const accessTokenEncrypted = encryptionUtils.encrypt(userToken);
+
+		await tx.integration.upsert({
+			where: {
+				userId_provider: {
+					userId: user.id,
+					provider: 'SLACK',
+				},
+			},
+			update: {
+				accessTokenEncrypted,
+				status: 'ACTIVE',
+				updatedAt: new Date(),
+				profileData: {
+					user: userProfile,
+					team,
+				},
+			},
+			create: {
+				userId: user.id,
+				provider: 'SLACK',
+				providerUserId: providerUserId,
+				accessTokenEncrypted,
+				status: 'ACTIVE',
+				profileData: {
+					user: userProfile,
+					team,
+				},
+			},
+		});
+
+		return user;
+	});
+
+	return result;
+};
+
+const handleLinkAccount = async (userId, userProfile, slackUserId, userToken, team) => {
+	const email = userProfile?.profile?.email;
+	if (!email) {
+		throw new ClientException(400, 'Slack account must have a verified email.');
+	}
+
+	const result = await prisma.$transaction(async (tx) => {
+		const providerUserId = String(slackUserId);
+		const user = await tx.user.findUnique({ where: { id: userId } });
+		if (!user) {
+			throw new ClientException(404, 'Nguoi dung khong ton tai.');
+		}
+
+		const normalizedUserEmail = normalizeEmail(user.email);
+		const normalizedProviderEmail = normalizeEmail(email);
+		if (
+			normalizedUserEmail &&
+			normalizedProviderEmail &&
+			normalizedUserEmail !== normalizedProviderEmail
+		) {
+			throw new ClientException(
+				409,
+				'Email Slack khong trung khop voi tai khoan hien tai.',
+				'PROVIDER_EMAIL_MISMATCH',
+			);
+		}
+
+		const existingUserWithEmail = await tx.user.findUnique({
+			where: { email },
+		});
+		if (existingUserWithEmail && existingUserWithEmail.id !== userId) {
+			throw new ClientException(
+				409,
+				'Email Slack da duoc lien ket voi tai khoan khac.',
+			);
+		}
+
+		const existingAccount = await tx.account.findUnique({
+			where: {
+				provider_providerAccountId: {
+					provider: 'slack',
+					providerAccountId: providerUserId,
+				},
+			},
+		});
+		if (existingAccount && existingAccount.userId !== userId) {
+			throw new ClientException(
+				409,
+				'Tai khoan Slack nay da lien ket voi user khac.',
+			);
+		}
+
+		const existingIntegration = await tx.integration.findUnique({
+			where: {
+				provider_providerUserId: {
+					provider: 'SLACK',
+					providerUserId,
+				},
+			},
+		});
+		if (existingIntegration && existingIntegration.userId !== userId) {
+			throw new ClientException(
+				409,
+				'Tai khoan Slack nay da lien ket voi user khac.',
+			);
+		}
+
+		await tx.account.upsert({
+			where: {
+				provider_providerAccountId: {
+					provider: 'slack',
+					providerAccountId: providerUserId,
+				},
+			},
+			update: { updatedAt: new Date() },
+			create: {
+				userId: user.id,
+				type: 'oauth',
+				provider: 'slack',
+				providerAccountId: providerUserId,
+			},
+		});
+
+		const accessTokenEncrypted = encryptionUtils.encrypt(userToken);
+
+		await tx.integration.upsert({
+			where: {
+				userId_provider: {
+					userId: user.id,
+					provider: 'SLACK',
+				},
+			},
+			update: {
+				accessTokenEncrypted,
+				status: 'ACTIVE',
+				updatedAt: new Date(),
+				profileData: {
+					user: userProfile,
+					team,
+				},
+			},
+			create: {
+				userId: user.id,
+				provider: 'SLACK',
+				providerUserId: providerUserId,
+				accessTokenEncrypted,
+				status: 'ACTIVE',
+				profileData: {
+					user: userProfile,
+					team,
+				},
+			},
+		});
+
+		return user;
+	});
+
+	return result;
+};
+
 export const slackService = {
-	getAuthUrl: () => {
+	getAuthUrl: (options = {}) => {
 		const params = new URLSearchParams({
 			client_id: process.env.SLACK_CLIENT_ID,
 			redirect_uri: process.env.SLACK_REDIRECT_URI,
 			user_scope: USER_SCOPES.join(' '),
+			state: buildOauthState(options),
 		});
 
 		return `${SLACK_AUTH_URL}?${params.toString()}`;
 	},
 
-	handleCallback: async (code) => {
+	handleCallback: async (code, state) => {
+		const statePayload = parseOauthState(state);
 		let oauthData;
 		try {
 			const payload = new URLSearchParams({
@@ -91,77 +316,21 @@ export const slackService = {
 			throw new ClientException(400, 'Failed to fetch user profile from Slack');
 		}
 
-		const email = userProfile?.profile?.email;
-		if (!email) {
-			throw new ClientException(400, 'Slack account must have a verified email.');
-		}
-
-		const result = await prisma.$transaction(async (tx) => {
-			let user = await tx.user.findUnique({ where: { email } });
-
-			if (!user) {
-				user = await tx.user.create({
-					data: {
-						email,
-						fullName:
-							userProfile.real_name ||
-							userProfile.name ||
-							email.split('@')[0],
-						avatarUrl: userProfile.profile?.image_192 || null,
-						isActive: true,
-					},
-				});
-			}
-
-			await tx.account.upsert({
-				where: {
-					provider_providerAccountId: {
-						provider: 'slack',
-						providerAccountId: String(slackUserId),
-					},
-				},
-				update: { updatedAt: new Date() },
-				create: {
-					userId: user.id,
-					type: 'oauth',
-					provider: 'slack',
-					providerAccountId: String(slackUserId),
-				},
-			});
-
-			const accessTokenEncrypted = encryptionUtils.encrypt(userToken);
-
-			await tx.integration.upsert({
-				where: {
-					userId_provider: {
-						userId: user.id,
-						provider: 'SLACK',
-					},
-				},
-				update: {
-					accessTokenEncrypted,
-					status: 'ACTIVE',
-					updatedAt: new Date(),
-					profileData: {
-						user: userProfile,
-						team: oauthData?.team || null,
-					},
-				},
-				create: {
-					userId: user.id,
-					provider: 'SLACK',
-					providerUserId: String(slackUserId),
-					accessTokenEncrypted,
-					status: 'ACTIVE',
-					profileData: {
-						user: userProfile,
-						team: oauthData?.team || null,
-					},
-				},
-			});
-
-			return user;
-		});
+		const result =
+			statePayload.action === 'link' && statePayload.userId
+				? await handleLinkAccount(
+						statePayload.userId,
+						userProfile,
+						slackUserId,
+						userToken,
+						oauthData?.team || null,
+					)
+				: await handleLoginAccount(
+						userProfile,
+						slackUserId,
+						userToken,
+						oauthData?.team || null,
+					);
 
 		const jwtTokens = generateTokens(result);
 		const refreshTokenHash = await bcrypt.hash(jwtTokens.refreshToken, 10);

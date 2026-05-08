@@ -5,6 +5,8 @@ import prisma from '../../config/database.js';
 import { encryptionUtils } from '../../common/utils/encryption.js';
 import { generateTokens } from './auth.service.js';
 import axios from 'axios';
+import { normalizeEmail } from '../../common/utils/normalizeEmail.js';
+import { buildOauthState, parseOauthState } from '../../common/utils/oauthState.js';
 
 // ---------tài liệu học tập ----------
 // https://www.npmjs.com/package/googleapis
@@ -25,15 +27,227 @@ const SCOPES = [
 	'https://www.googleapis.com/auth/gmail.readonly',
 ];
 
+const handleLoginAccount = async (googleUser, tokens) => {
+	const providerUserId = googleUser.id;
+
+	const result = await prisma.$transaction(async (tx) => {
+		const existingAccount = await tx.account.findUnique({
+			where: {
+				provider_providerAccountId: {
+					provider: 'google',
+					providerAccountId: providerUserId,
+				},
+			},
+		});
+		const existingIntegration = await tx.integration.findUnique({
+			where: {
+				provider_providerUserId: {
+					provider: 'GOOGLE',
+					providerUserId,
+				},
+			},
+		});
+
+		let user = null;
+		if (existingAccount) {
+			user = await tx.user.findUnique({ where: { id: existingAccount.userId } });
+		} else if (existingIntegration) {
+			user = await tx.user.findUnique({
+				where: { id: existingIntegration.userId },
+			});
+		} else {
+			user = await tx.user.findUnique({ where: { email: googleUser.email } });
+		}
+
+		if (!user) {
+			user = await tx.user.create({
+				data: {
+					email: googleUser.email,
+					fullName: googleUser.name,
+					avatarUrl: googleUser.picture,
+					isActive: true,
+				},
+			});
+		}
+
+		await tx.account.upsert({
+			where: {
+				provider_providerAccountId: {
+					provider: 'google',
+					providerAccountId: providerUserId,
+				},
+			},
+			update: { updatedAt: new Date() },
+			create: {
+				userId: user.id,
+				type: 'oauth',
+				provider: 'google',
+				providerAccountId: providerUserId,
+			},
+		});
+
+		const accessTokenEncrypted = encryptionUtils.encrypt(tokens.access_token);
+		const refreshTokenEncrypted = tokens.refresh_token
+			? encryptionUtils.encrypt(tokens.refresh_token)
+			: undefined;
+
+		await tx.integration.upsert({
+			where: {
+				userId_provider: {
+					userId: user.id,
+					provider: 'GOOGLE',
+				},
+			},
+			update: {
+				accessTokenEncrypted,
+				...(refreshTokenEncrypted && { refreshTokenEncrypted }),
+				status: 'ACTIVE',
+				updatedAt: new Date(),
+				profileData: googleUser,
+			},
+			create: {
+				userId: user.id,
+				provider: 'GOOGLE',
+				providerUserId,
+				accessTokenEncrypted,
+				refreshTokenEncrypted,
+				profileData: googleUser,
+				status: 'ACTIVE',
+			},
+		});
+
+		return user;
+	});
+
+	return result;
+};
+
+const handleLinkAccount = async (userId, googleUser, tokens) => {
+	const providerUserId = googleUser.id;
+
+	const result = await prisma.$transaction(async (tx) => {
+		const user = await tx.user.findUnique({ where: { id: userId } });
+		if (!user) {
+			throw new ClientException(404, 'Nguoi dung khong ton tai.');
+		}
+
+		const normalizedUserEmail = normalizeEmail(user.email);
+		const normalizedProviderEmail = normalizeEmail(googleUser.email);
+		if (
+			normalizedUserEmail &&
+			normalizedProviderEmail &&
+			normalizedUserEmail !== normalizedProviderEmail
+		) {
+			throw new ClientException(
+				409,
+				'Email Google khong trung khop voi tai khoan hien tai.',
+				'PROVIDER_EMAIL_MISMATCH',
+			);
+		}
+
+		const existingUserWithEmail = await tx.user.findUnique({
+			where: { email: googleUser.email },
+		});
+		if (existingUserWithEmail && existingUserWithEmail.id !== userId) {
+			throw new ClientException(
+				409,
+				'Email Google da duoc lien ket voi tai khoan khac.',
+			);
+		}
+
+		const existingAccount = await tx.account.findUnique({
+			where: {
+				provider_providerAccountId: {
+					provider: 'google',
+					providerAccountId: providerUserId,
+				},
+			},
+		});
+		if (existingAccount && existingAccount.userId !== userId) {
+			throw new ClientException(
+				409,
+				'Tai khoan Google nay da lien ket voi user khac.',
+			);
+		}
+
+		const existingIntegration = await tx.integration.findUnique({
+			where: {
+				provider_providerUserId: {
+					provider: 'GOOGLE',
+					providerUserId,
+				},
+			},
+		});
+		if (existingIntegration && existingIntegration.userId !== userId) {
+			throw new ClientException(
+				409,
+				'Tai khoan Google nay da lien ket voi user khac.',
+			);
+		}
+
+		await tx.account.upsert({
+			where: {
+				provider_providerAccountId: {
+					provider: 'google',
+					providerAccountId: providerUserId,
+				},
+			},
+			update: { updatedAt: new Date() },
+			create: {
+				userId: user.id,
+				type: 'oauth',
+				provider: 'google',
+				providerAccountId: providerUserId,
+			},
+		});
+
+		const accessTokenEncrypted = encryptionUtils.encrypt(tokens.access_token);
+		const refreshTokenEncrypted = tokens.refresh_token
+			? encryptionUtils.encrypt(tokens.refresh_token)
+			: undefined;
+
+		await tx.integration.upsert({
+			where: {
+				userId_provider: {
+					userId: user.id,
+					provider: 'GOOGLE',
+				},
+			},
+			update: {
+				accessTokenEncrypted,
+				...(refreshTokenEncrypted && { refreshTokenEncrypted }),
+				status: 'ACTIVE',
+				updatedAt: new Date(),
+				profileData: googleUser,
+			},
+			create: {
+				userId: user.id,
+				provider: 'GOOGLE',
+				providerUserId,
+				accessTokenEncrypted,
+				refreshTokenEncrypted,
+				profileData: googleUser,
+				status: 'ACTIVE',
+			},
+		});
+
+		return user;
+	});
+
+	return result;
+};
+
 export const googleService = {
 	// lấy link url
-	getAuthUrl: () => {
+	getAuthUrl: (options = {}) => {
+		const state = buildOauthState(options);
 		const url = oauth2Client.generateAuthUrl({
 			// 'online' (default) or 'offline' (gets refresh_token)
 			access_type: 'offline',
 			// If you only need one scope, you can pass it as a string
 			scope: SCOPES,
 			prompt: 'consent', // Luôn hỏi để đảm bảo Google trả Refresh Token
+			state,
 			//ép Google luôn hiện màn hình xin quyền, nhờ đó bắt buộc trả về refresh_token mỗi lần user đăng nhập.
 		});
 
@@ -139,7 +353,8 @@ export const googleService = {
 	},
 
 	// https://googleapis.dev/nodejs/googleapis/latest/oauth2/classes/Resource%24Userinfo.html?utm_source=chatgpt.com
-	handleCallback: async (code) => {
+	handleCallback: async (code, state) => {
+		const statePayload = parseOauthState(state);
 		const { tokens } = await oauth2Client.getToken(code);
 		oauth2Client.setCredentials(tokens);
 		// FIX BUG-07: ĐÃ XÓA các dòng console.log in Access Token (bảo mật)
@@ -151,77 +366,10 @@ export const googleService = {
 			throw new ClientException(400, 'Google đã không trả về email!');
 		}
 
-		// xử lý database
-		const result = await prisma.$transaction(async (tx) => {
-			let user = await tx.user.findUnique({
-				where: { email: googleUser.email },
-			});
-
-			if (!user) {
-				// sau nay thay user repository vào
-				user = await tx.user.create({
-					data: {
-						email: googleUser.email,
-						fullName: googleUser.name,
-						avatarUrl: googleUser.picture,
-						isActive: true,
-					},
-				});
-			}
-
-			// lưu thông tin đăng nhập vào bảng account
-			// upsert: Nếu có rồi thì thôi, chưa có thì tạo
-			await tx.account.upsert({
-				where: {
-					provider_providerAccountId: {
-						provider: 'google',
-						providerAccountId: googleUser.id,
-					},
-				},
-				update: {}, // Không cần update gì ở bảng account - phải có update vì cái syntax hắn vốn v
-				create: {
-					userId: user.id,
-					type: 'oauth',
-					provider: 'google',
-					providerAccountId: googleUser.id,
-				},
-			});
-			//Lưu Token vào bảng Integration (Để dùng cho "Đặc quyền" - Sync Gmail)
-			const accessTokenEncrypted = encryptionUtils.encrypt(tokens.access_token);
-
-			// Chỉ mã hóa refresh token nếu Google có trả về (thường chỉ trả ở lần đầu hoặc prompt consent)
-			const refreshTokenEncrypted = tokens.refresh_token
-				? encryptionUtils.encrypt(tokens.refresh_token)
-				: undefined;
-
-			await tx.integration.upsert({
-				where: {
-					userId_provider: {
-						// Unique constraint
-						userId: user.id,
-						provider: 'GOOGLE',
-					},
-				},
-				update: {
-					accessTokenEncrypted,
-					...(refreshTokenEncrypted && { refreshTokenEncrypted }), // Chỉ update nếu có mới
-					status: 'ACTIVE',
-					updatedAt: new Date(),
-					profileData: googleUser, // Lưu json profile làm cache
-				},
-				create: {
-					userId: user.id,
-					provider: 'GOOGLE',
-					providerUserId: googleUser.id,
-					accessTokenEncrypted,
-					refreshTokenEncrypted,
-					profileData: googleUser,
-
-					status: 'ACTIVE',
-				},
-			});
-			return user;
-		});
+		const result =
+			statePayload.action === 'link' && statePayload.userId
+				? await handleLinkAccount(statePayload.userId, googleUser, tokens)
+				: await handleLoginAccount(googleUser, tokens);
 
 		// TỰ ĐỘNG ĐĂNG KÝ GMAIL WATCH NGAY SAU KHI LƯU INTEGRATION THÀNH CÔNG
 		try {

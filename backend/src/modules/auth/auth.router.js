@@ -36,6 +36,7 @@ authRouter.post(
 
 // Google login
 authRouter.get('/google/url', authController.getGoogleUrl);
+authRouter.get('/google/link-url', authGuard, authController.getGoogleLinkUrl);
 
 authRouter.get(
 	'/google/callback',
@@ -45,10 +46,12 @@ authRouter.get(
 
 // Github login
 authRouter.get('/github/url', authController.getGithubUrl);
+authRouter.get('/github/link-url', authGuard, authController.getGithubLinkUrl);
 authRouter.get('/github/callback', authController.githubCallback);
 
 // Slack login
 authRouter.get('/slack/url', authController.getSlackUrl);
+authRouter.get('/slack/link-url', authGuard, authController.getSlackLinkUrl);
 authRouter.get('/slack/callback', authController.slackCallback);
 
 export default authRouter;
