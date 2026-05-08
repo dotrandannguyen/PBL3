@@ -21,7 +21,7 @@ export function WorkspacePage() {
         isPrivate={true}
         editedDate="Just now"
       />
-      <TaskList key={activePageData.id} title={activePageData.label} />
+      <TaskList key={activePageData.id} workspaceId={activePageData.id} title={activePageData.label} />
     </>
   );
 }

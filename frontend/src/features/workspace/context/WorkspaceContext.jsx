@@ -1,69 +1,119 @@
-import React, { createContext, useState, useContext, useCallback } from "react";
-import { FileText, BookOpen, Rocket, CheckSquare } from "lucide-react";
-
-/**
- * WorkspaceContext — Quản lý state dùng chung cho sidebar workspace.
- * Được dùng bởi DashboardLayout (render Sidebar) và các trang con như
- * WorkspacePage để đọc/cập nhật danh sách trang đang active.
- */
-
-const INITIAL_PAGES = [
-  // {
-  //   id: "welcome1",
-  //   icon: <Rocket size={14} />,
-  //   label: "Getting Started",
-  //   type: "private",
-  // },
-  // {
-  //   id: "welcome2",
-  //   icon: <BookOpen size={14} />,
-  //   label: "Quick Guide",
-  //   type: "private",
-  // },
-  {
-    id: "todo",
-    icon: <CheckSquare size={14} />,
-    label: "To Do List",
-    type: "private",
-    active: true,
-  },
-];
+import React, { createContext, useState, useContext, useCallback, useEffect } from "react";
+import { FileText, CheckSquare } from "lucide-react";
+import * as workspaceApi from "../api/workspace.api";
+import useAuth from "../../auth/hooks/useAuth";
 
 const WorkspaceContext = createContext(null);
 
 export function WorkspaceProvider({ children }) {
-  const [pages, setPages] = useState(INITIAL_PAGES);
-  const [activePage, setActivePage] = useState("todo");
+  const { isAuthenticated } = useAuth();
+  const [pages, setPages] = useState([]);
+  const [activePage, setActivePage] = useState(null);
   const [pendingRenameId, setPendingRenameId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
 
+  const fetchWorkspaces = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      setLoading(true);
+      const res = await workspaceApi.getWorkspaces();
+      const workspaces = res.data;
+      if (workspaces && workspaces.length > 0) {
+        setPages(workspaces.map(w => ({
+          id: w.id,
+          icon: <FileText size={14} />,
+          label: w.name,
+          type: "private"
+        })));
+        setActivePage(prev => {
+          if (!prev || !workspaces.find(w => w.id === prev)) return workspaces[0].id;
+          return prev;
+        });
+      } else {
+        // Create default workspace if none
+        const res2 = await workspaceApi.createWorkspace({ name: "Mặc định" });
+        const defaultWorkspace = res2.data;
+        const newPage = {
+          id: defaultWorkspace.id,
+          icon: <CheckSquare size={14} />,
+          label: defaultWorkspace.name,
+          type: "private"
+        };
+        setPages([newPage]);
+        setActivePage(newPage.id);
+      }
+    } catch (e) {
+      console.error("Failed to load workspaces", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    fetchWorkspaces();
+  }, [fetchWorkspaces]);
+
+  // Step 1: user clicks "+" → show inline input
   const handleAddNewList = () => {
-    const newPage = {
-      id: `list-${Date.now()}`,
-      icon: <FileText size={14} />,
-      label: "New List",
-      type: "private",
-    };
-    setPages((prev) => [...prev, newPage]);
-    setActivePage(newPage.id);
-    setPendingRenameId(newPage.id);
+    setIsCreatingWorkspace(true);
   };
+
+  // Step 2: user types name + Enter → actually create workspace
+  const createWorkspaceWithName = async (name) => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setIsCreatingWorkspace(false);
+      return;
+    }
+    try {
+      const res = await workspaceApi.createWorkspace({ name: trimmed });
+      const newWorkspace = res.data;
+      const newPage = {
+        id: newWorkspace.id,
+        icon: <FileText size={14} />,
+        label: newWorkspace.name,
+        type: "private",
+      };
+      setPages((prev) => [...prev, newPage]);
+      setActivePage(newPage.id);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsCreatingWorkspace(false);
+    }
+  };
+
+  const cancelCreate = useCallback(() => {
+    setIsCreatingWorkspace(false);
+  }, []);
 
   const clearPendingRename = useCallback(() => {
     setPendingRenameId(null);
   }, []);
 
-  const handleDeletePage = (id) => {
-    setPages((prev) => {
-      const next = prev.filter((p) => p.id !== id);
-      if (activePage === id && next.length > 0) setActivePage(next[0].id);
-      return next;
-    });
+  const handleDeletePage = async (id) => {
+    try {
+      await workspaceApi.deleteWorkspace(id);
+      setPages((prev) => {
+        const next = prev.filter((p) => p.id !== id);
+        if (activePage === id && next.length > 0) setActivePage(next[0].id);
+        return next;
+      });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleRenamePage = (id, newLabel) => {
-    setPages((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, label: newLabel } : p)),
-    );
+  const handleRenamePage = async (id, newLabel) => {
+    try {
+      await workspaceApi.updateWorkspace(id, { name: newLabel });
+      setPages((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, label: newLabel } : p)),
+      );
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -77,6 +127,10 @@ export function WorkspaceProvider({ children }) {
         handleRenamePage,
         pendingRenameId,
         clearPendingRename,
+        loading,
+        isCreatingWorkspace,
+        createWorkspaceWithName,
+        cancelCreate,
       }}
     >
       {children}
@@ -91,3 +145,4 @@ export function useWorkspace() {
   }
   return context;
 }
+

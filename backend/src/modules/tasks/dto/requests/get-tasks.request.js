@@ -39,5 +39,8 @@ export const getTasksSchema = {
 			.max(255, 'Search keyword quá dài')
 			.optional()
 			.describe('Tìm kiếm task theo title (case-insensitive)'),
+			
+		parentId: z.string().optional().nullable(),
+		workspaceId: z.string().optional().nullable(),
 	}),
 };

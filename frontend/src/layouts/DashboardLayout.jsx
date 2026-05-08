@@ -27,6 +27,9 @@ function DashboardContent() {
     handleRenamePage,
     pendingRenameId,
     clearPendingRename,
+    isCreatingWorkspace,
+    createWorkspaceWithName,
+    cancelCreate,
   } = useWorkspace();
   const location = useLocation();
 
@@ -42,6 +45,9 @@ function DashboardContent() {
         onRenamePage={handleRenamePage}
         pendingRenameId={pendingRenameId}
         onClearPendingRename={clearPendingRename}
+        isCreatingWorkspace={isCreatingWorkspace}
+        createWorkspaceWithName={createWorkspaceWithName}
+        cancelCreate={cancelCreate}
       />
       <main className="flex-1 flex flex-col bg-bg-main overflow-hidden">
         {/* Keyed wrapper: re-mounts on route change → triggers fade-in */}

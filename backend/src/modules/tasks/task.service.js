@@ -81,6 +81,7 @@ export const taskService = {
 		const repositoryQuery = {
 			completed: query.completed,
 			search: query.search || undefined,
+			workspaceId: query.workspaceId,
 			skip,
 			take: limit,
 		};
@@ -139,6 +140,8 @@ export const taskService = {
 			scheduledAt,
 			status: 'PENDING',
 			type: scheduledAt ? 'SCHEDULED' : 'TODO',
+			parentId: data.parentId ?? null,
+			workspaceId: data.workspaceId ?? null,
 		};
 
 		const task = await taskRepository.create(userId, taskData);
@@ -191,6 +194,12 @@ export const taskService = {
 		}
 		if (data.priority !== undefined) {
 			updateData.priority = data.priority;
+		}
+		if (data.parentId !== undefined) {
+			updateData.parentId = data.parentId;
+		}
+		if (data.workspaceId !== undefined) {
+			updateData.workspaceId = data.workspaceId === 'null' ? null : data.workspaceId;
 		}
 		if (data.dueDate !== undefined) {
 			updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
@@ -635,6 +644,8 @@ function mapTask(task) {
 		sourceLink: task.sourceLink,
 		sourceMetadata: task.sourceMetadata,
 		isConverted: task.isConverted || false,
+		parentId: task.parentId,
+		workspaceId: task.workspaceId,
 		createdAt: task.createdAt,
 		updatedAt: task.updatedAt,
 	};

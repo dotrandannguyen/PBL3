@@ -17,6 +17,8 @@ const taskSelect = {
 	sourceLink: true,
 	sourceMetadata: true,
 	isConverted: true,
+	parentId: true,
+	workspaceId: true,
 	completedAt: true,
 	createdAt: true,
 	updatedAt: true,
@@ -37,6 +39,10 @@ export const taskRepository = {
 				},
 			],
 		};
+
+		if (query.workspaceId !== undefined) {
+			where.workspaceId = query.workspaceId === 'null' ? null : query.workspaceId;
+		}
 
 		if (query.completed !== undefined) {
 			where.AND.push({
@@ -125,6 +131,8 @@ export const taskRepository = {
 				reminderAt: taskData.reminderAt ?? null,
 				scheduledAt: taskData.scheduledAt ?? null,
 				sourceMetadata: taskData.sourceMetadata ?? null,
+				parentId: taskData.parentId ?? null,
+				workspaceId: taskData.workspaceId ?? null,
 			},
 			select: taskSelect,
 		});

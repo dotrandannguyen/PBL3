@@ -10,8 +10,9 @@
  *        UI từ HEAD (Notion-style rows, RenderPriorityPill, TaskSlideOver)
  */
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Plus, ChevronDown, Flag, Check, Calendar, Bell, FileText, X } from "lucide-react";
+import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, useDroppable } from "@dnd-kit/core";
 import { useSearchParams } from "react-router-dom";
 import { useTasks } from "../hooks/useTasks";
 import { useTaskFilters } from "../hooks/useTaskFilters";
@@ -116,10 +117,22 @@ const computeReminderAt = (preset, dueValue) => {
   return reminderDate.toISOString();
 };
 
+const GroupDropZone = ({ group, children }) => {
+  const { isOver, setNodeRef } = useDroppable({
+    id: group.key,
+  });
+
+  return (
+    <div ref={setNodeRef} className={`rounded-xl transition-colors ${isOver ? 'bg-accent-primary/5 ring-1 ring-accent-primary' : ''}`}>
+      {children}
+    </div>
+  );
+};
+
 /* ═══════════════════════════════════════════════════════════════════════ */
 /*  TaskList Component                                                     */
 /* ═══════════════════════════════════════════════════════════════════════ */
-const TaskList = ({ title = "To Do List" }) => {
+const TaskList = ({ title = "To Do List", workspaceId }) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const initialFilterState = useMemo(() => {
@@ -173,8 +186,17 @@ const TaskList = ({ title = "To Do List" }) => {
   const [showReminderDropdown, setShowReminderDropdown] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState(readCollapsedGroups);
+  const [collapsedTasks, setCollapsedTasks] = useState(new Set());
   const [isComposerExpanded, setIsComposerExpanded] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
 
   const priorityDropdownRef = useRef(null);
   const reminderDropdownRef = useRef(null);
@@ -191,13 +213,34 @@ const TaskList = ({ title = "To Do List" }) => {
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
 
   // ── Derived / Memos ────────────────────────────────────
+  const taskMap = useMemo(() => {
+    const map = new Map();
+    filteredTasks.forEach(t => map.set(t.id, { ...t, children: [] }));
+    filteredTasks.forEach(t => {
+      if (t.parentId && map.has(t.parentId)) {
+        map.get(t.parentId).children.push(map.get(t.id));
+      }
+    });
+    return map;
+  }, [filteredTasks]);
+
+  const rootTasks = useMemo(() => {
+    const roots = [];
+    taskMap.forEach(t => {
+      if (!t.parentId || !taskMap.has(t.parentId)) {
+        roots.push(t);
+      }
+    });
+    return roots;
+  }, [taskMap]);
+
   const groupedTasks = useMemo(() => {
     const buckets = { overdue: [], today: [], upcoming: [], "no-deadline": [] };
-    for (const task of filteredTasks) {
+    for (const task of rootTasks) {
       buckets[resolveTaskGroup(task)].push(task);
     }
     return buckets;
-  }, [filteredTasks]);
+  }, [rootTasks]);
 
   const hasVisibleTasks = TASK_GROUPS.some(
     (group) => groupedTasks[group.key].length > 0,
@@ -221,8 +264,8 @@ const TaskList = ({ title = "To Do List" }) => {
 
   // ── Effects ────────────────────────────────────────────
   useEffect(() => {
-    fetchTasks({ page, limit });
-  }, [fetchTasks, page, limit]);
+    fetchTasks({ page, limit, workspaceId });
+  }, [fetchTasks, page, limit, workspaceId]);
 
   useEffect(() => {
     if (loading) return;
@@ -299,6 +342,7 @@ const TaskList = ({ title = "To Do List" }) => {
       dueDate: resolvedDueAt,
       priority: newTaskPriority,
       reminderAt: computeReminderAt(newTaskReminder, resolvedDueAtInput),
+      workspaceId,
     });
     if (!createdTask) return;
     setNewTaskText(""); setNewTaskDescription(""); setNewTaskDueAt("");
@@ -397,45 +441,131 @@ const TaskList = ({ title = "To Do List" }) => {
     setCollapsedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
   };
 
+  const handleToggleTaskCollapse = (taskId) => {
+    setCollapsedTasks((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  };
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    
+    const activeId = active.id;
+    const overId = over.id;
+    
+    // Check if dropped on a group to move to root
+    if (['overdue', 'today', 'upcoming', 'no-deadline'].includes(overId)) {
+      const activeTask = taskMap.get(activeId);
+      if (activeTask && activeTask.parentId !== null) {
+        await updateTaskData(activeId, { parentId: null });
+      }
+      return;
+    }
+    
+    // Prevent dragging a task into itself or its own children
+    const isDescendant = (childId, parentId) => {
+      let current = taskMap.get(childId);
+      while (current && current.parentId) {
+        if (current.parentId === parentId) return true;
+        current = taskMap.get(current.parentId);
+      }
+      return false;
+    };
+
+    if (activeId === overId || isDescendant(overId, activeId)) {
+      return;
+    }
+
+    // Determine target parent.
+    const activeTask = taskMap.get(activeId);
+    if (activeTask && activeTask.parentId !== overId) {
+      const activeLevel = active.data.current?.level || 0;
+      const overLevel = over.data.current?.level || 0;
+      
+      if (overLevel >= 3) {
+        // Enforce max 4 levels (0, 1, 2, 3)
+        return;
+      }
+      
+      await updateTaskData(activeId, { parentId: overId });
+    }
+  };
+
+  const handleAddSubtask = async (parentId) => {
+    setCollapsedTasks((prev) => {
+      const next = new Set(prev);
+      next.delete(parentId);
+      return next;
+    });
+    const newTask = await addTask("Subtask", { parentId, workspaceId });
+    if (newTask) {
+      handleStartEdit(newTask);
+      setEditText(""); // Let user type immediately
+    }
+  };
+
   // ── Render task row helper ─────────────────────────────
-  const renderTaskRow = (task) => (
-    <TaskRow
-      key={task.id}
-      task={task}
-      isEditing={editingId === task.id}
-      editText={editText}
-      editDescription={editDescription}
-      editDate={editDate}
-      editPriority={editPriority}
-      onToggle={() => handleToggleTask(task.id, task.completed)}
-      onEdit={() => handleStartEdit(task)}
-      onEditChange={setEditText}
-      onEditDescriptionChange={setEditDescription}
-      onEditSave={handleSaveEdit}
-      onEditCancel={handleCancelEdit}
-      onEditKeyDown={handleEditKeyDown}
-      onDelete={() => handleDeleteTask(task.id)}
-      onDateChange={(value) => {
-        if (editingId === task.id) { setEditDate(value); return; }
-        handleDateChange(task.id, value);
-      }}
-      onPriorityChange={(priority) => {
-        if (editingId === task.id) { setEditPriority(priority); return; }
-        handlePriorityChange(task.id, priority);
-      }}
-      onReminderChange={(presetValue) => {
-        if (editingId === task.id) {
-          setEditReminder(presetValue);
-          return;
-        }
-        const reminderAt = computeReminderAt(presetValue, task.dueDate || task.date);
-        updateTaskData(task.id, { reminderAt });
-      }}
-      editReminder={editingId === task.id ? editReminder : undefined}
-      isDeleting={removingIds.has(task.id)}
-      onOpenDashboard={() => setSelectedTaskId(task.id)}
-    />
-  );
+  const renderTaskRow = (task, level = 0) => {
+    const isCollapsed = collapsedTasks.has(task.id);
+    const children = task.children || [];
+    
+    return (
+      <div key={task.id}>
+        <TaskRow
+          task={task}
+          level={level}
+          hasChildren={children.length > 0}
+          isExpanded={!isCollapsed}
+          onToggleExpand={() => handleToggleTaskCollapse(task.id)}
+          onAddSubtask={handleAddSubtask}
+          isEditing={editingId === task.id}
+          editText={editText}
+          editDescription={editDescription}
+          editDate={editDate}
+          editPriority={editPriority}
+          onToggle={() => handleToggleTask(task.id, task.completed)}
+          onEdit={() => handleStartEdit(task)}
+          onEditChange={setEditText}
+          onEditDescriptionChange={setEditDescription}
+          onEditSave={handleSaveEdit}
+          onEditCancel={handleCancelEdit}
+          onEditKeyDown={handleEditKeyDown}
+          onDelete={() => handleDeleteTask(task.id)}
+          onDateChange={(value) => {
+            if (editingId === task.id) { setEditDate(value); return; }
+            handleDateChange(task.id, value);
+          }}
+          onPriorityChange={(priority) => {
+            if (editingId === task.id) { setEditPriority(priority); return; }
+            handlePriorityChange(task.id, priority);
+          }}
+          onReminderChange={(presetValue) => {
+            if (editingId === task.id) {
+              setEditReminder(presetValue);
+              return;
+            }
+            const reminderAt = computeReminderAt(presetValue, task.dueDate || task.date);
+            updateTaskData(task.id, { reminderAt });
+          }}
+          editReminder={editingId === task.id ? editReminder : undefined}
+          isDeleting={removingIds.has(task.id)}
+          onOpenDashboard={() => setSelectedTaskId(task.id)}
+        />
+        {!isCollapsed && children.length > 0 && (
+          <div className="flex flex-col">
+            {children.map(child => renderTaskRow(child, level + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // ── JSX ────────────────────────────────────────────────
   return (
@@ -753,6 +883,7 @@ const TaskList = ({ title = "To Do List" }) => {
 
         {/* ── Task List (grouped from incoming, row UI from HEAD) ── */}
         <div className="bg-transparent">
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           {hasVisibleTasks ? (
             TASK_GROUPS.map((group) => {
               const tasksInGroup = groupedTasks[group.key];
@@ -760,24 +891,26 @@ const TaskList = ({ title = "To Do List" }) => {
               const isCollapsed = Boolean(collapsedGroups[group.key]);
 
               return (
-                <section key={group.key} className="mb-4">
-                  <button
-                    type="button"
-                    className="mb-1 flex w-full items-center justify-between rounded-md px-2 py-1 transition-colors hover:bg-white/5"
-                    onClick={() => handleToggleGroupCollapse(group.key)}
-                  >
-                    <span className={`text-[11px] font-semibold uppercase tracking-wide ${group.labelClassName}`}>
-                      {group.label} ({tasksInGroup.length})
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      className={`text-text-tertiary transition-transform ${isCollapsed ? "-rotate-90" : "rotate-0"}`}
-                    />
-                  </button>
-                  {!isCollapsed && (
-                    <div>{tasksInGroup.map((task) => renderTaskRow(task))}</div>
-                  )}
-                </section>
+                <GroupDropZone key={group.key} group={group}>
+                  <section className="mb-4">
+                    <button
+                      type="button"
+                      className="mb-1 flex w-full items-center justify-between rounded-md px-2 py-1 transition-colors hover:bg-white/5"
+                      onClick={() => handleToggleGroupCollapse(group.key)}
+                    >
+                      <span className={`text-[11px] font-semibold uppercase tracking-wide ${group.labelClassName}`}>
+                        {group.label} ({tasksInGroup.length})
+                      </span>
+                      <ChevronDown
+                        size={14}
+                        className={`text-text-tertiary transition-transform ${isCollapsed ? "-rotate-90" : "rotate-0"}`}
+                      />
+                    </button>
+                    {!isCollapsed && (
+                      <div className="pl-1 pr-1">{tasksInGroup.map((task) => renderTaskRow(task))}</div>
+                    )}
+                  </section>
+                </GroupDropZone>
               );
             })
           ) : (
@@ -785,6 +918,7 @@ const TaskList = ({ title = "To Do List" }) => {
               <p className="text-text-tertiary text-sm">No tasks yet</p>
             </div>
           )}
+          </DndContext>
         </div>
 
         {(pagination?.totalPages || 1) > 1 && (

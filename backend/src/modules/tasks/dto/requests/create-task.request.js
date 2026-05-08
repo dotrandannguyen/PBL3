@@ -28,6 +28,8 @@ export const createTaskSchema = {
 			dueDate: z.string().date().or(z.string().datetime()).optional().nullable(),
 			startAt: z.string().datetime().optional().nullable(),
 			reminderAt: z.string().datetime().optional().nullable(),
+			parentId: z.string().uuid().optional().nullable(),
+			workspaceId: z.string().uuid().optional().nullable(),
 		})
 		.strict(),
 };

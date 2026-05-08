@@ -31,6 +31,8 @@ export const updateTaskSchema = {
 			reminderAt: z.string().datetime().optional().nullable(),
 			// v2: type tường minh (nếu không gửi sẽ auto-resolve từ startAt)
 			type: z.enum(['TODO', 'SCHEDULED']).optional(),
+			parentId: z.string().uuid().optional().nullable(),
+			workspaceId: z.string().uuid().optional().nullable(),
 		})
 		.strict()
 		.refine((data) => Object.values(data).some((v) => v !== undefined), {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Trash2, Loader, Calendar, Bell, Flag, Check } from "lucide-react";
+import { Trash2, Loader, Calendar, Bell, Flag, Check, GripVertical, ChevronRight, ChevronDown, Plus } from "lucide-react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import TaskCheckbox from "./TaskCheckbox";
 import TaskTooltip from "./TaskTooltip";
 import { formatDate, getTodayDate } from "../utils/dateUtils";
@@ -51,6 +52,11 @@ const TaskRow = ({
   isDeleting,
   onOpenDashboard,
   editReminder,
+  level = 0,
+  hasChildren = false,
+  isExpanded = false,
+  onToggleExpand,
+  onAddSubtask,
 }) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -63,6 +69,16 @@ const TaskRow = ({
   const datePickerRef = useRef(null);
   const priorityRef = useRef(null);
   const reminderRef = useRef(null);
+
+  const { attributes, listeners, setNodeRef: setDraggableRef, isDragging } = useDraggable({
+    id: task.id,
+    data: { task, level },
+  });
+
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: task.id,
+    data: { task, level },
+  });
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -124,11 +140,49 @@ const TaskRow = ({
 
   return (
     <div
-      className={`group flex items-center gap-1.5 py-2 px-0 border-b border-border-subtle hover:bg-white/2 transition-colors relative ${
+      ref={setDroppableRef}
+      className={`group flex items-center gap-1.5 py-2 px-0 border-b border-border-subtle transition-colors relative ${
         isDeleting ? "overflow-hidden animate-row-fade-out pointer-events-none" : ""
+      } ${isOver ? "bg-accent-primary/20 ring-1 ring-accent-primary rounded-md" : "hover:bg-white/2"} ${
+        isDragging ? "opacity-50 scale-[0.98] z-50 bg-bg-sidebar shadow-xl" : ""
       }`}
+      style={{ paddingLeft: `${level * 24}px` }}
     >
+      <div 
+        ref={setDraggableRef} 
+        {...listeners} 
+        {...attributes}
+        className="cursor-grab opacity-0 group-hover:opacity-100 transition-opacity text-text-tertiary hover:text-text-secondary active:cursor-grabbing px-1"
+      >
+        <GripVertical size={14} />
+      </div>
+
+      <div className="flex items-center justify-center w-5 h-5 flex-shrink-0">
+        {hasChildren ? (
+          <button
+            type="button"
+            className="flex items-center justify-center p-0.5 rounded hover:bg-white/10 text-text-tertiary transition-colors border-none bg-transparent cursor-pointer"
+            onClick={onToggleExpand}
+          >
+            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+        ) : (
+          <div className="w-4 h-4" />
+        )}
+      </div>
+
       <TaskCheckbox checked={task.completed === true} onChange={onToggle} />
+
+      {level < 3 && onAddSubtask && (
+        <button
+          type="button"
+          className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 flex-shrink-0 text-text-tertiary hover:text-text-primary hover:bg-white/10 rounded transition-colors cursor-pointer border-none bg-transparent"
+          onClick={(e) => { e.stopPropagation(); onAddSubtask(task.id); }}
+          title="Thêm mục con"
+        >
+          <Plus size={14} />
+        </button>
+      )}
 
       {isEditing ? (
         <input

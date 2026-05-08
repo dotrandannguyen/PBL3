@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Menu as MenuIcon, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Menu as MenuIcon, X, ChevronLeft, ChevronRight, CheckSquare, ChevronDown, FileText } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   UserAvatar,
@@ -15,6 +15,82 @@ import { useSearchModal } from "../../search/contexts/SearchModalContext";
 
 const COLLAPSED_KEY = "sidebar_collapsed";
 
+/* ── TodoListParent: fixed parent item with collapse + add button ── */
+const TodoListParent = ({ onAdd, collapsed, children }) => {
+  const [open, setOpen] = React.useState(true);
+
+  if (collapsed) return null;
+
+  return (
+    <div>
+      <div
+        className="flex items-center gap-2 px-3.5 py-1.5 text-sm font-semibold text-text-secondary hover:text-text-primary select-none cursor-pointer transition-colors group"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <ChevronDown
+          size={14}
+          className={`transition-transform duration-200 text-text-tertiary ${open ? "" : "-rotate-90"}`}
+        />
+        <CheckSquare size={14} className="text-accent-primary" />
+        <span className="flex-1">To Do List</span>
+        <button
+          type="button"
+          className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-white/10 cursor-pointer bg-transparent border-0 transition-all flex items-center justify-center"
+          title="Thêm workspace"
+          onClick={(e) => { e.stopPropagation(); onAdd(); }}
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+      {open && <div className="ml-3">{children}</div>}
+    </div>
+  );
+};
+
+/* ── InlineCreateInput: inline input for entering workspace name ── */
+const InlineCreateInput = ({ onSubmit, onCancel }) => {
+  const [value, setValue] = React.useState("");
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onSubmit(value);
+    }
+    if (e.key === "Escape") {
+      onCancel();
+    }
+  };
+
+  const handleBlur = () => {
+    if (value.trim()) {
+      onSubmit(value);
+    } else {
+      onCancel();
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 px-3.5 py-1">
+      <FileText size={14} className="text-text-tertiary shrink-0" />
+      <input
+        ref={inputRef}
+        type="text"
+        placeholder="Nhập tên workspace..."
+        className="flex-1 bg-white/5 border border-accent-primary/50 rounded px-2 py-1 text-sm text-text-primary outline-none placeholder:text-text-tertiary focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/30 transition-all"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
+      />
+    </div>
+  );
+};
+
 const Sidebar = ({
   pages,
   onAddNewList,
@@ -24,6 +100,9 @@ const Sidebar = ({
   onRenamePage,
   pendingRenameId,
   onClearPendingRename,
+  isCreatingWorkspace,
+  createWorkspaceWithName,
+  cancelCreate,
 }) => {
   const { t } = useLanguage();
   const { count: unreadInbox } = useUnreadInbox();
@@ -129,26 +208,32 @@ const Sidebar = ({
           })}
         </nav>
 
-        {/* Private Pages Section */}
+        {/* To Do List — collapsible parent with nested workspaces */}
         <section className="py-1 mb-2 pt-2">
-          <SectionHeader title={t('sidebar.private')} onAdd={onAddNewList} collapsed={collapsed} />
-          {privatePages.map((page) => (
-            <PageItem
-              key={page.id}
-              page={page}
-              onClick={(pageId) => { navigate(`/app`); onPageClick(pageId); }}
-              isActive={currentPath === "/app" && page.id === activePage}
-              onDelete={onDeletePage}
-              onRename={onRenamePage}
-              collapsed={collapsed}
-              autoStartRename={page.id === pendingRenameId}
-              onAutoRenameStart={onClearPendingRename}
-            />
-          ))}
-          {!collapsed && privatePages.length === 0 && (
-            <p className="px-3.5 py-1.5 text-text-tertiary text-sm">
-              {t('sidebar.noPages')}
-            </p>
+          {collapsed ? (
+            <div className="mx-3 my-1.5 border-t border-border-subtle" />
+          ) : (
+            <TodoListParent onAdd={onAddNewList} collapsed={collapsed}>
+              {privatePages.map((page) => (
+                <PageItem
+                  key={page.id}
+                  page={page}
+                  onClick={(pageId) => { navigate(`/app`); onPageClick(pageId); }}
+                  isActive={currentPath === "/app" && page.id === activePage}
+                  onDelete={onDeletePage}
+                  onRename={onRenamePage}
+                  collapsed={collapsed}
+                  autoStartRename={page.id === pendingRenameId}
+                  onAutoRenameStart={onClearPendingRename}
+                />
+              ))}
+              {isCreatingWorkspace && (
+                <InlineCreateInput
+                  onSubmit={createWorkspaceWithName}
+                  onCancel={cancelCreate}
+                />
+              )}
+            </TodoListParent>
           )}
         </section>
 
