@@ -247,9 +247,23 @@ const handleLinkAccount = async (userId, userProfile, slackUserId, userToken, te
 
 export const slackService = {
 	getAuthUrl: (options = {}) => {
+		const clientId = process.env.SLACK_CLIENT_ID;
+		const redirectUri = process.env.SLACK_REDIRECT_URI;
+
+		if (!clientId || !redirectUri) {
+			console.error('[SLACK] Missing credentials:', {
+				clientId: !!clientId,
+				redirectUri: !!redirectUri,
+			});
+			throw new ClientException(
+				500,
+				'Slack credentials not configured. Contact administrator.',
+			);
+		}
+
 		const params = new URLSearchParams({
-			client_id: process.env.SLACK_CLIENT_ID,
-			redirect_uri: process.env.SLACK_REDIRECT_URI,
+			client_id: clientId,
+			redirect_uri: redirectUri,
 			user_scope: USER_SCOPES.join(' '),
 			state: buildOauthState(options),
 		});
@@ -260,12 +274,26 @@ export const slackService = {
 	handleCallback: async (code, state) => {
 		const statePayload = parseOauthState(state);
 		let oauthData;
+
+		const clientId = process.env.SLACK_CLIENT_ID;
+		const clientSecret = process.env.SLACK_CLIENT_SECRET;
+		const redirectUri = process.env.SLACK_REDIRECT_URI;
+
+		if (!clientId || !clientSecret || !redirectUri) {
+			console.error('[SLACK] Missing callback credentials:', {
+				clientId: !!clientId,
+				clientSecret: !!clientSecret,
+				redirectUri: !!redirectUri,
+			});
+			throw new ClientException(500, 'Slack credentials not configured');
+		}
+
 		try {
 			const payload = new URLSearchParams({
-				client_id: process.env.SLACK_CLIENT_ID,
-				client_secret: process.env.SLACK_CLIENT_SECRET,
+				client_id: clientId,
+				client_secret: clientSecret,
 				code,
-				redirect_uri: process.env.SLACK_REDIRECT_URI,
+				redirect_uri: redirectUri,
 			});
 
 			const response = await axios.post(SLACK_TOKEN_URL, payload.toString(), {
