@@ -352,6 +352,11 @@ export const taskRepository = {
 			});
 
 			if (existing) {
+				console.log('[UPSERT] Existing task found:', {
+					id: existing.id,
+					status: existing.status,
+					isConverted: existing.isConverted,
+				});
 				// Nếu task đã được convert (isConverted = true), skip update để giữ status PENDING/DONE
 				if (existing.isConverted) {
 					console.log(
@@ -361,7 +366,7 @@ export const taskRepository = {
 				}
 
 				// Cập nhật task hiện có (chỉ update nếu còn INBOX)
-				return await prisma.task.update({
+				const updated = await prisma.task.update({
 					where: { id: existing.id },
 					data: {
 						title: taskData.title,
@@ -369,14 +374,21 @@ export const taskRepository = {
 						priority: taskData.priority || 'MEDIUM',
 						sourceLink: taskData.sourceLink,
 						sourceMetadata: taskData.sourceMetadata,
+						status: 'INBOX',
 						updatedAt: new Date(),
 					},
 				});
+				console.log('[UPSERT] Task updated:', {
+					id: updated.id,
+					status: updated.status,
+					isConverted: updated.isConverted,
+				});
+				return updated;
 			}
 		}
 
 		// Nếu không tồn tại hoặc sourceId null → tạo task mới
-		return await prisma.task.create({
+		const created = await prisma.task.create({
 			data: {
 				userId,
 				title: taskData.title,
@@ -390,5 +402,12 @@ export const taskRepository = {
 				isConverted: false,
 			},
 		});
-	},
+		console.log('[UPSERT] New task created:', {
+			id: created.id,
+			title: created.title,
+			status: created.status,
+			sourceType: created.sourceType,
+			sourceId: created.sourceId,
+		});
+		return created;
 };

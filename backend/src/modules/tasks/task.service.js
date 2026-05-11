@@ -506,10 +506,18 @@ export const taskService = {
 			throw new NotFoundException('Task không tồn tại.');
 		}
 
+		console.log('[CONFIRM] Task details:', {
+			id: task.id,
+			title: task.title,
+			status: task.status,
+			sourceType: task.sourceType,
+			isConverted: task.isConverted,
+		});
+
 		if (task.status !== 'INBOX') {
 			throw new OptionalException(
 				StatusCodes.BAD_REQUEST,
-				'Chỉ có thể xác nhận INBOX tasks. Task này không trong Inbox.',
+				`Chỉ có thể xác nhận INBOX tasks. Task này không trong Inbox. (Current status: ${task.status})`,
 			);
 		}
 

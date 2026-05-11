@@ -779,6 +779,13 @@ export const integrationService = {
 					userId,
 					taskData,
 				);
+				console.log(`[SLACK] Task saved:`, {
+					id: savedTask.id,
+					title: savedTask.title,
+					status: savedTask.status,
+					sourceId: savedTask.sourceId,
+					isConverted: savedTask.isConverted,
+				});
 				// ✅ Use sourceId as key to avoid index mismatch
 				tasksBySourceId[taskData.sourceId] = savedTask;
 			} catch (error) {
