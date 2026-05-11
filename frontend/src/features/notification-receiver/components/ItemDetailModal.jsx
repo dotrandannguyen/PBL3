@@ -15,6 +15,25 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
   const { t, lang } = useLanguage();
   const [isClosing, setIsClosing] = useState(false);
 
+  const sourceLabel =
+    item?.source === "gmail"
+      ? "Gmail"
+      : item?.source === "slack"
+        ? "Slack"
+        : "GitHub";
+  const sourceBadge =
+    item?.source === "gmail"
+      ? t("inbox.modal.inbox")
+      : item?.source === "slack"
+        ? t("inbox.modal.message")
+        : t("inbox.modal.issue");
+  const sourceAddress =
+    item?.source === "gmail"
+      ? "google-mail"
+      : item?.source === "slack"
+        ? "slack-message"
+        : "github-issue";
+
   // Close on Escape key
   useEffect(() => {
     if (!item) return;
@@ -46,19 +65,20 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
     try {
       await confirmInboxTask(item.id);
       if (onStatusChange) onStatusChange(item.id, "PENDING");
-      toast.success(t('inbox.toast.addedTask'), {
+      toast.success(t("inbox.toast.addedTask"), {
         position: "bottom-right",
         duration: 3000,
       });
       setTimeout(requestClose, 1500);
     } catch (error) {
-      toast.error(t('inbox.toast.error'));
+      toast.error(t("inbox.toast.error"));
       console.error(error);
     }
   };
 
   // Locale string for date
-  const dateLocale = lang === 'ja' ? 'ja-JP' : lang === 'en' ? 'en-US' : 'vi-VN';
+  const dateLocale =
+    lang === "ja" ? "ja-JP" : lang === "en" ? "en-US" : "vi-VN";
 
   return (
     <div
@@ -83,7 +103,7 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
             <button
               onClick={requestClose}
               className="p-1.5 hover:bg-bg-hover rounded-md text-text-tertiary hover:text-text-primary transition-colors active:scale-95"
-              title={t('inbox.modal.close')}
+              title={t("inbox.modal.close")}
             >
               <X size={20} />
             </button>
@@ -93,7 +113,7 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
               window.open(item.link, "_blank", "noopener,noreferrer")
             }
             className="p-1.5 hover:bg-bg-hover rounded-md text-text-tertiary hover:text-text-primary transition-colors"
-            title={`${t('inbox.modal.openIn')} ${item.source === "gmail" ? "Gmail" : "GitHub"}`}
+            title={`${t("inbox.modal.openIn")} ${sourceLabel}`}
           >
             <ExternalLink size={18} />
           </button>
@@ -107,21 +127,22 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
               <h2 className="text-2xl font-normal text-text-primary flex items-center gap-3">
                 {item.subject}
                 <span className="px-2 py-0.5 text-xs bg-bg-hover text-text-tertiary rounded-md">
-                  {item.source === "gmail" ? t('inbox.modal.inbox') : t('inbox.modal.issue')}
+                  {sourceBadge}
                 </span>
               </h2>
             </div>
             {/* CONFIRM BUTTON OR BADGE */}
             {item.isConverted ? (
               <div className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-green-500 bg-green-500/10 rounded-md whitespace-nowrap">
-                <CheckCircle size={16} />{t('inbox.modal.added')}
+                <CheckCircle size={16} />
+                {t("inbox.modal.added")}
               </div>
             ) : (
               <button
                 onClick={handleConfirm}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-accent-primary text-white rounded-md hover:bg-opacity-90 transition-colors shadow-sm whitespace-nowrap"
               >
-                <Plus size={16} /> {t('inbox.modal.addToTask')}
+                <Plus size={16} /> {t("inbox.modal.addToTask")}
               </button>
             )}
           </div>
@@ -139,11 +160,13 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
                   </span>
                   <span className="text-text-tertiary ml-2 text-xs">
                     &lt;
-                    {item.source === "gmail" ? "google-mail" : "github-issue"}
+                    {sourceAddress}
                     &gt;
                   </span>
                 </div>
-                <div className="text-xs text-text-tertiary mt-1">{t('inbox.modal.to')}</div>
+                <div className="text-xs text-text-tertiary mt-1">
+                  {t("inbox.modal.to")}
+                </div>
               </div>
             </div>
             <div className="text-xs text-text-tertiary mt-1 font-medium">

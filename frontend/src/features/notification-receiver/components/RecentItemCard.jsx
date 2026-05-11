@@ -1,4 +1,4 @@
-import { Mail, Github, CheckCircle } from "lucide-react";
+import { Mail, Github, Slack, CheckCircle } from "lucide-react";
 import { formatTimeAgo } from "../utils/formatTimeAgo";
 
 /**
@@ -8,8 +8,19 @@ import { formatTimeAgo } from "../utils/formatTimeAgo";
  * @param {Function} onClick - Callback khi click vào card
  */
 export function RecentItemCard({ item, onClick }) {
-  const Icon = item.source === "gmail" ? Mail : Github;
   const isGmail = item.source === "gmail";
+  const isSlack = item.source === "slack";
+  const Icon = isGmail ? Mail : isSlack ? Slack : Github;
+  const accentTone = isGmail
+    ? "text-red-500"
+    : isSlack
+      ? "text-[#4A154B]"
+      : "text-gray-400";
+  const bgTone = isGmail
+    ? "bg-red-500/10"
+    : isSlack
+      ? "bg-[#4A154B]/10"
+      : "bg-gray-500/10";
 
   return (
     <div
@@ -26,21 +37,21 @@ export function RecentItemCard({ item, onClick }) {
 
       {/* Nửa trên: Cover / Visual */}
       <div
-        className={`h-16 flex items-center px-4 relative overflow-hidden ${
-          isGmail ? "bg-red-500/10" : "bg-gray-500/10"
-        }`}
+        className={`h-16 flex items-center px-4 relative overflow-hidden ${bgTone}`}
       >
         {/* Background Icon mờ đi tạo điểm nhấn */}
         <Icon
           size={64}
-          className={`absolute -right-2 -bottom-4 opacity-10 transform group-hover:scale-110 group-hover:-rotate-12 transition-transform duration-300 ${
-            isGmail ? "text-red-500" : "text-gray-400"
-          }`}
+          className={`absolute -right-2 -bottom-4 opacity-10 transform group-hover:scale-110 group-hover:-rotate-12 transition-transform duration-300 ${accentTone}`}
         />
         {/* Icon nhỏ góc trái giống Notion */}
         <div
           className={`w-8 h-8 rounded-full bg-bg-sidebar flex items-center justify-center shadow-sm z-10 ${
-            isGmail ? "text-red-500" : "text-text-primary"
+            isGmail
+              ? "text-red-500"
+              : isSlack
+                ? "text-[#4A154B]"
+                : "text-text-primary"
           }`}
         >
           <Icon size={16} />

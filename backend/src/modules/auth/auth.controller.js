@@ -4,6 +4,7 @@ import { googleService } from './google.service.js';
 import { ClientException } from '../../common/exceptions/index.js';
 import { githubService } from './github.service.js';
 import { slackService } from './slack.service.js';
+import { parseOauthState } from '../../common/utils/oauthState.js';
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
@@ -19,6 +20,19 @@ const getRefreshCookieOptions = () => {
 
 const setRefreshCookie = (res, refreshToken) => {
 	res.cookie('refreshToken', refreshToken, getRefreshCookieOptions());
+};
+
+const buildOauthErrorRedirect = (state, fallbackError) => {
+	const statePayload = parseOauthState(state);
+	const isLink = statePayload.action === 'link';
+	const errorParam = fallbackError || 'oauth_failed';
+
+	if (isLink) {
+		const params = new URLSearchParams({ error: errorParam, mode: 'link' });
+		return `${FRONTEND_URL}/auth/callback?${params.toString()}`;
+	}
+
+	return `${FRONTEND_URL}/auth/login?error=${errorParam}`;
 };
 
 export const authController = {
@@ -73,84 +87,127 @@ export const authController = {
 		}
 	},
 	getGoogleUrl: async (req, res) => {
-		const url = googleService.getAuthUrl();
+		const url = googleService.getAuthUrl({ action: 'login' });
+		new HttpResponse(res).success({ url });
+	},
+	getGoogleLinkUrl: async (req, res) => {
+		const url = googleService.getAuthUrl({
+			action: 'link',
+			userId: req.user.id,
+		});
 		new HttpResponse(res).success({ url });
 	},
 
 	googleCallback: async (req, res) => {
 		try {
-			const { code, error } = req.query || {};
+			const { code, error, state } = req.query || {};
 
 			if (error) {
-				return res.redirect(`${FRONTEND_URL}/auth/login?error=google_denied`);
+				return res.redirect(buildOauthErrorRedirect(state, 'google_denied'));
 			}
-			const data = await googleService.handleCallback(code);
+			const data = await googleService.handleCallback(code, state);
 			setRefreshCookie(res, data.refreshToken); //Set Cookie trực tiếp ở Backend
+			const statePayload = parseOauthState(state);
 			const params = new URLSearchParams({
 				accessToken: data.accessToken,
 				user: JSON.stringify({ ...data.user, provider: 'google' }),
+				mode: statePayload.action,
 			});
 			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
 		} catch (error) {
 			console.error('Google Callback Error:', error);
-			return res.redirect(`${FRONTEND_URL}/auth/login?error=google_failed`);
+			const errorKey =
+				error instanceof ClientException && error.status === 409
+					? error.code === 'PROVIDER_EMAIL_MISMATCH'
+						? 'email_mismatch'
+						: 'link_conflict'
+					: 'google_failed';
+			return res.redirect(buildOauthErrorRedirect(req.query?.state, errorKey));
 		}
 	},
 
 	getGithubUrl: async (req, res) => {
-		const url = githubService.getAuthUrl();
+		const url = githubService.getAuthUrl({ action: 'login' });
+		new HttpResponse(res).success({ url });
+	},
+	getGithubLinkUrl: async (req, res) => {
+		const url = githubService.getAuthUrl({
+			action: 'link',
+			userId: req.user.id,
+		});
 		new HttpResponse(res).success({ url });
 	},
 	githubCallback: async (req, res) => {
 		try {
-			const { code, error } = req.query || {};
+			const { code, error, state } = req.query || {};
 
 			if (error) {
-				return res.redirect(`${FRONTEND_URL}/auth/login?error=github_denied`);
+				return res.redirect(buildOauthErrorRedirect(state, 'github_denied'));
 			}
 			if (!code) {
-				return res.redirect(`${FRONTEND_URL}/auth/login?error=github_no_code`);
+				return res.redirect(buildOauthErrorRedirect(state, 'github_no_code'));
 			}
 
-			const data = await githubService.handleCallback(code);
+			const data = await githubService.handleCallback(code, state);
 			const params = new URLSearchParams({
 				accessToken: data.accessToken,
 				user: JSON.stringify({ ...data.user, provider: 'github' }),
+				mode: parseOauthState(state).action,
 			});
 			setRefreshCookie(res, data.refreshToken);
 			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
 		} catch (error) {
 			console.error('GitHub Callback Error:', error);
-			return res.redirect(`${FRONTEND_URL}/auth/login?error=github_failed`);
+			const errorKey =
+				error instanceof ClientException && error.status === 409
+					? error.code === 'PROVIDER_EMAIL_MISMATCH'
+						? 'email_mismatch'
+						: 'link_conflict'
+					: 'github_failed';
+			return res.redirect(buildOauthErrorRedirect(req.query?.state, errorKey));
 		}
 	},
 
 	getSlackUrl: async (req, res) => {
-		const url = slackService.getAuthUrl();
+		const url = slackService.getAuthUrl({ action: 'login' });
+		new HttpResponse(res).success({ url });
+	},
+	getSlackLinkUrl: async (req, res) => {
+		const url = slackService.getAuthUrl({
+			action: 'link',
+			userId: req.user.id,
+		});
 		new HttpResponse(res).success({ url });
 	},
 
 	slackCallback: async (req, res) => {
 		try {
-			const { code, error } = req.query || {};
+			const { code, error, state } = req.query || {};
 
 			if (error) {
-				return res.redirect(`${FRONTEND_URL}/auth/login?error=slack_denied`);
+				return res.redirect(buildOauthErrorRedirect(state, 'slack_denied'));
 			}
 			if (!code) {
-				return res.redirect(`${FRONTEND_URL}/auth/login?error=slack_no_code`);
+				return res.redirect(buildOauthErrorRedirect(state, 'slack_no_code'));
 			}
 
-			const data = await slackService.handleCallback(code);
+			const data = await slackService.handleCallback(code, state);
 			const params = new URLSearchParams({
 				accessToken: data.accessToken,
 				user: JSON.stringify({ ...data.user, provider: 'slack' }),
+				mode: parseOauthState(state).action,
 			});
 			setRefreshCookie(res, data.refreshToken);
 			return res.redirect(`${FRONTEND_URL}/auth/callback?${params.toString()}`);
 		} catch (error) {
 			console.error('Slack Callback Error:', error);
-			return res.redirect(`${FRONTEND_URL}/auth/login?error=slack_failed`);
+			const errorKey =
+				error instanceof ClientException && error.status === 409
+					? error.code === 'PROVIDER_EMAIL_MISMATCH'
+						? 'email_mismatch'
+						: 'link_conflict'
+					: 'slack_failed';
+			return res.redirect(buildOauthErrorRedirect(req.query?.state, errorKey));
 		}
 	},
 };

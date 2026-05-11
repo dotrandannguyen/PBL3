@@ -4,16 +4,218 @@ import { encryptionUtils } from '../../common/utils/encryption.js';
 import { generateTokens } from './auth.service.js';
 import axios from 'axios';
 import prisma from '../../config/database.js';
+import { normalizeEmail } from '../../common/utils/normalizeEmail.js';
+import { buildOauthState, parseOauthState } from '../../common/utils/oauthState.js';
 
 const GITHUB_AUTH_URL = 'https://github.com/login/oauth/authorize';
 const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
 const GITHUB_USER_URL = 'https://api.github.com/user';
 const GITHUB_EMAIL_URL = 'https://api.github.com/user/emails';
 
+const handleLoginAccount = async (userProfile, email, accessToken) => {
+	const providerUserId = String(userProfile.id);
+
+	const result = await prisma.$transaction(async (tx) => {
+		const existingAccount = await tx.account.findUnique({
+			where: {
+				provider_providerAccountId: {
+					provider: 'github',
+					providerAccountId: providerUserId,
+				},
+			},
+		});
+		const existingIntegration = await tx.integration.findUnique({
+			where: {
+				provider_providerUserId: {
+					provider: 'GITHUB',
+					providerUserId,
+				},
+			},
+		});
+
+		let user = null;
+		if (existingAccount) {
+			user = await tx.user.findUnique({ where: { id: existingAccount.userId } });
+		} else if (existingIntegration) {
+			user = await tx.user.findUnique({
+				where: { id: existingIntegration.userId },
+			});
+		} else {
+			user = await tx.user.findUnique({ where: { email } });
+		}
+
+		if (!user) {
+			user = await tx.user.create({
+				data: {
+					email,
+					fullName: userProfile.name || userProfile.login,
+					avatarUrl: userProfile.avatar_url,
+					isActive: true,
+				},
+			});
+		}
+
+		await tx.account.upsert({
+			where: {
+				provider_providerAccountId: {
+					provider: 'github',
+					providerAccountId: providerUserId,
+				},
+			},
+			update: { updatedAt: new Date() },
+			create: {
+				userId: user.id,
+				type: 'oauth',
+				provider: 'github',
+				providerAccountId: providerUserId,
+			},
+		});
+
+		const accessTokenEncrypted = encryptionUtils.encrypt(accessToken);
+
+		await tx.integration.upsert({
+			where: {
+				userId_provider: {
+					userId: user.id,
+					provider: 'GITHUB',
+				},
+			},
+			update: {
+				accessTokenEncrypted,
+				status: 'ACTIVE',
+				updatedAt: new Date(),
+				profileData: userProfile,
+			},
+			create: {
+				userId: user.id,
+				provider: 'GITHUB',
+				providerUserId,
+				accessTokenEncrypted,
+				status: 'ACTIVE',
+				profileData: userProfile,
+			},
+		});
+
+		return user;
+	});
+
+	return result;
+};
+
+const handleLinkAccount = async (userId, userProfile, email, accessToken) => {
+	const providerUserId = String(userProfile.id);
+
+	const result = await prisma.$transaction(async (tx) => {
+		const user = await tx.user.findUnique({ where: { id: userId } });
+		if (!user) {
+			throw new ClientException(404, 'Nguoi dung khong ton tai.');
+		}
+
+		const normalizedUserEmail = normalizeEmail(user.email);
+		const normalizedProviderEmail = normalizeEmail(email);
+		if (
+			normalizedUserEmail &&
+			normalizedProviderEmail &&
+			normalizedUserEmail !== normalizedProviderEmail
+		) {
+			throw new ClientException(
+				409,
+				'Email GitHub khong trung khop voi tai khoan hien tai.',
+				'PROVIDER_EMAIL_MISMATCH',
+			);
+		}
+
+		const existingUserWithEmail = await tx.user.findUnique({
+			where: { email },
+		});
+		if (existingUserWithEmail && existingUserWithEmail.id !== userId) {
+			throw new ClientException(
+				409,
+				'Email GitHub da duoc lien ket voi tai khoan khac.',
+			);
+		}
+
+		const existingAccount = await tx.account.findUnique({
+			where: {
+				provider_providerAccountId: {
+					provider: 'github',
+					providerAccountId: providerUserId,
+				},
+			},
+		});
+		if (existingAccount && existingAccount.userId !== userId) {
+			throw new ClientException(
+				409,
+				'Tai khoan GitHub nay da lien ket voi user khac.',
+			);
+		}
+
+		const existingIntegration = await tx.integration.findUnique({
+			where: {
+				provider_providerUserId: {
+					provider: 'GITHUB',
+					providerUserId,
+				},
+			},
+		});
+		if (existingIntegration && existingIntegration.userId !== userId) {
+			throw new ClientException(
+				409,
+				'Tai khoan GitHub nay da lien ket voi user khac.',
+			);
+		}
+
+		await tx.account.upsert({
+			where: {
+				provider_providerAccountId: {
+					provider: 'github',
+					providerAccountId: providerUserId,
+				},
+			},
+			update: { updatedAt: new Date() },
+			create: {
+				userId: user.id,
+				type: 'oauth',
+				provider: 'github',
+				providerAccountId: providerUserId,
+			},
+		});
+
+		const accessTokenEncrypted = encryptionUtils.encrypt(accessToken);
+
+		await tx.integration.upsert({
+			where: {
+				userId_provider: {
+					userId: user.id,
+					provider: 'GITHUB',
+				},
+			},
+			update: {
+				accessTokenEncrypted,
+				status: 'ACTIVE',
+				updatedAt: new Date(),
+				profileData: userProfile,
+			},
+			create: {
+				userId: user.id,
+				provider: 'GITHUB',
+				providerUserId,
+				accessTokenEncrypted,
+				status: 'ACTIVE',
+				profileData: userProfile,
+			},
+		});
+
+		return user;
+	});
+
+	return result;
+};
+
 export const githubService = {
 	//doc lay link
 	// https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps
-	getAuthUrl: () => {
+	getAuthUrl: (options = {}) => {
 		//URLSearchParams là API chuẩn của JavaScript, không liên quan GitHub.
 		/* 
         Ví dụ dễ hiểu
@@ -29,6 +231,7 @@ export const githubService = {
 			redirect_uri: process.env.GITHUB_REDIRECT_URI,
 			scope: 'user:email read:user repo',
 			prompt: 'consent', // Luôn yêu cầu người dùng xác nhận, tránh trường hợp tự động đăng nhập nếu đã từng cấp quyền
+			state: buildOauthState(options),
 		});
 
 		return `${GITHUB_AUTH_URL}?${params.toString()}`;
@@ -36,7 +239,8 @@ export const githubService = {
 
 	// doc
 	//https://anonystick.com/blog-developer/trien-khai-oauth-voi-nodejs-va-github-2021051555423600
-	handleCallback: async (code) => {
+	handleCallback: async (code, state) => {
+		const statePayload = parseOauthState(state);
 		//Đổi Code lấy Access Token
 		let accessToken;
 		try {
@@ -100,67 +304,15 @@ export const githubService = {
 			}
 		}
 
-		// transaction Database (tuong tu gg)
-		const result = await prisma.$transaction(async (tx) => {
-			// 1. Tìm hoặc Tạo User
-			let user = await tx.user.findUnique({ where: { email } });
-
-			if (!user) {
-				user = await tx.user.create({
-					data: {
+		const result =
+			statePayload.action === 'link' && statePayload.userId
+				? await handleLinkAccount(
+						statePayload.userId,
+						userProfile,
 						email,
-						fullName: userProfile.name || userProfile.login, // Nếu không có tên thật thì lấy username
-						avatarUrl: userProfile.avatar_url,
-						isActive: true,
-					},
-				});
-			}
-
-			// 2. Lưu Account (Login)
-			await tx.account.upsert({
-				where: {
-					provider_providerAccountId: {
-						provider: 'github',
-						providerAccountId: String(userProfile.id), // GitHub ID là số, cần chuyển sang string
-					},
-				},
-				update: { updatedAt: new Date() },
-				create: {
-					userId: user.id,
-					type: 'oauth',
-					provider: 'github',
-					providerAccountId: String(userProfile.id),
-				},
-			});
-
-			// 3. Lưu Integration (Sync Data)
-			const accessTokenEncrypted = encryptionUtils.encrypt(accessToken);
-
-			await tx.integration.upsert({
-				where: {
-					userId_provider: {
-						userId: user.id,
-						provider: 'GITHUB',
-					},
-				},
-				update: {
-					accessTokenEncrypted,
-					status: 'ACTIVE',
-					updatedAt: new Date(),
-					profileData: userProfile,
-				},
-				create: {
-					userId: user.id,
-					provider: 'GITHUB',
-					providerUserId: String(userProfile.id),
-					accessTokenEncrypted,
-					status: 'ACTIVE',
-					profileData: userProfile,
-				},
-			});
-
-			return user;
-		});
+						accessToken,
+					)
+				: await handleLoginAccount(userProfile, email, accessToken);
 
 		// E. Trả về JWT
 		const jwtTokens = generateTokens(result);

@@ -51,6 +51,36 @@ export const AuthProvider = ({ children }) => {
 
     silentRefresh();
   }, []);
+
+  const refreshSession = useCallback(async () => {
+    const API_BASE_URL =
+      import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
+    const res = await axios.post(
+      `${API_BASE_URL}/v1/api/auth/refresh`,
+      {},
+      { withCredentials: true },
+    );
+
+    const token = res.data?.data?.accessToken;
+    if (!token) {
+      throw new Error("Missing access token after refresh");
+    }
+
+    setInMemoryToken(token);
+    setAccessToken(token);
+
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        localStorage.removeItem("user");
+      }
+    }
+
+    return token;
+  }, []);
   const persistAuth = (data) => {
     setInMemoryToken(data.accessToken);
     setAccessToken(data.accessToken);
@@ -134,6 +164,7 @@ export const AuthProvider = ({ children }) => {
         isLoading,
         login,
         loginWithOAuth,
+        refreshSession,
         register,
         logout,
         updateUserInStorage,

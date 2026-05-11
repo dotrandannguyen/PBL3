@@ -1,4 +1,11 @@
-import { Mail, Github, ExternalLink, CheckCircle, Plus } from "lucide-react";
+import {
+  Mail,
+  Github,
+  Slack,
+  ExternalLink,
+  CheckCircle,
+  Plus,
+} from "lucide-react";
 import { formatTimeAgo } from "../utils/formatTimeAgo";
 import { confirmInboxTask } from "../../tasks/api/task.api";
 import { toast } from "sonner";
@@ -11,7 +18,14 @@ import { toast } from "sonner";
  * @param {Function} onStatusChange - Callback khi confirm inbox task
  */
 export function MailListItem({ item, onClick, onStatusChange }) {
-  const Icon = item.source === "gmail" ? Mail : Github;
+  const isGmail = item.source === "gmail";
+  const isSlack = item.source === "slack";
+  const Icon = isGmail ? Mail : isSlack ? Slack : Github;
+  const iconTone = isGmail
+    ? "text-red-500"
+    : isSlack
+      ? "text-[#4A154B]"
+      : "text-text-tertiary";
 
   /**
    * 👉 Xử lý click "Thêm vào Task" trên row
@@ -43,10 +57,7 @@ export function MailListItem({ item, onClick, onStatusChange }) {
       }`}
     >
       <div className="flex-shrink-0 w-12 flex items-center text-text-tertiary group-hover:text-text-primary transition-colors">
-        <Icon
-          size={18}
-          className={item.source === "gmail" ? "text-red-500" : ""}
-        />
+        <Icon size={18} className={iconTone} />
       </div>
 
       <div className="w-48 pr-4 truncate text-sm font-semibold text-text-primary">
