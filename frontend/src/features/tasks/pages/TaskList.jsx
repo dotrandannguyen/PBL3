@@ -465,6 +465,7 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
   const handleAddBlankTask = async () => {
     const titleValue = newTaskText.trim();
     if (!titleValue) {
+      console.error('[Task Creation Blocked] Title is empty');
       setNewTaskError("Vui lòng nhập tiêu đề công việc.");
       handleOpenCreateTaskComposer();
       return;
@@ -472,6 +473,7 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
 
     // Block if there are error/warn-level warnings
     if (hasBlockingErrors) {
+      console.error('[Task Creation Blocked] Has blocking errors');
       setNewTaskError("Vui lòng sửa các lỗi bên dưới trước khi tạo task.");
       return;
     }
@@ -479,15 +481,24 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
     // Resolve dueDate: nếu đang schedule thì dùng endAt, nếu không thì dùng dueAt
     const resolvedDueAtInput = showSchedule && newTaskEndAt ? newTaskEndAt : (newTaskDueAt || null);
     const resolvedDueAt = normalizeDueAtForApi(resolvedDueAtInput);
-    if (resolvedDueAtInput && !resolvedDueAt) { setNewTaskError("Ngày hạn không hợp lệ."); return; }
+    if (resolvedDueAtInput && !resolvedDueAt) {
+      console.error('[Task Creation Blocked] Invalid due date format', { resolvedDueAtInput });
+      setNewTaskError("Ngày hạn không hợp lệ.");
+      return;
+    }
 
     // Resolve startAt từ schedule
     const resolvedStartAt = showSchedule && newTaskStartAt ? normalizeDueAtForApi(newTaskStartAt) : null;
-    if (showSchedule && newTaskStartAt && !resolvedStartAt) { setNewTaskError("Thời gian bắt đầu không hợp lệ."); return; }
+    if (showSchedule && newTaskStartAt && !resolvedStartAt) {
+      console.error('[Task Creation Blocked] Invalid start time format', { newTaskStartAt });
+      setNewTaskError("Thời gian bắt đầu không hợp lệ.");
+      return;
+    }
 
     // Validate: startAt phải trước endAt
     if (resolvedStartAt && resolvedDueAt) {
       if (new Date(resolvedStartAt) >= new Date(resolvedDueAt)) {
+        console.error('[Task Creation Blocked] Start time >= due time', { resolvedStartAt, resolvedDueAt });
         setNewTaskError("Thời gian bắt đầu phải trước thời gian kết thúc.");
         return;
       }
@@ -496,6 +507,7 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
     // Validate: dueDate không được ở quá khứ
     if (resolvedDueAt) {
       if (new Date(resolvedDueAt) < new Date()) {
+        console.error('[Task Creation Blocked] Due date is in the past', { resolvedDueAt, now: new Date() });
         setNewTaskError("Hạn chót không được ở quá khứ.");
         return;
       }

@@ -210,6 +210,9 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                 onChange={async (e) => {
                   const val = e.target.value;
                   const dueDate = val ? new Date(val).toISOString() : null;
+                  if (dueDate && new Date(dueDate) < new Date()) {
+                    console.error('[Task Validation Warning] Due date is in the past', { dueDate, now: new Date() });
+                  }
                   await onUpdate(task.id, { dueDate });
                 }}
                 className="bg-transparent text-inherit border-none outline-none p-0 max-w-[160px] text-sm"
@@ -350,6 +353,7 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                         const startDate = new Date(startAt);
                         const endDate = new Date(task.dueDate);
                         if (startDate >= endDate) {
+                          console.error('[Task Schedule Validation Failed] Start time >= due time', { startAt, dueDate: task.dueDate });
                           toast.error(
                             t("task.slideover.toast.invalidSchedule") ||
                               "Thời gian bắt đầu phải trước ngày hết hạn.",
@@ -393,6 +397,7 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                         const startDate = new Date(task.scheduledAt);
                         const endDate = new Date(dueDate);
                         if (startDate >= endDate) {
+                          console.error('[Task Schedule Validation Failed] Start time >= due time (dueDate changed)', { scheduledAt: task.scheduledAt, dueDate });
                           toast.error(
                             t("task.slideover.toast.invalidSchedule") ||
                               "Thời gian bắt đầu phải trước ngày hết hạn.",
@@ -415,6 +420,7 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
           <button
             onClick={async () => {
               if (task?.dueDate && new Date(task.dueDate) < new Date()) {
+                console.error('[Task Update Blocked] Due date is in the past', { dueDate: task.dueDate, now: new Date() });
                 toast.error(t('task.slideover.toast.pastDueDate') || 'Hạn chót không được ở quá khứ.');
                 return;
               }
