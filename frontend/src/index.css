@@ -411,6 +411,21 @@ a {
   text-decoration: none;
 }
 
+/* ── Auth pages animated background (canvas particle constellation) ─── */
+.auth-bg {
+  background:
+    radial-gradient(circle at 20% 10%, #14122a 0%, transparent 55%),
+    radial-gradient(circle at 80% 90%, #0a1628 0%, transparent 55%),
+    #07070c;
+}
+
+[data-theme="light"] .auth-bg {
+  background:
+    radial-gradient(circle at 20% 10%, #e6ecff 0%, transparent 55%),
+    radial-gradient(circle at 80% 90%, #fef0e8 0%, transparent 55%),
+    #fafafa;
+}
+
 /* ── Landing page utilities (Notion light theme) ──────────────────────── */
 @utility notion-border {
   @apply border border-notion-border;

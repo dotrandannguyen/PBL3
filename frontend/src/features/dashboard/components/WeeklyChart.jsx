@@ -1,9 +1,10 @@
 import React from "react";
-
-const DAY_LABELS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 const WeeklyChart = ({ data = [] }) => {
+  const { t } = useLanguage();
   const max = Math.max(1, ...data.map((d) => d.total));
+  const dayLabels = [0, 1, 2, 3, 4, 5, 6].map((i) => t(`cal.day.${i}`));
 
   return (
     <div className="w-full">
@@ -29,7 +30,7 @@ const WeeklyChart = ({ data = [] }) => {
               </div>
 
               <div className="mt-2 text-[11px] text-text-tertiary group-hover:text-text-primary transition-colors">
-                {DAY_LABELS[idx]}
+                {dayLabels[idx]}
               </div>
             </div>
           );
@@ -39,11 +40,11 @@ const WeeklyChart = ({ data = [] }) => {
       <div className="flex items-center gap-4 mt-6 text-xs text-text-tertiary">
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm bg-gradient-to-t from-accent-primary to-emerald-400" />
-          <span>Đã hoàn thành</span>
+          <span>{t("dashboard.done")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm bg-border-subtle/50" />
-          <span>Chưa hoàn thành</span>
+          <span>{t("dashboard.notDone")}</span>
         </div>
       </div>
     </div>

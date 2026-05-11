@@ -1,12 +1,11 @@
 import React from 'react';
-import { User, Settings, Link as LinkIcon, Bell, Globe, ExternalLink } from 'lucide-react';
+import { User, Settings, Link as LinkIcon, Globe, ExternalLink } from 'lucide-react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useAccountModal } from '../contexts/AccountModalContext';
 
 const SECTIONS = [
     { id: 'general',       labelKey: 'nav.general',       icon: Settings },
     { id: 'integrations',  labelKey: 'nav.integrations',  icon: LinkIcon },
-    { id: 'notifications', labelKey: 'nav.notifications', icon: Bell },
     { id: 'language',      labelKey: 'nav.language',      icon: Globe },
 ];
 

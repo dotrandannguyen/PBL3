@@ -1,8 +1,11 @@
 import React from "react";
 import { LayoutDashboard, CheckCircle2, Circle, Flame, Calendar } from "lucide-react";
 import { getTasks } from "../../tasks/api/task.api";
+import { useLanguage } from "../../../contexts/LanguageContext";
 import ProgressRing from "../components/ProgressRing";
 import WeeklyChart from "../components/WeeklyChart";
+
+const LOCALE_MAP = { vi: "vi-VN", ja: "ja-JP", en: "en-US" };
 
 const startOfWeek = (date) => {
   const d = new Date(date);
@@ -13,14 +16,17 @@ const startOfWeek = (date) => {
   return d;
 };
 
-const formatRange = (start) => {
+const formatRange = (start, locale) => {
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
-  const fmt = (d) => `${d.getDate()}/${d.getMonth() + 1}`;
+  const fmt = (d) =>
+    d.toLocaleDateString(locale, { day: "numeric", month: "numeric" });
   return `${fmt(start)} – ${fmt(end)}`;
 };
 
 export function DashboardPage() {
+  const { t, lang } = useLanguage();
+  const locale = LOCALE_MAP[lang] || "en-US";
   const [tasks, setTasks] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
@@ -37,7 +43,7 @@ export function DashboardPage() {
       })
       .catch((err) => {
         if (!alive) return;
-        setError(err?.message || "Không tải được dữ liệu");
+        setError(err?.message || t("dashboard.error"));
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -49,14 +55,14 @@ export function DashboardPage() {
 
   const stats = React.useMemo(() => {
     const total = tasks.length;
-    const isDone = (t) =>
-      typeof t?.completed === "boolean" ? t.completed : t?.status === "DONE";
+    const isDone = (task) =>
+      typeof task?.completed === "boolean" ? task.completed : task?.status === "DONE";
     const done = tasks.filter(isDone).length;
     const pending = total - done;
-    const overdue = tasks.filter((t) => {
-      if (isDone(t)) return false;
-      if (!t?.dueDate) return false;
-      return new Date(t.dueDate).getTime() < Date.now();
+    const overdue = tasks.filter((task) => {
+      if (isDone(task)) return false;
+      if (!task?.dueDate) return false;
+      return new Date(task.dueDate).getTime() < Date.now();
     }).length;
     return { total, done, pending, overdue };
   }, [tasks]);
@@ -69,13 +75,17 @@ export function DashboardPage() {
       d.setDate(d.getDate() + i);
       return {
         date: d,
-        label: d.toLocaleDateString("vi-VN", { weekday: "long", day: "numeric", month: "numeric" }),
+        label: d.toLocaleDateString(locale, {
+          weekday: "long",
+          day: "numeric",
+          month: "numeric",
+        }),
         total: 0,
         done: 0,
       };
     });
-    const isDone = (t) =>
-      typeof t?.completed === "boolean" ? t.completed : t?.status === "DONE";
+    const isDone = (task) =>
+      typeof task?.completed === "boolean" ? task.completed : task?.status === "DONE";
     tasks.forEach((task) => {
       const ref = task?.dueDate || task?.updatedAt || task?.createdAt;
       if (!ref) return;
@@ -86,19 +96,19 @@ export function DashboardPage() {
       if (isDone(task)) buckets[idx].done += 1;
     });
     return buckets;
-  }, [tasks, weekStart]);
+  }, [tasks, weekStart, locale]);
 
   return (
     <div className="px-6 md:px-10 py-8 max-w-6xl mx-auto w-full">
       <div className="flex items-center gap-2 mb-2 text-xs uppercase tracking-wider text-text-tertiary">
         <LayoutDashboard size={12} className="text-accent-primary" />
-        <span>Bảng điều khiển</span>
+        <span>{t("dashboard.label")}</span>
       </div>
       <h1 className="text-3xl font-semibold text-text-primary tracking-tight">
-        Tiến độ công việc
+        {t("dashboard.title")}
       </h1>
       <p className="text-sm text-text-tertiary mt-1">
-        Tuần này · {formatRange(weekStart)}
+        {t("dashboard.thisWeek")} · {formatRange(weekStart, locale)}
       </p>
 
       {error && (
@@ -109,32 +119,38 @@ export function DashboardPage() {
 
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-1 rounded-2xl border border-border-subtle bg-bg-sidebar/40 p-6 flex flex-col items-center justify-center">
-          <h2 className="text-sm font-medium text-text-secondary self-start mb-4">Tổng tiến độ</h2>
-          <ProgressRing value={stats.done} total={stats.total} />
+          <h2 className="text-sm font-medium text-text-secondary self-start mb-4">
+            {t("dashboard.totalProgress")}
+          </h2>
+          <ProgressRing
+            value={stats.done}
+            total={stats.total}
+            label={t("task.filter.done")}
+          />
         </div>
 
         <div className="lg:col-span-2 grid grid-cols-2 gap-4">
           <StatCard
             icon={<CheckCircle2 size={18} />}
-            label="Đã hoàn thành"
+            label={t("dashboard.done")}
             value={stats.done}
             tone="emerald"
           />
           <StatCard
             icon={<Circle size={18} />}
-            label="Đang chờ"
+            label={t("dashboard.pending")}
             value={stats.pending}
             tone="blue"
           />
           <StatCard
             icon={<Flame size={18} />}
-            label="Quá hạn"
+            label={t("dashboard.overdue")}
             value={stats.overdue}
             tone="red"
           />
           <StatCard
             icon={<Calendar size={18} />}
-            label="Tổng task"
+            label={t("dashboard.total")}
             value={stats.total}
             tone="purple"
           />
@@ -144,15 +160,17 @@ export function DashboardPage() {
       <div className="mt-6 rounded-2xl border border-border-subtle bg-bg-sidebar/40 p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-sm font-medium text-text-secondary">Phân phối tuần này</h2>
+            <h2 className="text-sm font-medium text-text-secondary">
+              {t("dashboard.weeklyDist")}
+            </h2>
             <p className="text-xs text-text-tertiary mt-0.5">
-              Số task theo từng ngày · T2 đến CN
+              {t("dashboard.weeklyHint")} · {t("cal.day.0")} – {t("cal.day.6")}
             </p>
           </div>
         </div>
         {loading ? (
           <div className="h-56 flex items-center justify-center text-sm text-text-tertiary">
-            Đang tải dữ liệu...
+            {t("dashboard.loading")}
           </div>
         ) : (
           <WeeklyChart data={weekData} />
@@ -170,12 +188,12 @@ const TONE_STYLES = {
 };
 
 const StatCard = ({ icon, label, value, tone = "blue" }) => {
-  const t = TONE_STYLES[tone] || TONE_STYLES.blue;
+  const s = TONE_STYLES[tone] || TONE_STYLES.blue;
   return (
     <div className="relative rounded-2xl border border-border-subtle bg-bg-sidebar/40 p-5 overflow-hidden">
-      <div className={`absolute -top-10 -right-10 w-28 h-28 rounded-full bg-gradient-to-br ${t.glow} to-transparent blur-2xl opacity-60`} />
+      <div className={`absolute -top-10 -right-10 w-28 h-28 rounded-full bg-gradient-to-br ${s.glow} to-transparent blur-2xl opacity-60`} />
       <div className="relative">
-        <div className={`inline-flex items-center justify-center w-9 h-9 rounded-xl bg-bg-hover ring-1 ${t.ring} ${t.icon} mb-3`}>
+        <div className={`inline-flex items-center justify-center w-9 h-9 rounded-xl bg-bg-hover ring-1 ${s.ring} ${s.icon} mb-3`}>
           {icon}
         </div>
         <div className="text-2xl font-bold text-text-primary">{value}</div>

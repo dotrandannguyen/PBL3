@@ -290,6 +290,33 @@ export const translations = {
         'trash.filterOlder': 'Cũ hơn',
         'trash.autoPurgeHint': 'Mục trong thùng rác sẽ tự động bị xoá sau 30 ngày.',
         'trash.shortcutHint': 'Phím tắt: ⌘A chọn tất cả · Esc bỏ chọn · Del xoá đã chọn',
+
+        // ── Dashboard ─────────────────────────────────────────────
+        'dashboard.label': 'Bảng điều khiển',
+        'dashboard.title': 'Tiến độ công việc',
+        'dashboard.thisWeek': 'Tuần này',
+        'dashboard.loading': 'Đang tải dữ liệu...',
+        'dashboard.error': 'Không tải được dữ liệu',
+        'dashboard.totalProgress': 'Tổng tiến độ',
+        'dashboard.done': 'Đã hoàn thành',
+        'dashboard.pending': 'Đang chờ',
+        'dashboard.overdue': 'Quá hạn',
+        'dashboard.total': 'Tổng task',
+        'dashboard.weeklyDist': 'Phân phối tuần này',
+        'dashboard.weeklyHint': 'Số task theo từng ngày',
+        'dashboard.notDone': 'Chưa hoàn thành',
+
+        // ── Search Modal ──────────────────────────────────────────
+        'search.placeholder': 'Tìm workspace hoặc task...',
+        'search.open': 'Mở',
+        'search.results': 'kết quả',
+        'search.searching': 'Đang tìm...',
+        'search.workspace.default': 'Workspace mặc định',
+        'search.workspace.private': 'Riêng tư',
+        'search.task.noTitle': '(Không tiêu đề)',
+        'search.noWorkspaces': 'Chưa có workspace nào.',
+        'search.noResults': 'Không tìm thấy kết quả cho',
+        'search.tryOther': 'Thử từ khoá khác.',
     },
 
     // ═══════════════════════════════════════════════════════════════
@@ -572,6 +599,33 @@ export const translations = {
         'trash.filterOlder': 'それ以前',
         'trash.autoPurgeHint': 'ゴミ箱のアイテムは30日後に自動的に削除されます。',
         'trash.shortcutHint': 'ショートカット: ⌘A 全選択 · Esc 選択解除 · Del 削除',
+
+        // ── Dashboard ─────────────────────────────────────────────
+        'dashboard.label': 'ダッシュボード',
+        'dashboard.title': 'タスク進捗',
+        'dashboard.thisWeek': '今週',
+        'dashboard.loading': 'データ読み込み中...',
+        'dashboard.error': 'データを読み込めませんでした',
+        'dashboard.totalProgress': '全体進捗',
+        'dashboard.done': '完了済み',
+        'dashboard.pending': '未着手',
+        'dashboard.overdue': '期限超過',
+        'dashboard.total': 'タスク合計',
+        'dashboard.weeklyDist': '今週の分布',
+        'dashboard.weeklyHint': '日別タスク数',
+        'dashboard.notDone': '未完了',
+
+        // ── Search Modal ──────────────────────────────────────────
+        'search.placeholder': 'ワークスペースまたはタスクを検索...',
+        'search.open': '開く',
+        'search.results': '件',
+        'search.searching': '検索中...',
+        'search.workspace.default': 'デフォルトワークスペース',
+        'search.workspace.private': 'プライベート',
+        'search.task.noTitle': '(タイトルなし)',
+        'search.noWorkspaces': 'ワークスペースがありません。',
+        'search.noResults': '検索結果がありません:',
+        'search.tryOther': '別のキーワードをお試しください。',
     },
 
     // ═══════════════════════════════════════════════════════════════
@@ -854,6 +908,33 @@ export const translations = {
         'trash.filterOlder': 'Older',
         'trash.autoPurgeHint': 'Items in trash are automatically deleted after 30 days.',
         'trash.shortcutHint': 'Shortcuts: ⌘A select all · Esc clear · Del remove selected',
+
+        // ── Dashboard ─────────────────────────────────────────────
+        'dashboard.label': 'Dashboard',
+        'dashboard.title': 'Task Progress',
+        'dashboard.thisWeek': 'This week',
+        'dashboard.loading': 'Loading data...',
+        'dashboard.error': 'Failed to load data',
+        'dashboard.totalProgress': 'Overall progress',
+        'dashboard.done': 'Completed',
+        'dashboard.pending': 'Pending',
+        'dashboard.overdue': 'Overdue',
+        'dashboard.total': 'Total tasks',
+        'dashboard.weeklyDist': 'Weekly distribution',
+        'dashboard.weeklyHint': 'Tasks per day',
+        'dashboard.notDone': 'Not completed',
+
+        // ── Search Modal ──────────────────────────────────────────
+        'search.placeholder': 'Search workspaces or tasks...',
+        'search.open': 'Open',
+        'search.results': 'results',
+        'search.searching': 'Searching...',
+        'search.workspace.default': 'Default workspace',
+        'search.workspace.private': 'Private',
+        'search.task.noTitle': '(No title)',
+        'search.noWorkspaces': 'No workspaces yet.',
+        'search.noResults': 'No results for',
+        'search.tryOther': 'Try a different keyword.',
     },
 };
 

@@ -14,11 +14,8 @@ import {
   CalendarDays,
   Fingerprint,
   Trash2,
-  KeyRound,
-  Smartphone,
   Copy,
   Check,
-  AlertTriangle,
   IdCard,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -48,9 +45,6 @@ const InfoRow = ({ icon: Icon, label, children, mono = false }) => (
 
 const NAV_ITEMS = [
   { id: "identity", labelKey: "account.nav.identity", icon: IdCard },
-  { id: "personal", labelKey: "account.nav.personal", icon: User },
-  { id: "security", labelKey: "account.nav.security", icon: Shield },
-  { id: "danger", labelKey: "account.nav.danger", icon: AlertTriangle },
 ];
 
 const AccountModal = () => {
@@ -70,7 +64,6 @@ const AccountModal = () => {
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [idCopied, setIdCopied] = useState(false);
-  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   // Load from localStorage when modal opens / user changes
   useEffect(() => {
@@ -298,7 +291,6 @@ const AccountModal = () => {
               {NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeSection === item.id;
-                const isDanger = item.id === "danger";
                 return (
                   <button
                     key={item.id}
@@ -306,28 +298,20 @@ const AccountModal = () => {
                     onClick={() => scrollToSection(item.id)}
                     className={`group relative flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] transition-all duration-150 active:scale-[0.99] ${
                       isActive
-                        ? isDanger
-                          ? "bg-red-500/10 font-medium text-red-300"
-                          : "bg-white/[0.04] font-medium text-text-primary"
-                        : isDanger
-                          ? "text-red-400/80 hover:bg-red-500/5 hover:text-red-300"
-                          : "text-text-secondary hover:bg-white/[0.025] hover:text-text-primary"
+                        ? "bg-white/[0.04] font-medium text-text-primary"
+                        : "text-text-secondary hover:bg-white/[0.025] hover:text-text-primary"
                     }`}
                   >
                     <span
-                      className={`absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full transition-all duration-200 ${
-                        isActive
-                          ? `${isDanger ? "bg-red-400" : "bg-accent-primary"} opacity-100 scale-y-100`
-                          : "bg-accent-primary opacity-0 scale-y-50"
+                      className={`absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-accent-primary transition-all duration-200 ${
+                        isActive ? "opacity-100 scale-y-100" : "opacity-0 scale-y-50"
                       }`}
                     />
                     <Icon
                       size={15}
                       className={`shrink-0 transition-colors duration-150 ${
                         isActive
-                          ? isDanger
-                            ? "text-red-300"
-                            : "text-accent-primary"
+                          ? "text-accent-primary"
                           : "text-text-tertiary group-hover:text-text-secondary"
                       }`}
                     />
@@ -605,137 +589,6 @@ const AccountModal = () => {
                           </button>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Security card ──────────────────────────── */}
-                <div
-                  ref={(el) => (sectionRefs.current.security = el)}
-                  id="account-security"
-                  className="overflow-hidden rounded-2xl border border-border-subtle bg-bg-sidebar/60"
-                >
-                  <div className="border-b border-border-subtle/70 px-6 py-4">
-                    <h3 className="flex items-center gap-2 text-[13.5px] font-semibold text-text-primary">
-                      <Shield size={14} className="text-text-tertiary" />
-                      {t("account.security.title")}
-                    </h3>
-                  </div>
-                  <div className="divide-y divide-border-subtle/50">
-                    <div className="flex items-center justify-between gap-4 px-6 py-4">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/[0.04] text-text-tertiary">
-                          <KeyRound size={14} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[13px] font-medium text-text-primary">
-                            {t("account.security.password")}
-                          </p>
-                          <p className="mt-0.5 text-[12px] text-text-tertiary">
-                            {user?.provider === "google"
-                              ? t("account.security.password.googleHint")
-                              : t("account.security.password.localHint")}
-                          </p>
-                        </div>
-                      </div>
-                      {user?.provider === "google" ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-400 ring-1 ring-emerald-500/20">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                          {t("account.security.password.googleBadge")}
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="rounded-md border border-border-subtle bg-bg-main/60 px-3 py-1.5 text-[12px] font-medium text-text-secondary transition-all duration-150 hover:bg-white/[0.04] hover:text-text-primary active:scale-[0.97] cursor-pointer"
-                          onClick={() =>
-                            toast.info(t("account.toast.featureWIP"))
-                          }
-                        >
-                          {t("account.security.password.changeBtn")}
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between gap-4 px-6 py-4">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/[0.04] text-text-tertiary">
-                          <Smartphone size={14} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[13px] font-medium text-text-primary">
-                            {t("account.security.sessions")}
-                          </p>
-                          <p className="mt-0.5 text-[12px] text-text-tertiary">
-                            {t("account.security.sessions.hint")}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="rounded-md border border-border-subtle bg-bg-main/60 px-3 py-1.5 text-[12px] font-medium text-text-secondary transition-all duration-150 hover:bg-white/[0.04] hover:text-text-primary active:scale-[0.97] cursor-pointer"
-                        onClick={() =>
-                          toast.info(t("account.toast.featureWIP"))
-                        }
-                      >
-                        {t("account.security.sessions.viewBtn")}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Danger zone ─────────────────────────────── */}
-                <div
-                  ref={(el) => (sectionRefs.current.danger = el)}
-                  id="account-danger"
-                  className="overflow-hidden rounded-2xl border border-red-500/30 bg-red-500/[0.04]"
-                >
-                  <div className="border-b border-red-500/20 px-6 py-4">
-                    <h3 className="flex items-center gap-2 text-[13.5px] font-semibold text-red-300">
-                      <AlertTriangle size={14} className="text-red-300" />
-                      {t("account.danger.title")}
-                    </h3>
-                    <p className="mt-1 text-[11.5px] text-text-tertiary">
-                      {t("account.danger.subtitle")}
-                    </p>
-                  </div>
-                  <div className="px-6 py-5">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="text-[13px] font-medium text-text-primary">
-                          {t("account.danger.delete.title")}
-                        </p>
-                        <p className="mt-0.5 text-[12px] text-text-tertiary">
-                          {t("account.danger.delete.hint")}
-                        </p>
-                      </div>
-                      {!isConfirmingDelete ? (
-                        <button
-                          type="button"
-                          onClick={() => setIsConfirmingDelete(true)}
-                          className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-[12px] font-medium text-red-300 transition-all duration-150 hover:bg-red-500/20 hover:text-red-200 active:scale-[0.97] cursor-pointer"
-                        >
-                          {t("account.danger.delete.btn")}
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setIsConfirmingDelete(false)}
-                            className="rounded-md border border-border-subtle bg-bg-main/60 px-3 py-1.5 text-[12px] font-medium text-text-secondary transition-all duration-150 hover:bg-white/[0.04] hover:text-text-primary cursor-pointer"
-                          >
-                            {t("account.danger.cancel")}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              toast.info(t("account.toast.featureWIP"));
-                              setIsConfirmingDelete(false);
-                            }}
-                            className="rounded-md bg-red-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-all duration-150 hover:bg-red-600 active:scale-[0.97] border-none cursor-pointer"
-                          >
-                            {t("account.danger.confirm")}
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
