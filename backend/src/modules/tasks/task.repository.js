@@ -288,7 +288,7 @@ export const taskRepository = {
 			where: {
 				userId,
 				sourceType: {
-					in: ['GMAIL', 'GITHUB'],
+					in: ['GMAIL', 'GITHUB', 'SLACK'],
 				},
 				deletedAt: null,
 			},
@@ -324,7 +324,7 @@ export const taskRepository = {
 			where: {
 				userId,
 				sourceType: {
-					in: ['GMAIL', 'GITHUB'],
+					in: ['GMAIL', 'GITHUB', 'SLACK'],
 				},
 				deletedAt: null,
 			},
