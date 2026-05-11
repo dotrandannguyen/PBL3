@@ -11,19 +11,24 @@ import {
 } from "lucide-react";
 import { useSearchModal } from "../contexts/SearchModalContext";
 import { useWorkspace } from "../../context/WorkspaceContext";
+import { useLanguage } from "../../../../contexts/LanguageContext";
 import { getTasks } from "../../../tasks/api/task.api";
 
-const formatDueDate = (value) => {
+const LOCALE_MAP = { vi: "vi-VN", ja: "ja-JP", en: "en-US" };
+
+const formatDueDate = (value, locale) => {
   if (!value) return null;
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "short" });
+  return d.toLocaleDateString(locale, { day: "2-digit", month: "short" });
 };
 
 const SearchModal = () => {
   const { isOpen, close } = useSearchModal();
   const { pages, setActivePage } = useWorkspace();
+  const { t, lang } = useLanguage();
   const navigate = useNavigate();
+  const locale = LOCALE_MAP[lang] || "en-US";
 
   const inputRef = useRef(null);
   const [query, setQuery] = useState("");
@@ -50,7 +55,6 @@ const SearchModal = () => {
     if (isOpen) {
       setQuery("");
       setTaskResults([]);
-      // Focus input after mount animation kicks in
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isOpen]);
@@ -127,7 +131,7 @@ const SearchModal = () => {
           className="pointer-events-auto flex w-full max-w-[720px] max-h-[78vh] flex-col overflow-hidden rounded-2xl border border-border-subtle bg-bg-main shadow-[0_24px_80px_rgba(0,0,0,0.5)] animate-modal-in"
           role="dialog"
           aria-modal="true"
-          aria-label="Tìm kiếm"
+          aria-label={t("sidebar.search")}
         >
           {/* Header / search input */}
           <div className="flex items-center gap-3 border-b border-border-subtle px-4 py-3">
@@ -137,7 +141,7 @@ const SearchModal = () => {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Tìm workspace hoặc task..."
+              placeholder={t("search.placeholder")}
               className="flex-1 border-none bg-transparent text-[15px] text-text-primary outline-none placeholder-text-tertiary"
             />
             {isLoadingTasks && (
@@ -149,7 +153,7 @@ const SearchModal = () => {
             <button
               type="button"
               onClick={close}
-              title="Đóng"
+              title={t("inbox.modal.close")}
               className="flex h-7 w-7 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-white/5 hover:text-text-primary border-none bg-transparent cursor-pointer"
             >
               <X size={16} />
@@ -181,9 +185,9 @@ const SearchModal = () => {
                         </p>
                         <p className="mt-0.5 truncate text-[11.5px] text-text-tertiary">
                           {page.id === "todo"
-                            ? "Workspace mặc định"
+                            ? t("search.workspace.default")
                             : page.type === "private"
-                              ? "Riêng tư"
+                              ? t("search.workspace.private")
                               : "Workspace"}
                         </p>
                       </div>
@@ -205,7 +209,7 @@ const SearchModal = () => {
                 </h3>
                 <div className="flex flex-col gap-1">
                   {taskResults.map((task) => {
-                    const due = formatDueDate(task.dueDate);
+                    const due = formatDueDate(task.dueDate, locale);
                     return (
                       <button
                         key={task.id}
@@ -220,7 +224,7 @@ const SearchModal = () => {
                         <span
                           className={`flex-1 truncate text-[13px] ${task.completed ? "text-text-tertiary line-through" : "text-text-primary"}`}
                         >
-                          {task.title || "(Không tiêu đề)"}
+                          {task.title || t("search.task.noTitle")}
                         </span>
                         {due && (
                           <span className="inline-flex items-center gap-1 text-[11px] text-text-tertiary">
@@ -243,7 +247,7 @@ const SearchModal = () => {
             {!hasQuery && filteredWorkspaces.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 text-text-tertiary">
                 <Search size={28} className="mb-2 opacity-50" />
-                <p className="text-sm">Chưa có workspace nào.</p>
+                <p className="text-sm">{t("search.noWorkspaces")}</p>
               </div>
             )}
 
@@ -252,10 +256,10 @@ const SearchModal = () => {
               <div className="flex flex-col items-center justify-center py-12 text-text-tertiary">
                 <Search size={28} className="mb-2 opacity-50" />
                 <p className="text-sm">
-                  Không tìm thấy kết quả cho "
-                  <span className="text-text-secondary">{query}</span>"
+                  {t("search.noResults")}{" "}
+                  <span className="text-text-secondary">"{query}"</span>
                 </p>
-                <p className="mt-1 text-[11.5px]">Thử từ khoá khác.</p>
+                <p className="mt-1 text-[11.5px]">{t("search.tryOther")}</p>
               </div>
             )}
 
@@ -263,7 +267,7 @@ const SearchModal = () => {
             {hasQuery && filteredWorkspaces.length === 0 && isLoadingTasks && (
               <div className="flex items-center justify-center py-8 text-text-tertiary">
                 <Loader size={18} className="animate-spin" />
-                <span className="ml-2 text-sm">Đang tìm...</span>
+                <span className="ml-2 text-sm">{t("search.searching")}</span>
               </div>
             )}
           </div>
@@ -275,17 +279,17 @@ const SearchModal = () => {
                 <kbd className="rounded border border-border-subtle bg-white/5 px-1.5 py-0.5 font-mono">
                   ↵
                 </kbd>
-                Mở
+                {t("search.open")}
               </span>
               <span className="inline-flex items-center gap-1">
                 <kbd className="rounded border border-border-subtle bg-white/5 px-1.5 py-0.5 font-mono">
                   ⌘K
                 </kbd>
-                Tìm kiếm
+                {t("sidebar.search")}
               </span>
             </div>
             <span>
-              {filteredWorkspaces.length + taskResults.length} kết quả
+              {filteredWorkspaces.length + taskResults.length} {t("search.results")}
             </span>
           </div>
         </div>
