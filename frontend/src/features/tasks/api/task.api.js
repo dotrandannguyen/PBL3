@@ -113,8 +113,8 @@ export const deleteTask = (id) => apiClient.delete(`/v1/api/tasks/${id}`);
  * @param {string} id - Task ID
  * @returns {Promise} Updated task object với status='PENDING'
  */
-export const confirmInboxTask = (id) =>
-  apiClient.patch(`/v1/api/tasks/${id}/confirm`);
+export const confirmInboxTask = (id, workspaceId) =>
+  apiClient.patch(`/v1/api/tasks/${id}/confirm`, { workspaceId });
 
 /**
  * GET /v1/api/tasks/inbox

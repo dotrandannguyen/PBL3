@@ -141,10 +141,23 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
             {/* Due Date (with red outline from screenshot) */}
             <div className="flex items-center gap-2 px-3 py-1.5 border border-red-500/60 rounded-md bg-transparent text-red-400 text-sm cursor-pointer hover:bg-red-500/10 transition-colors">
               <input
-                type="date"
-                value={task?.dueDate ? formatDateToISO(task.dueDate) : ""}
-                onChange={async (e) => await onUpdate(task.id, { dueDate: e.target.value })}
-                className="bg-transparent text-inherit border-none outline-none p-0 max-w-[100px] text-sm"
+                type="datetime-local"
+                value={task?.dueDate ? (() => {
+                  const d = new Date(task.dueDate);
+                  if (Number.isNaN(d.getTime())) return "";
+                  const y = d.getFullYear();
+                  const m = String(d.getMonth() + 1).padStart(2, "0");
+                  const dd = String(d.getDate()).padStart(2, "0");
+                  const hh = String(d.getHours()).padStart(2, "0");
+                  const mm = String(d.getMinutes()).padStart(2, "0");
+                  return `${y}-${m}-${dd}T${hh}:${mm}`;
+                })() : ""}
+                onChange={async (e) => {
+                  const val = e.target.value;
+                  const dueDate = val ? new Date(val).toISOString() : null;
+                  await onUpdate(task.id, { dueDate });
+                }}
+                className="bg-transparent text-inherit border-none outline-none p-0 max-w-[160px] text-sm"
                 style={{ colorScheme: "dark" }}
               />
               <Calendar size={14} />
@@ -217,6 +230,21 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                     type="datetime-local"
                     className="bg-transparent border-none outline-none text-text-primary text-[13px] flex-1 min-w-0"
                     style={{ colorScheme: "dark" }}
+                    value={task?.scheduledAt ? (() => {
+                      const d = new Date(task.scheduledAt);
+                      if (Number.isNaN(d.getTime())) return "";
+                      const y = d.getFullYear();
+                      const m = String(d.getMonth() + 1).padStart(2, "0");
+                      const dd = String(d.getDate()).padStart(2, "0");
+                      const hh = String(d.getHours()).padStart(2, "0");
+                      const mm = String(d.getMinutes()).padStart(2, "0");
+                      return `${y}-${m}-${dd}T${hh}:${mm}`;
+                    })() : ""}
+                    onChange={async (e) => {
+                      const val = e.target.value;
+                      const startAt = val ? new Date(val).toISOString() : null;
+                      await onUpdate(task.id, { startAt });
+                    }}
                   />
                   <Calendar size={14} className="text-text-tertiary" />
                 </div>
@@ -228,6 +256,21 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                     type="datetime-local"
                     className="bg-transparent border-none outline-none text-text-primary text-[13px] flex-1 min-w-0"
                     style={{ colorScheme: "dark" }}
+                    value={task?.dueDate ? (() => {
+                      const d = new Date(task.dueDate);
+                      if (Number.isNaN(d.getTime())) return "";
+                      const y = d.getFullYear();
+                      const m = String(d.getMonth() + 1).padStart(2, "0");
+                      const dd = String(d.getDate()).padStart(2, "0");
+                      const hh = String(d.getHours()).padStart(2, "0");
+                      const mm = String(d.getMinutes()).padStart(2, "0");
+                      return `${y}-${m}-${dd}T${hh}:${mm}`;
+                    })() : ""}
+                    onChange={async (e) => {
+                      const val = e.target.value;
+                      const dueDate = val ? new Date(val).toISOString() : null;
+                      await onUpdate(task.id, { dueDate });
+                    }}
                   />
                   <Calendar size={14} className="text-text-tertiary" />
                 </div>

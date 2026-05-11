@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Plus, ChevronDown, Flag, Check, Calendar, Bell, FileText, X } from "lucide-react";
+import { Plus, ChevronDown, Flag, Check, Calendar, Bell, FileText, X, Clock } from "lucide-react";
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, useDroppable } from "@dnd-kit/core";
 import { useSearchParams } from "react-router-dom";
 import { useTasks } from "../hooks/useTasks";
@@ -30,10 +30,16 @@ const PRIORITY_FLAG_STYLES = {
 
 /* ── Utility helpers (logic from incoming) ─────────────────────────────── */
 const isDateOnlyValue = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+const isDatetimeLocalValue = (value) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value);
 
 const normalizeDueAtForApi = (value) => {
   if (!value) return null;
   if (isDateOnlyValue(value)) return value;
+  if (isDatetimeLocalValue(value)) {
+    const dateObj = new Date(value);
+    if (Number.isNaN(dateObj.getTime())) return null;
+    return dateObj.toISOString();
+  }
   const dateObj = new Date(value);
   if (Number.isNaN(dateObj.getTime())) return null;
   return dateObj.toISOString();
@@ -185,6 +191,9 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [showReminderDropdown, setShowReminderDropdown] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [newTaskStartAt, setNewTaskStartAt] = useState("");
+  const [newTaskEndAt, setNewTaskEndAt] = useState("");
   const [collapsedGroups, setCollapsedGroups] = useState(readCollapsedGroups);
   const [collapsedTasks, setCollapsedTasks] = useState(new Set());
   const [isComposerExpanded, setIsComposerExpanded] = useState(false);
@@ -256,11 +265,128 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
 
   const composerWarnings = useMemo(() => {
     const warnings = [];
+    const now = new Date();
+
+    // ─── Due date warnings ───────────────────────────────────
     if (isDueAtInPast) {
-      warnings.push({ id: "due-in-past", text: "Hạn chót đang ở quá khứ.", tone: "warn" });
+      warnings.push({ id: "due-in-past", text: "\u26a0 H\u1ea1n ch\u00f3t \u0111ang \u1edf qu\u00e1 kh\u1ee9.", tone: "info" });
     }
+
+    if (dueAtDateObj) {
+      // Due date is today
+      const todayStart = toLocalDayStart(now);
+      const dueStart = toLocalDayStart(dueAtDateObj);
+      if (dueStart.getTime() === todayStart.getTime()) {
+        warnings.push({ id: "due-today", text: "\u23f0 H\u1ea1n ch\u00f3t l\u00e0 h\u00f4m nay \u2014 h\u00e3y \u01b0u ti\u00ean task n\u00e0y.", tone: "info" });
+      }
+
+      // Due date on weekend
+      const dueDay = dueAtDateObj.getDay();
+      if (dueDay === 0 || dueDay === 6) {
+        warnings.push({ id: "due-weekend", text: "\ud83d\udcc5 H\u1ea1n ch\u00f3t r\u01a1i v\u00e0o cu\u1ed1i tu\u1ea7n.", tone: "info" });
+      }
+
+      // Due date very far (> 90 days)
+      const diffDays = Math.ceil((dueAtDateObj - now) / (1000 * 60 * 60 * 24));
+      if (diffDays > 90) {
+        warnings.push({ id: "due-far", text: `\ud83d\udcc6 H\u1ea1n ch\u00f3t c\u00f2n ${diffDays} ng\u00e0y \u2014 c\u00e2n nh\u1eafc chia nh\u1ecf task.`, tone: "tip" });
+      }
+
+      // Late night due (22:00 - 05:59)
+      const dueHour = dueAtDateObj.getHours();
+      if (dueHour >= 22 || dueHour < 6) {
+        warnings.push({ id: "due-late-night", text: "\ud83c\udf19 H\u1ea1n ch\u00f3t v\u00e0o ban \u0111\u00eam (sau 22:00).", tone: "info" });
+      }
+    }
+
+    // ─── Schedule warnings ────────────────────────────────────
+    if (showSchedule) {
+      const startObj = newTaskStartAt ? new Date(newTaskStartAt) : null;
+      const endObj = newTaskEndAt ? new Date(newTaskEndAt) : null;
+
+      // Start in the past
+      if (startObj && startObj < now) {
+        warnings.push({ id: "start-past", text: "\u26a0 Th\u1eddi gian b\u1eaft \u0111\u1ea7u \u0111\u00e3 qua.", tone: "error" });
+      }
+
+      // End before start
+      if (startObj && endObj && endObj <= startObj) {
+        warnings.push({ id: "end-before-start", text: "\u274c Th\u1eddi gian k\u1ebft th\u00fac ph\u1ea3i sau th\u1eddi gian b\u1eaft \u0111\u1ea7u.", tone: "error" });
+      }
+
+      // Duration too short (< 5 min)
+      if (startObj && endObj && endObj > startObj) {
+        const durationMin = (endObj - startObj) / (1000 * 60);
+        if (durationMin < 5) {
+          warnings.push({ id: "too-short", text: "\u23f1 Th\u1eddi l\u01b0\u1ee3ng d\u01b0\u1edbi 5 ph\u00fat \u2014 c\u00f3 th\u1ec3 qu\u00e1 ng\u1eafn.", tone: "error" });
+        }
+        // Duration very long (> 8 hours)
+        if (durationMin > 480) {
+          const hours = Math.round(durationMin / 60);
+          warnings.push({ id: "too-long", text: `\u23f3 Th\u1eddi l\u01b0\u1ee3ng ${hours} gi\u1edd \u2014 c\u00e2n nh\u1eafc chia th\u00e0nh nhi\u1ec1u phi\u00ean.`, tone: "tip" });
+        }
+      }
+
+      // Schedule on weekend
+      if (startObj) {
+        const startDay = startObj.getDay();
+        if (startDay === 0 || startDay === 6) {
+          warnings.push({ id: "schedule-weekend", text: "\ud83d\udcc5 L\u1ecbch h\u1eb9n r\u01a1i v\u00e0o cu\u1ed1i tu\u1ea7n.", tone: "info" });
+        }
+        // Late night schedule
+        const startHour = startObj.getHours();
+        if (startHour >= 22 || startHour < 6) {
+          warnings.push({ id: "schedule-late-night", text: "\ud83c\udf19 L\u1ecbch h\u1eb9n v\u00e0o ban \u0111\u00eam (sau 22:00).", tone: "info" });
+        }
+      }
+
+      // Missing one of start/end
+      if (startObj && !endObj) {
+        warnings.push({ id: "no-end", text: "\ud83d\udccc Ch\u01b0a ch\u1ecdn th\u1eddi gian k\u1ebft th\u00fac.", tone: "info" });
+      }
+      if (!startObj && endObj) {
+        warnings.push({ id: "no-start", text: "\ud83d\udccc Ch\u01b0a ch\u1ecdn th\u1eddi gian b\u1eaft \u0111\u1ea7u.", tone: "info" });
+      }
+    }
+
+    // ─── Reminder warnings ───────────────────────────────────
+    if (newTaskReminder !== "NONE" && !newTaskDueAt && !showSchedule) {
+      warnings.push({ id: "reminder-no-due", text: "\ud83d\udd14 B\u1eadt nh\u1eafc nh\u1edf nh\u01b0ng ch\u01b0a \u0111\u1eb7t h\u1ea1n ch\u00f3t \u2014 nh\u1eafc nh\u1edf s\u1ebd kh\u00f4ng ho\u1ea1t \u0111\u1ed9ng.", tone: "info" });
+    }
+
+    // ─── Title warnings ──────────────────────────────────────
+    const titleTrimmed = newTaskText.trim();
+    if (titleTrimmed.length > 0 && titleTrimmed.length < 3) {
+      warnings.push({ id: "title-short", text: "\u270f\ufe0f Ti\u00eau \u0111\u1ec1 qu\u00e1 ng\u1eafn \u2014 h\u00e3y m\u00f4 t\u1ea3 r\u00f5 h\u01a1n.", tone: "tip" });
+    }
+
+    // Duplicate title check
+    if (titleTrimmed.length >= 3) {
+      const lowerTitle = titleTrimmed.toLowerCase();
+      const duplicate = allTasks.find(
+        (t) => (t.title || t.text || "").toLowerCase() === lowerTitle
+      );
+      if (duplicate) {
+        warnings.push({
+          id: "dup-title",
+          text: `\ud83d\udd01 \u0110\u00e3 t\u1ed3n t\u1ea1i task \"${duplicate.title || duplicate.text}\" \u2014 c\u00f3 th\u1ec3 b\u1ecb tr\u00f9ng.`,
+          tone: "info",
+        });
+      }
+    }
+
     return warnings;
-  }, [isDueAtInPast]);
+  }, [
+    isDueAtInPast, dueAtDateObj, newTaskDueAt,
+    showSchedule, newTaskStartAt, newTaskEndAt,
+    newTaskReminder, newTaskText, allTasks,
+  ]);
+
+  // Blocking errors = error | warn → cannot submit
+  const hasBlockingErrors = useMemo(
+    () => composerWarnings.some((w) => w.tone === "error" || w.tone === "warn"),
+    [composerWarnings],
+  );
 
   // ── Effects ────────────────────────────────────────────
   useEffect(() => {
@@ -333,21 +459,43 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
       handleOpenCreateTaskComposer();
       return;
     }
-    const resolvedDueAtInput = newTaskDueAt || null;
+
+    // Block if there are error/warn-level warnings
+    if (hasBlockingErrors) {
+      setNewTaskError("Vui lòng sửa các lỗi bên dưới trước khi tạo task.");
+      return;
+    }
+
+    // Resolve dueDate: nếu đang schedule thì dùng endAt, nếu không thì dùng dueAt
+    const resolvedDueAtInput = showSchedule && newTaskEndAt ? newTaskEndAt : (newTaskDueAt || null);
     const resolvedDueAt = normalizeDueAtForApi(resolvedDueAtInput);
     if (resolvedDueAtInput && !resolvedDueAt) { setNewTaskError("Ngày hạn không hợp lệ."); return; }
+
+    // Resolve startAt từ schedule
+    const resolvedStartAt = showSchedule && newTaskStartAt ? normalizeDueAtForApi(newTaskStartAt) : null;
+    if (showSchedule && newTaskStartAt && !resolvedStartAt) { setNewTaskError("Thời gian bắt đầu không hợp lệ."); return; }
+
+    // Validate: startAt phải trước endAt
+    if (resolvedStartAt && resolvedDueAt) {
+      if (new Date(resolvedStartAt) >= new Date(resolvedDueAt)) {
+        setNewTaskError("Thời gian bắt đầu phải trước thời gian kết thúc.");
+        return;
+      }
+    }
 
     const createdTask = await addTask(titleValue, {
       description: newTaskDescription.trim() || null,
       dueDate: resolvedDueAt,
+      startAt: resolvedStartAt,
       priority: newTaskPriority,
       reminderAt: computeReminderAt(newTaskReminder, resolvedDueAtInput),
       workspaceId,
     });
     if (!createdTask) return;
     setNewTaskText(""); setNewTaskDescription(""); setNewTaskDueAt("");
+    setNewTaskStartAt(""); setNewTaskEndAt("");
     setNewTaskPriority("MEDIUM"); setNewTaskReminder("NONE"); setNewTaskError("");
-    setShowDescription(false);
+    setShowDescription(false); setShowSchedule(false);
     handleCollapseComposer();
   };
 
@@ -433,7 +581,14 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
   };
 
   const handleNewTaskKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAddBlankTask(); }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (hasBlockingErrors) {
+        setNewTaskError("Vui lòng sửa các lỗi bên dưới trước khi tạo task.");
+        return;
+      }
+      handleAddBlankTask();
+    }
   };
 
 
@@ -615,10 +770,16 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
         {/* ── Composer (from incoming, with HEAD-style priority pills) ── */}
         {isComposerExpanded && (() => {
           const formattedDueAt = newTaskDueAt
-            ? new Date(`${newTaskDueAt}T00:00:00`).toLocaleDateString("vi-VN", {
-                day: "2-digit",
-                month: "short",
-              })
+            ? (() => {
+                const d = new Date(isDateOnlyValue(newTaskDueAt) ? `${newTaskDueAt}T00:00:00` : newTaskDueAt);
+                if (Number.isNaN(d.getTime())) return null;
+                const datePart = d.toLocaleDateString("vi-VN", { day: "2-digit", month: "short" });
+                if (isDatetimeLocalValue(newTaskDueAt)) {
+                  const timePart = d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+                  return `${datePart} ${timePart}`;
+                }
+                return datePart;
+              })()
             : null;
           const reminderLabels = {
             NONE: null,
@@ -677,13 +838,52 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
               </div>
             )}
 
+            {/* ── Schedule section (collapsible) ────────────── */}
+            {showSchedule && (
+              <div className="mx-4 mt-3 ml-[42px] rounded-lg border border-border-subtle/60 bg-white/[0.02] p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock size={14} className="text-accent-primary" />
+                  <span className="text-xs font-semibold text-text-primary">Lên lịch</span>
+                  <button
+                    type="button"
+                    onClick={() => { setShowSchedule(false); setNewTaskStartAt(""); setNewTaskEndAt(""); }}
+                    className="ml-auto p-0.5 rounded hover:bg-white/10 text-text-tertiary hover:text-text-primary transition-colors border-none bg-transparent cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex-1">
+                    <label className="block text-[11px] text-text-tertiary uppercase tracking-wider mb-1.5 font-medium">Bắt đầu</label>
+                    <input
+                      type="datetime-local"
+                      className="w-full rounded-md border border-border-subtle bg-white/5 px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-accent-primary/50 transition-colors"
+                      style={{ colorScheme: 'dark' }}
+                      value={newTaskStartAt}
+                      onChange={(e) => { setNewTaskStartAt(e.target.value); if (newTaskError) setNewTaskError(""); }}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[11px] text-text-tertiary uppercase tracking-wider mb-1.5 font-medium">Kết thúc</label>
+                    <input
+                      type="datetime-local"
+                      className="w-full rounded-md border border-border-subtle bg-white/5 px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-accent-primary/50 transition-colors"
+                      style={{ colorScheme: 'dark' }}
+                      value={newTaskEndAt}
+                      onChange={(e) => { setNewTaskEndAt(e.target.value); if (newTaskError) setNewTaskError(""); }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {newTaskError && (
               <p className="mt-1 px-4 pl-[42px] text-xs text-red-400">{newTaskError}</p>
             )}
 
             {/* ── Action chips row ──────────────────────────── */}
             <div className="flex items-center gap-1.5 border-t border-border-subtle/60 bg-white/[0.015] px-3 py-2 mt-3">
-              {/* Date chip */}
+              {/* Date chip (datetime-local) */}
               <button
                 type="button"
                 onClick={() => {
@@ -720,7 +920,7 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
               </button>
               <input
                 ref={dateInputRef}
-                type="date"
+                type="datetime-local"
                 className="sr-only"
                 style={{ colorScheme: 'dark' }}
                 value={newTaskDueAt}
@@ -730,6 +930,21 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
                 }}
                 tabIndex={-1}
               />
+
+              {/* Schedule chip */}
+              <button
+                type="button"
+                onClick={() => setShowSchedule(!showSchedule)}
+                className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors border-none cursor-pointer ${
+                  showSchedule
+                    ? "bg-accent-primary/10 text-accent-primary hover:bg-accent-primary/15"
+                    : "bg-transparent text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
+                }`}
+                title="Lên lịch (tạo sự kiện trên Calendar)"
+              >
+                <Clock size={12} />
+                <span>Lên lịch</span>
+              </button>
 
               {/* Priority chip */}
               <div ref={priorityDropdownRef} className="relative">
@@ -843,31 +1058,39 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
               {/* Submit */}
               <button
                 type="button"
-                disabled={!newTaskText.trim()}
-                className="ml-auto inline-flex items-center gap-1 rounded-md bg-accent-primary px-3 py-1 text-xs font-semibold text-white transition-all duration-150 hover:bg-accent-hover active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed border-none cursor-pointer"
+                disabled={!newTaskText.trim() || hasBlockingErrors}
+                className={`ml-auto inline-flex items-center gap-1 rounded-md px-3 py-1 text-xs font-semibold text-white transition-all duration-150 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed border-none cursor-pointer ${
+                  hasBlockingErrors
+                    ? "bg-red-500/60 hover:bg-red-500/70"
+                    : "bg-accent-primary hover:bg-accent-hover"
+                }`}
                 onClick={handleAddBlankTask}
+                title={hasBlockingErrors ? "Sửa các lỗi bên dưới để tạo task" : ""}
               >
-                Thêm
-                <kbd className="hidden md:inline rounded bg-white/15 px-1 py-px text-[9px] font-mono">⏎</kbd>
+                {hasBlockingErrors ? "Không thể tạo" : "Thêm"}
+                {!hasBlockingErrors && (
+                  <kbd className="hidden md:inline rounded bg-white/15 px-1 py-px text-[9px] font-mono">⏎</kbd>
+                )}
               </button>
             </div>
 
             {composerWarnings.length > 0 && (
-              <div className="border-t border-border-subtle/40 bg-amber-500/[0.04] px-4 py-2 space-y-1">
+              <div className="border-t border-border-subtle/40 px-4 py-2.5 space-y-1.5">
                 {composerWarnings.map((warning) => (
-                  <p
+                  <div
                     key={warning.id}
-                    className={`text-[12px] flex items-center gap-1.5 ${
+                    className={`text-[12px] flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-all duration-200 ${
                       warning.tone === "error"
-                        ? "text-red-300"
+                        ? "bg-red-500/10 text-red-300 border border-red-500/20"
                         : warning.tone === "warn"
-                        ? "text-amber-300"
-                        : "text-text-tertiary"
+                        ? "bg-amber-500/8 text-amber-300"
+                        : warning.tone === "tip"
+                        ? "bg-blue-500/8 text-blue-300"
+                        : "bg-white/[0.03] text-text-secondary"
                     }`}
                   >
-                    <span aria-hidden="true">⚠</span>
-                    {warning.text}
-                  </p>
+                    <span className="leading-relaxed flex-1">{warning.text}</span>
+                  </div>
                 ))}
               </div>
             )}

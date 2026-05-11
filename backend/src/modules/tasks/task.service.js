@@ -483,7 +483,7 @@ export const taskService = {
 	 * @param {String} taskId
 	 * @returns {Object} Updated task
 	 */
-	confirmInboxTask: async (userId, taskId) => {
+	confirmInboxTask: async (userId, taskId, workspaceId) => {
 		// Check task tồn tại và có status = INBOX
 		const task = await taskRepository.findById(userId, taskId);
 		if (!task) {
@@ -497,11 +497,17 @@ export const taskService = {
 			);
 		}
 
-		// Chuyển từ INBOX → PENDING + Mark as converted
-		await taskRepository.update(userId, taskId, {
+		// Chuyển từ INBOX → PENDING + Mark as converted + Gán workspace
+		const updateData = {
 			status: 'PENDING',
 			isConverted: true,
-		});
+		};
+
+		if (workspaceId) {
+			updateData.workspaceId = workspaceId;
+		}
+
+		await taskRepository.update(userId, taskId, updateData);
 
 		// Fetch lại task đã update
 		const updatedTask = await taskRepository.findById(userId, taskId);

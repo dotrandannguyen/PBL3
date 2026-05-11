@@ -149,8 +149,9 @@ export const taskController = {
 		try {
 			const userId = req.user.id;
 			const taskId = req.params.id;
+			const { workspaceId } = req.body;
 
-			const result = await taskService.confirmInboxTask(userId, taskId);
+			const result = await taskService.confirmInboxTask(userId, taskId, workspaceId);
 
 			return new HttpResponse(res).success(result);
 		} catch (error) {

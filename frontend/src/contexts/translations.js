@@ -252,6 +252,12 @@ export const translations = {
         'inbox.modal.openIn': 'Mở trong',
         'inbox.toast.addedTask': '✓ Đã đưa vào danh sách công việc!',
         'inbox.toast.error': 'Lỗi khi chuyển thành Task',
+        'inbox.wsPicker.title': 'Chọn Workspace',
+        'inbox.wsPicker.subtitle': 'Chọn workspace để thêm task vào',
+        'inbox.wsPicker.adding': 'Đang thêm:',
+        'inbox.wsPicker.noWorkspaces': 'Chưa có workspace nào',
+        'inbox.wsPicker.cancel': 'Huỷ',
+        'inbox.wsPicker.confirm': 'Thêm vào workspace',
 
         // ── Trash ──────────────────────────────────────────────────
         'trash.title': 'Thùng rác',
@@ -533,6 +539,12 @@ export const translations = {
         'inbox.modal.openIn': '開く',
         'inbox.toast.addedTask': '✓ タスクリストに追加しました！',
         'inbox.toast.error': 'タスクへの変換に失敗しました',
+        'inbox.wsPicker.title': 'ワークスペースを選択',
+        'inbox.wsPicker.subtitle': 'タスクを追加するワークスペースを選択してください',
+        'inbox.wsPicker.adding': '追加中:',
+        'inbox.wsPicker.noWorkspaces': 'ワークスペースがありません',
+        'inbox.wsPicker.cancel': 'キャンセル',
+        'inbox.wsPicker.confirm': 'ワークスペースに追加',
 
         // ── Trash ──────────────────────────────────────────────────
         'trash.title': 'ゴミ箱',
@@ -814,6 +826,12 @@ export const translations = {
         'inbox.modal.openIn': 'Open in',
         'inbox.toast.addedTask': '✓ Added to task list!',
         'inbox.toast.error': 'Failed to convert to Task',
+        'inbox.wsPicker.title': 'Choose Workspace',
+        'inbox.wsPicker.subtitle': 'Select a workspace to add this task to',
+        'inbox.wsPicker.adding': 'Adding:',
+        'inbox.wsPicker.noWorkspaces': 'No workspaces available',
+        'inbox.wsPicker.cancel': 'Cancel',
+        'inbox.wsPicker.confirm': 'Add to workspace',
 
         // ── Trash ──────────────────────────────────────────────────
         'trash.title': 'Trash',

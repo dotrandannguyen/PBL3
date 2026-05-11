@@ -3,7 +3,7 @@ import { Trash2, Loader, Calendar, Bell, Flag, Check, GripVertical, ChevronRight
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import TaskCheckbox from "./TaskCheckbox";
 import TaskTooltip from "./TaskTooltip";
-import { formatDate, getTodayDate } from "../utils/dateUtils";
+import { formatDate } from "../utils/dateUtils";
 import useAuth from "../../auth/hooks/useAuth";
 import { useLanguage } from "../../../contexts/LanguageContext";
 
@@ -105,18 +105,20 @@ const TaskRow = ({
     }
   }, [isDateOpen, isPriorityOpen, isReminderOpen]);
 
-  const toDateOnly = (value) => {
+  const toDatetimeLocal = (value) => {
     if (!value) return "";
     const dateObj = new Date(value);
     if (Number.isNaN(dateObj.getTime())) return "";
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, "0");
     const day = String(dateObj.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    const hours = String(dateObj.getHours()).padStart(2, "0");
+    const minutes = String(dateObj.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
   const dueDateLabelSource = isEditing ? editDate : task.dueDate || task.date;
-  const dueDateValue = dueDateLabelSource ? toDateOnly(dueDateLabelSource) : "";
+  const dueDateValue = dueDateLabelSource ? toDatetimeLocal(dueDateLabelSource) : "";
 
   const currentPriority = isEditing
     ? editPriority || task.priority
@@ -277,16 +279,31 @@ const TaskRow = ({
         )}
       </div>
 
-      {/* Date Picker — date only */}
+      {/* Date Picker — datetime-local */}
       <div ref={datePickerRef} className="relative flex-shrink-0">
         {(() => {
           const hasDueDate = Boolean(task.dueDate || task.date);
           const fallbackDateSource = task.createdAt || task.created_at;
-          const displayDate = hasDueDate
-            ? formatDate(task.dueDate || task.date)
-            : fallbackDateSource
-              ? formatDate(fallbackDateSource)
-              : "Thêm ngày";
+          const rawDate = hasDueDate ? (task.dueDate || task.date) : fallbackDateSource;
+          let displayDate;
+          if (rawDate) {
+            const d = new Date(rawDate);
+            if (!Number.isNaN(d.getTime())) {
+              const datePart = formatDate(rawDate);
+              // Show time if it has non-midnight time
+              const hasTime = hasDueDate && (d.getHours() !== 0 || d.getMinutes() !== 0);
+              if (hasTime) {
+                const timePart = d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+                displayDate = `${datePart} ${timePart}`;
+              } else {
+                displayDate = datePart;
+              }
+            } else {
+              displayDate = "Thêm ngày";
+            }
+          } else {
+            displayDate = "Thêm ngày";
+          }
           return (
             <button
               type="button"
@@ -307,10 +324,10 @@ const TaskRow = ({
         {isDateOpen && (
           <div className="absolute top-full right-0 mt-1 z-50 bg-bg-sidebar border border-border-subtle rounded shadow-lg p-2">
             <input
-              type="date"
+              type="datetime-local"
               className="px-2 py-1 rounded bg-white/10 border border-border-subtle text-text-primary text-xs"
               style={{ colorScheme: 'dark' }}
-              value={dueDateValue || getTodayDate()}
+              value={dueDateValue}
               onChange={(e) => { onDateChange(e.target.value); setIsDateOpen(false); }}
             />
             {(task.dueDate || task.date || dueDateValue) && (
