@@ -410,4 +410,5 @@ export const taskRepository = {
 			sourceId: created.sourceId,
 		});
 		return created;
+	},
 };
