@@ -1,5 +1,14 @@
 import React from "react";
-import { Plus, Menu as MenuIcon, X, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Plus,
+  Menu as MenuIcon,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  CheckSquare,
+  ChevronDown,
+  FileText,
+} from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   UserAvatar,
@@ -16,6 +25,85 @@ import { useWorkspace } from "../context/WorkspaceContext";
 
 const COLLAPSED_KEY = "sidebar_collapsed";
 
+/* ── TodoListParent: fixed parent item with collapse + add button ── */
+const TodoListParent = ({ onAdd, collapsed, children }) => {
+  const [open, setOpen] = React.useState(true);
+
+  if (collapsed) return null;
+
+  return (
+    <div>
+      <div
+        className="flex items-center gap-2 px-3.5 py-1.5 text-sm font-semibold text-text-secondary hover:text-text-primary select-none cursor-pointer transition-colors group"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <ChevronDown
+          size={14}
+          className={`transition-transform duration-200 text-text-tertiary ${open ? "" : "-rotate-90"}`}
+        />
+        <CheckSquare size={14} className="text-accent-primary" />
+        <span className="flex-1">To Do List</span>
+        <button
+          type="button"
+          className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-white/10 cursor-pointer bg-transparent border-0 transition-all flex items-center justify-center"
+          title="Thêm workspace"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAdd();
+          }}
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+      {open && <div className="ml-3">{children}</div>}
+    </div>
+  );
+};
+
+/* ── InlineCreateInput: inline input for entering workspace name ── */
+const InlineCreateInput = ({ onSubmit, onCancel }) => {
+  const [value, setValue] = React.useState("");
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onSubmit(value);
+    }
+    if (e.key === "Escape") {
+      onCancel();
+    }
+  };
+
+  const handleBlur = () => {
+    if (value.trim()) {
+      onSubmit(value);
+    } else {
+      onCancel();
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 px-3.5 py-1">
+      <FileText size={14} className="text-text-tertiary shrink-0" />
+      <input
+        ref={inputRef}
+        type="text"
+        placeholder="Nhập tên workspace..."
+        className="flex-1 bg-white/5 border border-accent-primary/50 rounded px-2 py-1 text-sm text-text-primary outline-none placeholder:text-text-tertiary focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/30 transition-all"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
+      />
+    </div>
+  );
+};
+
 const Sidebar = ({
   pages,
   onAddNewList,
@@ -25,6 +113,9 @@ const Sidebar = ({
   onRenamePage,
   pendingRenameId,
   onClearPendingRename,
+  isCreatingWorkspace,
+  createWorkspaceWithName,
+  cancelCreate,
 }) => {
   const { t } = useLanguage();
   const { count: unreadInbox } = useUnreadInbox();
@@ -33,7 +124,7 @@ const Sidebar = ({
   const [showInbox, setShowInbox] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [collapsed, setCollapsed] = React.useState(
-    () => localStorage.getItem(COLLAPSED_KEY) === "true"
+    () => localStorage.getItem(COLLAPSED_KEY) === "true",
   );
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,7 +138,9 @@ const Sidebar = ({
     if (!mobileOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [mobileOpen]);
 
   const toggleCollapsed = () => {
@@ -61,7 +154,8 @@ const Sidebar = ({
 
   const privatePages = pages.filter((p) => p.type === "private");
   const parentPages = privatePages.filter((p) => !p.parentId);
-  const childrenOf = (parentId) => privatePages.filter((p) => p.parentId === parentId);
+  const childrenOf = (parentId) =>
+    privatePages.filter((p) => p.parentId === parentId);
 
   return (
     <>
@@ -113,7 +207,8 @@ const Sidebar = ({
             let isActive = false;
             if (item.id === "inbox") isActive = showInbox;
             else if (item.id === "home") isActive = currentPath === "/";
-            else if (item.id === "dashboard") isActive = currentPath === "/dashboard";
+            else if (item.id === "dashboard")
+              isActive = currentPath === "/dashboard";
             else if (item.id === "search") isActive = isSearchOpen;
 
             return (
@@ -135,66 +230,91 @@ const Sidebar = ({
           })}
         </nav>
 
-        {/* Private Pages Section */}
+        {/* To Do List — collapsible parent with nested workspaces */}
         <section className="py-1 mb-2 pt-2">
-          <SectionHeader title={t('sidebar.private')} onAdd={onAddNewList} collapsed={collapsed} />
-          {(collapsed ? privatePages : parentPages).map((page) => {
-            const children = collapsed ? [] : childrenOf(page.id);
-            const hasChildren = children.length > 0;
-            const isExpanded = !!expandedIds?.[page.id];
-            return (
-              <React.Fragment key={page.id}>
-                <PageItem
-                  page={page}
-                  onClick={(pageId) => { navigate(`/app`); onPageClick(pageId); }}
-                  isActive={currentPath === "/app" && page.id === activePage}
-                  onDelete={onDeletePage}
-                  onRename={onRenamePage}
-                  collapsed={collapsed}
-                  autoStartRename={page.id === pendingRenameId}
-                  onAutoRenameStart={onClearPendingRename}
-                  hasChildren={hasChildren}
-                  isExpanded={isExpanded}
-                  onToggleExpand={toggleExpanded}
-                  depth={0}
+          {collapsed ? (
+            <div className="mx-3 my-1.5 border-t border-border-subtle" />
+          ) : (
+            <TodoListParent onAdd={onAddNewList} collapsed={collapsed}>
+              {parentPages.map((page) => {
+                const children = childrenOf(page.id);
+                const hasChildren = children.length > 0;
+                const isExpanded = !!expandedIds?.[page.id];
+                return (
+                  <React.Fragment key={page.id}>
+                    <PageItem
+                      page={page}
+                      onClick={(pageId) => {
+                        navigate(`/app`);
+                        onPageClick(pageId);
+                      }}
+                      isActive={
+                        currentPath === "/app" && page.id === activePage
+                      }
+                      onDelete={onDeletePage}
+                      onRename={onRenamePage}
+                      collapsed={collapsed}
+                      autoStartRename={page.id === pendingRenameId}
+                      onAutoRenameStart={onClearPendingRename}
+                      hasChildren={hasChildren}
+                      isExpanded={isExpanded}
+                      onToggleExpand={() => toggleExpanded(page.id)}
+                      depth={0}
+                    />
+                    {hasChildren &&
+                      isExpanded &&
+                      children.map((child) => (
+                        <PageItem
+                          key={child.id}
+                          page={child}
+                          onClick={(pageId) => {
+                            navigate(`/app`);
+                            onPageClick(pageId);
+                          }}
+                          isActive={
+                            currentPath === "/app" && child.id === activePage
+                          }
+                          onDelete={onDeletePage}
+                          onRename={onRenamePage}
+                          collapsed={collapsed}
+                          autoStartRename={child.id === pendingRenameId}
+                          onAutoRenameStart={onClearPendingRename}
+                          depth={1}
+                        />
+                      ))}
+                  </React.Fragment>
+                );
+              })}
+              {isCreatingWorkspace && (
+                <InlineCreateInput
+                  onSubmit={createWorkspaceWithName}
+                  onCancel={cancelCreate}
                 />
-                {hasChildren && isExpanded && children.map((child) => (
-                  <PageItem
-                    key={child.id}
-                    page={child}
-                    onClick={(pageId) => { navigate(`/app`); onPageClick(pageId); }}
-                    isActive={currentPath === "/app" && child.id === activePage}
-                    onDelete={onDeletePage}
-                    onRename={onRenamePage}
-                    collapsed={collapsed}
-                    autoStartRename={child.id === pendingRenameId}
-                    onAutoRenameStart={onClearPendingRename}
-                    depth={1}
-                  />
-                ))}
-              </React.Fragment>
-            );
-          })}
-          {!collapsed && privatePages.length === 0 && (
-            <p className="px-3.5 py-1.5 text-text-tertiary text-sm">
-              {t('sidebar.noPages')}
-            </p>
+              )}
+            </TodoListParent>
           )}
         </section>
 
         {/* Shared Section */}
         <section className="py-1 mb-2 pt-2">
-          <SectionHeader title={t('sidebar.shared')} collapsed={collapsed} />
-          {!collapsed && <NavItem icon={Plus} label={t('sidebar.startCollaborating')} collapsed={false} />}
+          <SectionHeader title={t("sidebar.shared")} collapsed={collapsed} />
+          {!collapsed && (
+            <NavItem
+              icon={Plus}
+              label={t("sidebar.startCollaborating")}
+              collapsed={false}
+            />
+          )}
         </section>
 
         {/* Nexus Apps Section */}
         <section className="py-1 mb-2 pt-2">
-          <SectionHeader title={t('sidebar.nexusApps')} collapsed={collapsed} />
+          <SectionHeader title={t("sidebar.nexusApps")} collapsed={collapsed} />
           {NEXUS_APPS.map((item) => {
             let isActive = false;
             if (item.id === "nexus-mail") isActive = currentPath === "/mail";
-            if (item.id === "nexus-calendar") isActive = currentPath === "/calendar";
+            if (item.id === "nexus-calendar")
+              isActive = currentPath === "/calendar";
 
             return (
               <NavItem

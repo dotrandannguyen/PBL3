@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Trash2, Loader, Calendar, Bell, Flag, Check } from "lucide-react";
+import { Trash2, Loader, Calendar, Bell, Flag, Check, GripVertical, ChevronRight, ChevronDown, Plus } from "lucide-react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 import TaskCheckbox from "./TaskCheckbox";
 import TaskTooltip from "./TaskTooltip";
-import { formatDate, getTodayDate } from "../utils/dateUtils";
+import { formatDate } from "../utils/dateUtils";
 import useAuth from "../../auth/hooks/useAuth";
 import { useLanguage } from "../../../contexts/LanguageContext";
 
@@ -51,6 +52,11 @@ const TaskRow = ({
   isDeleting,
   onOpenDashboard,
   editReminder,
+  level = 0,
+  hasChildren = false,
+  isExpanded = false,
+  onToggleExpand,
+  onAddSubtask,
 }) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -63,6 +69,16 @@ const TaskRow = ({
   const datePickerRef = useRef(null);
   const priorityRef = useRef(null);
   const reminderRef = useRef(null);
+
+  const { attributes, listeners, setNodeRef: setDraggableRef, isDragging } = useDraggable({
+    id: task.id,
+    data: { task, level },
+  });
+
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: task.id,
+    data: { task, level },
+  });
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -89,18 +105,20 @@ const TaskRow = ({
     }
   }, [isDateOpen, isPriorityOpen, isReminderOpen]);
 
-  const toDateOnly = (value) => {
+  const toDatetimeLocal = (value) => {
     if (!value) return "";
     const dateObj = new Date(value);
     if (Number.isNaN(dateObj.getTime())) return "";
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, "0");
     const day = String(dateObj.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    const hours = String(dateObj.getHours()).padStart(2, "0");
+    const minutes = String(dateObj.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
   const dueDateLabelSource = isEditing ? editDate : task.dueDate || task.date;
-  const dueDateValue = dueDateLabelSource ? toDateOnly(dueDateLabelSource) : "";
+  const dueDateValue = dueDateLabelSource ? toDatetimeLocal(dueDateLabelSource) : "";
 
   const currentPriority = isEditing
     ? editPriority || task.priority
@@ -124,11 +142,49 @@ const TaskRow = ({
 
   return (
     <div
-      className={`group flex items-center gap-1.5 py-2 px-0 border-b border-border-subtle hover:bg-white/2 transition-colors relative ${
+      ref={setDroppableRef}
+      className={`group flex items-center gap-1.5 py-2 px-0 border-b border-border-subtle transition-colors relative ${
         isDeleting ? "overflow-hidden animate-row-fade-out pointer-events-none" : ""
+      } ${isOver ? "bg-accent-primary/20 ring-1 ring-accent-primary rounded-md" : "hover:bg-white/2"} ${
+        isDragging ? "opacity-50 scale-[0.98] z-50 bg-bg-sidebar shadow-xl" : ""
       }`}
+      style={{ paddingLeft: `${level * 24}px` }}
     >
+      <div 
+        ref={setDraggableRef} 
+        {...listeners} 
+        {...attributes}
+        className="cursor-grab opacity-0 group-hover:opacity-100 transition-opacity text-text-tertiary hover:text-text-secondary active:cursor-grabbing px-1"
+      >
+        <GripVertical size={14} />
+      </div>
+
+      <div className="flex items-center justify-center w-5 h-5 flex-shrink-0">
+        {hasChildren ? (
+          <button
+            type="button"
+            className="flex items-center justify-center p-0.5 rounded hover:bg-white/10 text-text-tertiary transition-colors border-none bg-transparent cursor-pointer"
+            onClick={onToggleExpand}
+          >
+            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+        ) : (
+          <div className="w-4 h-4" />
+        )}
+      </div>
+
       <TaskCheckbox checked={task.completed === true} onChange={onToggle} />
+
+      {level < 3 && onAddSubtask && (
+        <button
+          type="button"
+          className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 flex-shrink-0 text-text-tertiary hover:text-text-primary hover:bg-white/10 rounded transition-colors cursor-pointer border-none bg-transparent"
+          onClick={(e) => { e.stopPropagation(); onAddSubtask(task.id); }}
+          title="Thêm mục con"
+        >
+          <Plus size={14} />
+        </button>
+      )}
 
       {isEditing ? (
         <input
@@ -223,16 +279,31 @@ const TaskRow = ({
         )}
       </div>
 
-      {/* Date Picker — date only */}
+      {/* Date Picker — datetime-local */}
       <div ref={datePickerRef} className="relative flex-shrink-0">
         {(() => {
           const hasDueDate = Boolean(task.dueDate || task.date);
           const fallbackDateSource = task.createdAt || task.created_at;
-          const displayDate = hasDueDate
-            ? formatDate(task.dueDate || task.date)
-            : fallbackDateSource
-              ? formatDate(fallbackDateSource)
-              : "Thêm ngày";
+          const rawDate = hasDueDate ? (task.dueDate || task.date) : fallbackDateSource;
+          let displayDate;
+          if (rawDate) {
+            const d = new Date(rawDate);
+            if (!Number.isNaN(d.getTime())) {
+              const datePart = formatDate(rawDate);
+              // Show time if it has non-midnight time
+              const hasTime = hasDueDate && (d.getHours() !== 0 || d.getMinutes() !== 0);
+              if (hasTime) {
+                const timePart = d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+                displayDate = `${datePart} ${timePart}`;
+              } else {
+                displayDate = datePart;
+              }
+            } else {
+              displayDate = "Thêm ngày";
+            }
+          } else {
+            displayDate = "Thêm ngày";
+          }
           return (
             <button
               type="button"
@@ -253,10 +324,10 @@ const TaskRow = ({
         {isDateOpen && (
           <div className="absolute top-full right-0 mt-1 z-50 bg-bg-sidebar border border-border-subtle rounded shadow-lg p-2">
             <input
-              type="date"
+              type="datetime-local"
               className="px-2 py-1 rounded bg-white/10 border border-border-subtle text-text-primary text-xs"
               style={{ colorScheme: 'dark' }}
-              value={dueDateValue || getTodayDate()}
+              value={dueDateValue}
               onChange={(e) => { onDateChange(e.target.value); setIsDateOpen(false); }}
             />
             {(task.dueDate || task.date || dueDateValue) && (

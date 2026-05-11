@@ -8,6 +8,7 @@ import integrationRouter from './modules/integrations/integration.router.js';
 import eventRouter from './modules/events/event.router.js';
 import notificationRouter from './modules/notifications/notification.router.js';
 import aiRouter from './modules/ai/ai.router.js';
+import workspaceRouter from './modules/workspaces/workspace.router.js';
 import cookieParser from 'cookie-parser';
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/v1/api/events', eventRouter);
 app.use('/v1/api/calendar/events', eventRouter);
 app.use('/v1/api/notifications', notificationRouter);
 app.use('/v1/api/ai', aiRouter);
+app.use('/v1/api/workspaces', workspaceRouter);
 
 app.get('/health', (req, res) => {
 	res.json({ status: 'OK' });

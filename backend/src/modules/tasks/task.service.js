@@ -81,6 +81,7 @@ export const taskService = {
 		const repositoryQuery = {
 			completed: query.completed,
 			search: query.search || undefined,
+			workspaceId: query.workspaceId,
 			skip,
 			take: limit,
 		};
@@ -130,6 +131,10 @@ export const taskService = {
 			throw new OptionalException('Thời gian nhắc nhở phải ở tương lai.');
 		}
 
+		if (dueDate && dueDate.getTime() < Date.now()) {
+			throw new OptionalException('Hạn chót không được ở quá khứ.');
+		}
+
 		const taskData = {
 			title: data.title,
 			description: data.description ?? null,
@@ -139,6 +144,8 @@ export const taskService = {
 			scheduledAt,
 			status: 'PENDING',
 			type: scheduledAt ? 'SCHEDULED' : 'TODO',
+			parentId: data.parentId ?? null,
+			workspaceId: data.workspaceId ?? null,
 		};
 
 		const task = await taskRepository.create(userId, taskData);
@@ -192,6 +199,13 @@ export const taskService = {
 		if (data.priority !== undefined) {
 			updateData.priority = data.priority;
 		}
+		if (data.parentId !== undefined) {
+			updateData.parentId = data.parentId;
+		}
+		if (data.workspaceId !== undefined) {
+			updateData.workspaceId =
+				data.workspaceId === 'null' ? null : data.workspaceId;
+		}
 		if (data.dueDate !== undefined) {
 			updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
 		}
@@ -205,6 +219,17 @@ export const taskService = {
 				throw new OptionalException('Thời gian nhắc nhở phải ở tương lai.');
 			}
 			updateData.reminderAt = nextReminderAt;
+		}
+
+		if (data.dueDate !== undefined || data.startAt !== undefined) {
+			const checkDueDate =
+				data.dueDate !== undefined
+					? parseDateValue(data.dueDate)
+					: existingTask.dueDate;
+
+			if (checkDueDate && checkDueDate.getTime() < Date.now()) {
+				throw new OptionalException('Hạn chót không được ở quá khứ.');
+			}
 		}
 
 		if (data.status !== undefined) {
@@ -474,25 +499,39 @@ export const taskService = {
 	 * @param {String} taskId
 	 * @returns {Object} Updated task
 	 */
-	confirmInboxTask: async (userId, taskId) => {
+	confirmInboxTask: async (userId, taskId, workspaceId) => {
 		// Check task tồn tại và có status = INBOX
 		const task = await taskRepository.findById(userId, taskId);
 		if (!task) {
 			throw new NotFoundException('Task không tồn tại.');
 		}
 
+		console.log('[CONFIRM] Task details:', {
+			id: task.id,
+			title: task.title,
+			status: task.status,
+			sourceType: task.sourceType,
+			isConverted: task.isConverted,
+		});
+
 		if (task.status !== 'INBOX') {
 			throw new OptionalException(
 				StatusCodes.BAD_REQUEST,
-				'Chỉ có thể xác nhận INBOX tasks. Task này không trong Inbox.',
+				`Chỉ có thể xác nhận INBOX tasks. Task này không trong Inbox. (Current status: ${task.status})`,
 			);
 		}
 
-		// Chuyển từ INBOX → PENDING + Mark as converted
-		await taskRepository.update(userId, taskId, {
+		// Chuyển từ INBOX → PENDING + Mark as converted + Gán workspace
+		const updateData = {
 			status: 'PENDING',
 			isConverted: true,
-		});
+		};
+
+		if (workspaceId) {
+			updateData.workspaceId = workspaceId;
+		}
+
+		await taskRepository.update(userId, taskId, updateData);
 
 		// Fetch lại task đã update
 		const updatedTask = await taskRepository.findById(userId, taskId);
@@ -579,8 +618,8 @@ function withCalendarMetadata(sourceMetadata, eventId) {
 	const metadata = normalizeMetadata(sourceMetadata);
 	const baseCalendarMetadata =
 		typeof metadata[CALENDAR_METADATA_KEY] === 'object' &&
-			metadata[CALENDAR_METADATA_KEY] !== null &&
-			!Array.isArray(metadata[CALENDAR_METADATA_KEY])
+		metadata[CALENDAR_METADATA_KEY] !== null &&
+		!Array.isArray(metadata[CALENDAR_METADATA_KEY])
 			? metadata[CALENDAR_METADATA_KEY]
 			: {};
 
@@ -635,6 +674,8 @@ function mapTask(task) {
 		sourceLink: task.sourceLink,
 		sourceMetadata: task.sourceMetadata,
 		isConverted: task.isConverted || false,
+		parentId: task.parentId,
+		workspaceId: task.workspaceId,
 		createdAt: task.createdAt,
 		updatedAt: task.updatedAt,
 	};

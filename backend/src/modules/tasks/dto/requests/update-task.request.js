@@ -31,9 +31,23 @@ export const updateTaskSchema = {
 			reminderAt: z.string().datetime().optional().nullable(),
 			// v2: type tường minh (nếu không gửi sẽ auto-resolve từ startAt)
 			type: z.enum(['TODO', 'SCHEDULED']).optional(),
+			parentId: z.string().uuid().optional().nullable(),
+			workspaceId: z.string().uuid().optional().nullable(),
 		})
 		.strict()
 		.refine((data) => Object.values(data).some((v) => v !== undefined), {
 			message: 'Phải cung cấp ít nhất một trường để update',
+		})
+		.superRefine((data, ctx) => {
+			if (data.dueDate) {
+				const due = new Date(data.dueDate);
+				if (due < new Date()) {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						path: ['dueDate'],
+						message: 'Hạn chót không được ở quá khứ.',
+					});
+				}
+			}
 		}),
 };

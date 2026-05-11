@@ -5,3 +5,4 @@ export { ConnectionAlert } from "./ConnectionAlert";
 export { RecentItemsSection } from "./RecentItemsSection";
 export { InboxTabsContainer } from "./InboxTabsContainer";
 export { ItemDetailModal } from "./ItemDetailModal";
+export { WorkspacePickerModal } from "./WorkspacePickerModal";

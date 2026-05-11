@@ -6,9 +6,11 @@ import {
   CheckCircle,
   Plus,
 } from "lucide-react";
+import { useState } from "react";
 import { formatTimeAgo } from "../utils/formatTimeAgo";
 import { confirmInboxTask } from "../../tasks/api/task.api";
 import { toast } from "sonner";
+import { WorkspacePickerModal } from "./WorkspacePickerModal";
 
 /**
  * @component MailListItem
@@ -27,14 +29,22 @@ export function MailListItem({ item, onClick, onStatusChange }) {
       ? "text-[#4A154B]"
       : "text-text-tertiary";
 
+  const [showWsPicker, setShowWsPicker] = useState(false);
+
   /**
-   * 👉 Xử lý click "Thêm vào Task" trên row
-   * Quick action để user không cần mở modal
+   * 👉 Mở popup chọn workspace khi click "Thêm"
    */
-  const handleConfirm = async (e) => {
+  const handleAddClick = (e) => {
     e.stopPropagation();
+    setShowWsPicker(true);
+  };
+
+  /**
+   * 👉 Xử lý confirm sau khi chọn workspace
+   */
+  const handleConfirmWithWorkspace = async (workspaceId) => {
     try {
-      await confirmInboxTask(item.id);
+      await confirmInboxTask(item.id, workspaceId);
       // ✅ Update UI: gọi callback để update state (item.isConverted = true)
       if (onStatusChange) onStatusChange(item.id, "PENDING");
       toast.success("✓ Đã đưa vào danh sách công việc!", {
@@ -95,7 +105,7 @@ export function MailListItem({ item, onClick, onStatusChange }) {
                 <ExternalLink size={18} />
               </button>
               <button
-                onClick={handleConfirm}
+                onClick={handleAddClick}
                 className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-accent-primary text-white rounded-md hover:bg-opacity-90 transition-colors shadow-sm"
                 title="Thêm vào Task"
               >
@@ -105,6 +115,14 @@ export function MailListItem({ item, onClick, onStatusChange }) {
           </>
         )}
       </div>
+
+      {/* Workspace Picker Modal */}
+      <WorkspacePickerModal
+        isOpen={showWsPicker}
+        onClose={() => setShowWsPicker(false)}
+        onConfirm={handleConfirmWithWorkspace}
+        itemSubject={item.subject}
+      />
     </div>
   );
 }

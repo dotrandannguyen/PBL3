@@ -99,10 +99,19 @@ const IntegrationsSection = () => {
   const handleConnectSlack = async () => {
     try {
       const res = await getSlackAuthUrl();
-      if (res.data?.data?.url) window.location.href = res.data.data.url;
-      else if (res.data?.url) window.location.href = res.data.url;
+      console.log('[Slack Auth] Response:', res);
+
+      const url = res.data?.data?.url || res.data?.url;
+      if (!url) {
+        console.error('[Slack Auth] No URL in response:', res);
+        alert('Lỗi: Không thể lấy URL đăng nhập Slack. Vui lòng thử lại.');
+        return;
+      }
+
+      window.location.href = url;
     } catch (error) {
-      console.error("Không thể mở đăng nhập Slack.", error);
+      console.error("[Slack Auth] Error:", error);
+      alert('Lỗi: ' + (error?.message || 'Không thể mở đăng nhập Slack'));
     }
   };
 

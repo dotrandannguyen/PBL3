@@ -28,6 +28,20 @@ export const createTaskSchema = {
 			dueDate: z.string().date().or(z.string().datetime()).optional().nullable(),
 			startAt: z.string().datetime().optional().nullable(),
 			reminderAt: z.string().datetime().optional().nullable(),
+			parentId: z.string().uuid().optional().nullable(),
+			workspaceId: z.string().uuid().optional().nullable(),
 		})
-		.strict(),
+		.strict()
+		.superRefine((data, ctx) => {
+			if (data.dueDate) {
+				const due = new Date(data.dueDate);
+				if (due < new Date()) {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						path: ['dueDate'],
+						message: 'Hạn chót không được ở quá khứ.',
+					});
+				}
+			}
+		}),
 };
