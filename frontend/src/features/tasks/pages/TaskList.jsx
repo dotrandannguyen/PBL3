@@ -269,7 +269,7 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
 
     // ─── Due date warnings ───────────────────────────────────
     if (isDueAtInPast) {
-      warnings.push({ id: "due-in-past", text: "\u26a0 H\u1ea1n ch\u00f3t \u0111ang \u1edf qu\u00e1 kh\u1ee9.", tone: "info" });
+      warnings.push({ id: "due-in-past", text: "Chú ý: Hạn chót đang ở quá khứ.", tone: "info" });
     }
 
     if (dueAtDateObj) {
@@ -277,25 +277,25 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
       const todayStart = toLocalDayStart(now);
       const dueStart = toLocalDayStart(dueAtDateObj);
       if (dueStart.getTime() === todayStart.getTime()) {
-        warnings.push({ id: "due-today", text: "\u23f0 H\u1ea1n ch\u00f3t l\u00e0 h\u00f4m nay \u2014 h\u00e3y \u01b0u ti\u00ean task n\u00e0y.", tone: "info" });
+        warnings.push({ id: "due-today", text: "Chú ý: Hạn chót là hôm nay — hãy ưu tiên task này.", tone: "info" });
       }
 
       // Due date on weekend
       const dueDay = dueAtDateObj.getDay();
       if (dueDay === 0 || dueDay === 6) {
-        warnings.push({ id: "due-weekend", text: "\ud83d\udcc5 H\u1ea1n ch\u00f3t r\u01a1i v\u00e0o cu\u1ed1i tu\u1ea7n.", tone: "info" });
+        warnings.push({ id: "due-weekend", text: "Chú ý: Hạn chót rơi vào cuối tuần.", tone: "info" });
       }
 
       // Due date very far (> 90 days)
       const diffDays = Math.ceil((dueAtDateObj - now) / (1000 * 60 * 60 * 24));
       if (diffDays > 90) {
-        warnings.push({ id: "due-far", text: `\ud83d\udcc6 H\u1ea1n ch\u00f3t c\u00f2n ${diffDays} ng\u00e0y \u2014 c\u00e2n nh\u1eafc chia nh\u1ecf task.`, tone: "tip" });
+        warnings.push({ id: "due-far", text: `Gợi ý: Hạn chót còn ${diffDays} ngày — cân nhắc chia nhỏ task.`, tone: "tip" });
       }
 
       // Late night due (22:00 - 05:59)
       const dueHour = dueAtDateObj.getHours();
       if (dueHour >= 22 || dueHour < 6) {
-        warnings.push({ id: "due-late-night", text: "\ud83c\udf19 H\u1ea1n ch\u00f3t v\u00e0o ban \u0111\u00eam (sau 22:00).", tone: "info" });
+        warnings.push({ id: "due-late-night", text: "Chú ý: Hạn chót vào ban đêm (sau 22:00).", tone: "info" });
       }
     }
 
@@ -306,24 +306,24 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
 
       // Start in the past
       if (startObj && startObj < now) {
-        warnings.push({ id: "start-past", text: "\u26a0 Th\u1eddi gian b\u1eaft \u0111\u1ea7u \u0111\u00e3 qua.", tone: "error" });
+        warnings.push({ id: "start-past", text: "Lỗi: Thời gian bắt đầu đã qua.", tone: "error" });
       }
 
       // End before start
       if (startObj && endObj && endObj <= startObj) {
-        warnings.push({ id: "end-before-start", text: "\u274c Th\u1eddi gian k\u1ebft th\u00fac ph\u1ea3i sau th\u1eddi gian b\u1eaft \u0111\u1ea7u.", tone: "error" });
+        warnings.push({ id: "end-before-start", text: "Lỗi: Thời gian kết thúc phải sau thời gian bắt đầu.", tone: "error" });
       }
 
       // Duration too short (< 5 min)
       if (startObj && endObj && endObj > startObj) {
         const durationMin = (endObj - startObj) / (1000 * 60);
         if (durationMin < 5) {
-          warnings.push({ id: "too-short", text: "\u23f1 Th\u1eddi l\u01b0\u1ee3ng d\u01b0\u1edbi 5 ph\u00fat \u2014 c\u00f3 th\u1ec3 qu\u00e1 ng\u1eafn.", tone: "error" });
+          warnings.push({ id: "too-short", text: "Lỗi: Thời lượng dưới 5 phút — có thể quá ngắn.", tone: "error" });
         }
         // Duration very long (> 8 hours)
         if (durationMin > 480) {
           const hours = Math.round(durationMin / 60);
-          warnings.push({ id: "too-long", text: `\u23f3 Th\u1eddi l\u01b0\u1ee3ng ${hours} gi\u1edd \u2014 c\u00e2n nh\u1eafc chia th\u00e0nh nhi\u1ec1u phi\u00ean.`, tone: "tip" });
+          warnings.push({ id: "too-long", text: `Gợi ý: Thời lượng ${hours} giờ — cân nhắc chia thành nhiều phiên.`, tone: "tip" });
         }
       }
 
@@ -331,33 +331,43 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
       if (startObj) {
         const startDay = startObj.getDay();
         if (startDay === 0 || startDay === 6) {
-          warnings.push({ id: "schedule-weekend", text: "\ud83d\udcc5 L\u1ecbch h\u1eb9n r\u01a1i v\u00e0o cu\u1ed1i tu\u1ea7n.", tone: "info" });
+          warnings.push({ id: "schedule-weekend", text: "Chú ý: Lịch hẹn rơi vào cuối tuần.", tone: "info" });
         }
         // Late night schedule
         const startHour = startObj.getHours();
         if (startHour >= 22 || startHour < 6) {
-          warnings.push({ id: "schedule-late-night", text: "\ud83c\udf19 L\u1ecbch h\u1eb9n v\u00e0o ban \u0111\u00eam (sau 22:00).", tone: "info" });
+          warnings.push({ id: "schedule-late-night", text: "Chú ý: Lịch hẹn vào ban đêm (sau 22:00).", tone: "info" });
         }
       }
 
       // Missing one of start/end
       if (startObj && !endObj) {
-        warnings.push({ id: "no-end", text: "\ud83d\udccc Ch\u01b0a ch\u1ecdn th\u1eddi gian k\u1ebft th\u00fac.", tone: "info" });
+        warnings.push({ id: "no-end", text: "Chú ý: Chưa chọn thời gian kết thúc.", tone: "info" });
       }
       if (!startObj && endObj) {
-        warnings.push({ id: "no-start", text: "\ud83d\udccc Ch\u01b0a ch\u1ecdn th\u1eddi gian b\u1eaft \u0111\u1ea7u.", tone: "info" });
+        warnings.push({ id: "no-start", text: "Chú ý: Chưa chọn thời gian bắt đầu.", tone: "info" });
+      }
+
+      // Schedule vs dueDate constraint
+      if (dueAtDateObj) {
+        if (startObj && startObj > dueAtDateObj) {
+          warnings.push({ id: "start-after-due", text: "Lỗi: Thời gian bắt đầu không được sau hạn chót.", tone: "error" });
+        }
+        if (endObj && endObj > dueAtDateObj) {
+          warnings.push({ id: "end-after-due", text: "Lỗi: Thời gian kết thúc không được sau hạn chót.", tone: "error" });
+        }
       }
     }
 
     // ─── Reminder warnings ───────────────────────────────────
     if (newTaskReminder !== "NONE" && !newTaskDueAt && !showSchedule) {
-      warnings.push({ id: "reminder-no-due", text: "\ud83d\udd14 B\u1eadt nh\u1eafc nh\u1edf nh\u01b0ng ch\u01b0a \u0111\u1eb7t h\u1ea1n ch\u00f3t \u2014 nh\u1eafc nh\u1edf s\u1ebd kh\u00f4ng ho\u1ea1t \u0111\u1ed9ng.", tone: "info" });
+      warnings.push({ id: "reminder-no-due", text: "Chú ý: Bật nhắc nhở nhưng chưa đặt hạn chót — nhắc nhở sẽ không hoạt động.", tone: "info" });
     }
 
     // ─── Title warnings ──────────────────────────────────────
     const titleTrimmed = newTaskText.trim();
     if (titleTrimmed.length > 0 && titleTrimmed.length < 3) {
-      warnings.push({ id: "title-short", text: "\u270f\ufe0f Ti\u00eau \u0111\u1ec1 qu\u00e1 ng\u1eafn \u2014 h\u00e3y m\u00f4 t\u1ea3 r\u00f5 h\u01a1n.", tone: "tip" });
+      warnings.push({ id: "title-short", text: "Gợi ý: Tiêu đề quá ngắn — hãy mô tả rõ hơn.", tone: "tip" });
     }
 
     // Duplicate title check
@@ -369,7 +379,7 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
       if (duplicate) {
         warnings.push({
           id: "dup-title",
-          text: `\ud83d\udd01 \u0110\u00e3 t\u1ed3n t\u1ea1i task \"${duplicate.title || duplicate.text}\" \u2014 c\u00f3 th\u1ec3 b\u1ecb tr\u00f9ng.`,
+          text: `Chú ý: Đã tồn tại task "${duplicate.title || duplicate.text}" — có thể bị trùng.`,
           tone: "info",
         });
       }

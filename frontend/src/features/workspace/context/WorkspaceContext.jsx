@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useCallback, useEffect } from "react";
+import React, { createContext, useState, useContext, useCallback, useEffect, useRef } from "react";
 import { FileText, CheckSquare } from "lucide-react";
 import * as workspaceApi from "../api/workspace.api";
 import useAuth from "../../auth/hooks/useAuth";
@@ -12,6 +12,7 @@ export function WorkspaceProvider({ children }) {
   const [pendingRenameId, setPendingRenameId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+  const creatingDefaultRef = useRef(false);
 
   const fetchWorkspaces = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -31,17 +32,23 @@ export function WorkspaceProvider({ children }) {
           return prev;
         });
       } else {
-        // Create default workspace if none
-        const res2 = await workspaceApi.createWorkspace({ name: "Mặc định" });
-        const defaultWorkspace = res2.data;
-        const newPage = {
-          id: defaultWorkspace.id,
-          icon: <CheckSquare size={14} />,
-          label: defaultWorkspace.name,
-          type: "private"
-        };
-        setPages([newPage]);
-        setActivePage(newPage.id);
+        // Create default workspace if none — guard against StrictMode double-run
+        if (creatingDefaultRef.current) return;
+        creatingDefaultRef.current = true;
+        try {
+          const res2 = await workspaceApi.createWorkspace({ name: "Mặc định" });
+          const defaultWorkspace = res2.data;
+          const newPage = {
+            id: defaultWorkspace.id,
+            icon: <CheckSquare size={14} />,
+            label: defaultWorkspace.name,
+            type: "private"
+          };
+          setPages([newPage]);
+          setActivePage(newPage.id);
+        } finally {
+          creatingDefaultRef.current = false;
+        }
       }
     } catch (e) {
       console.error("Failed to load workspaces", e);
