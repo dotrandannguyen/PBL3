@@ -4,7 +4,7 @@ import useAuth from "@/features/auth/hooks/useAuth";
 
 export function GoogleCallbackPage() {
   const [searchParams] = useSearchParams();
-  const { loginWithOAuth } = useAuth();
+  const { loginWithOAuth, refreshSession } = useAuth();
   const navigate = useNavigate();
   const handled = useRef(false);
 
@@ -15,20 +15,75 @@ export function GoogleCallbackPage() {
 
     const accessToken = searchParams.get("accessToken");
     const userRaw = searchParams.get("user");
+    const mode = searchParams.get("mode");
     const error = searchParams.get("error");
 
+    const resolveLinkErrorMessage = (errorKey) => {
+      if (errorKey === "link_conflict") {
+        return "Tai khoan nay da duoc lien ket voi nguoi dung khac.";
+      }
+
+      if (errorKey === "email_mismatch") {
+        return "Email tai khoan lien ket khong trung khop voi email hien tai.";
+      }
+
+      return "Lien ket that bai. Vui long thu lai.";
+    };
+
+    const setLinkToast = (payload) => {
+      sessionStorage.setItem("integrationLinkToast", JSON.stringify(payload));
+    };
+
+    const handleLinkFlow = async () => {
+      if (error) {
+        setLinkToast({
+          type: "error",
+          message: resolveLinkErrorMessage(error),
+        });
+        navigate("/mail", { replace: true });
+        return;
+      }
+
+      try {
+        await refreshSession();
+        setLinkToast({ type: "success", message: "Lien ket thanh cong." });
+        navigate("/mail", { replace: true });
+      } catch {
+        setLinkToast({
+          type: "error",
+          message: "Khong the tai lai phien dang nhap.",
+        });
+        navigate("/auth/login?reason=session_expired", { replace: true });
+      }
+    };
+
+    if (mode === "link") {
+      void handleLinkFlow();
+      return;
+    }
+
     if (error || !accessToken || !userRaw) {
-      navigate("/auth/login?error=oauth_failed", { replace: true });
+      const tryRefreshSession = async () => {
+        try {
+          await refreshSession();
+          navigate("/app", { replace: true });
+        } catch {
+          navigate("/auth/login?error=oauth_failed", { replace: true });
+        }
+      };
+
+      void tryRefreshSession();
       return;
     }
 
     try {
       const user = JSON.parse(userRaw);
+
       loginWithOAuth({ accessToken, user });
     } catch {
       navigate("/auth/login?error=oauth_failed", { replace: true });
     }
-  }, [searchParams, loginWithOAuth, navigate]);
+  }, [searchParams, loginWithOAuth, refreshSession, navigate]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-bg-primary">

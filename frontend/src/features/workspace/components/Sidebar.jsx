@@ -11,7 +11,8 @@ import { InboxPanel, InvitePanel, UserMenu } from "../panels";
 import { MAIN_NAV_ITEMS, NEXUS_APPS, BOTTOM_NAV_ITEMS } from "../constants";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useUnreadInbox } from "../../notification-receiver/context/UnreadInboxContext";
-import { useSearchModal } from "../../search/contexts/SearchModalContext";
+import { useSearchModal } from "../search/contexts/SearchModalContext";
+import { useWorkspace } from "../context/WorkspaceContext";
 
 const COLLAPSED_KEY = "sidebar_collapsed";
 
@@ -107,6 +108,7 @@ const Sidebar = ({
   const { t } = useLanguage();
   const { count: unreadInbox } = useUnreadInbox();
   const { open: openSearchModal, isOpen: isSearchOpen } = useSearchModal();
+  const { expandedIds, toggleExpanded } = useWorkspace();
   const [showInbox, setShowInbox] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [collapsed, setCollapsed] = React.useState(
@@ -137,6 +139,8 @@ const Sidebar = ({
   };
 
   const privatePages = pages.filter((p) => p.type === "private");
+  const parentPages = privatePages.filter((p) => !p.parentId);
+  const childrenOf = (parentId) => privatePages.filter((p) => p.parentId === parentId);
 
   return (
     <>
@@ -187,7 +191,8 @@ const Sidebar = ({
           {MAIN_NAV_ITEMS.map((item) => {
             let isActive = false;
             if (item.id === "inbox") isActive = showInbox;
-            else if (item.id === "home") isActive = currentPath === "/app" && !activePage;
+            else if (item.id === "home") isActive = currentPath === "/";
+            else if (item.id === "dashboard") isActive = currentPath === "/dashboard";
             else if (item.id === "search") isActive = isSearchOpen;
 
             return (
@@ -200,7 +205,8 @@ const Sidebar = ({
                 collapsed={collapsed}
                 onClick={() => {
                   if (item.id === "inbox") setShowInbox(!showInbox);
-                  else if (item.id === "home") navigate("/app");
+                  else if (item.id === "home") navigate("/");
+                  else if (item.id === "dashboard") navigate("/dashboard");
                   else if (item.id === "search") openSearchModal();
                 }}
               />
@@ -214,19 +220,43 @@ const Sidebar = ({
             <div className="mx-3 my-1.5 border-t border-border-subtle" />
           ) : (
             <TodoListParent onAdd={onAddNewList} collapsed={collapsed}>
-              {privatePages.map((page) => (
-                <PageItem
-                  key={page.id}
-                  page={page}
-                  onClick={(pageId) => { navigate(`/app`); onPageClick(pageId); }}
-                  isActive={currentPath === "/app" && page.id === activePage}
-                  onDelete={onDeletePage}
-                  onRename={onRenamePage}
-                  collapsed={collapsed}
-                  autoStartRename={page.id === pendingRenameId}
-                  onAutoRenameStart={onClearPendingRename}
-                />
-              ))}
+              {parentPages.map((page) => {
+                const children = childrenOf(page.id);
+                const hasChildren = children.length > 0;
+                const isExpanded = !!expandedIds?.[page.id];
+                return (
+                  <React.Fragment key={page.id}>
+                    <PageItem
+                      page={page}
+                      onClick={(pageId) => { navigate(`/app`); onPageClick(pageId); }}
+                      isActive={currentPath === "/app" && page.id === activePage}
+                      onDelete={onDeletePage}
+                      onRename={onRenamePage}
+                      collapsed={collapsed}
+                      autoStartRename={page.id === pendingRenameId}
+                      onAutoRenameStart={onClearPendingRename}
+                      hasChildren={hasChildren}
+                      isExpanded={isExpanded}
+                      onToggleExpand={() => toggleExpanded(page.id)}
+                      depth={0}
+                    />
+                    {hasChildren && isExpanded && children.map((child) => (
+                      <PageItem
+                        key={child.id}
+                        page={child}
+                        onClick={(pageId) => { navigate(`/app`); onPageClick(pageId); }}
+                        isActive={currentPath === "/app" && child.id === activePage}
+                        onDelete={onDeletePage}
+                        onRename={onRenamePage}
+                        collapsed={collapsed}
+                        autoStartRename={child.id === pendingRenameId}
+                        onAutoRenameStart={onClearPendingRename}
+                        depth={1}
+                      />
+                    ))}
+                  </React.Fragment>
+                );
+              })}
               {isCreatingWorkspace && (
                 <InlineCreateInput
                   onSubmit={createWorkspaceWithName}

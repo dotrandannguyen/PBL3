@@ -6,7 +6,7 @@ import SettingsContent from '../components/SettingsContent';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useAccountModal } from '../contexts/AccountModalContext';
 
-const VALID_SECTIONS = new Set(['general', 'integrations', 'notifications', 'language']);
+const VALID_SECTIONS = new Set(['general', 'integrations', 'language']);
 
 const SettingsPage = () => {
   const navigate = useNavigate();

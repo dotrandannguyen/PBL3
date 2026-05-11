@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Github,
-  Calendar as CalendarIcon,
   Mail,
   ArrowUpRight,
   X,
@@ -121,18 +120,6 @@ const IntegrationsSection = () => {
       </header>
 
       <div className="space-y-3">
-        <IntegrationCard
-          icon={CalendarIcon}
-          iconBg="bg-white"
-          iconColor="text-[#4285F4]"
-          iconBgIsLight
-          name="Google Calendar"
-          description="Đồng bộ hai chiều sự kiện và task có lịch."
-          connected
-          account="mock@example.com"
-          onDisconnect={() => {}}
-        />
-
         <IntegrationCard
           icon={Github}
           iconBg="bg-[#181717]"

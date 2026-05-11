@@ -10,6 +10,19 @@ import { FileText, CheckSquare } from "lucide-react";
 import * as workspaceApi from "../api/workspace.api";
 import useAuth from "../../auth/hooks/useAuth";
 
+const EXPANDED_KEY = "workspace_expanded_ids";
+
+const loadExpandedIds = () => {
+  try {
+    const raw = localStorage.getItem(EXPANDED_KEY);
+    if (!raw) return { todo: true };
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : { todo: true };
+  } catch {
+    return { todo: true };
+  }
+};
+
 const WorkspaceContext = createContext(null);
 
 export function WorkspaceProvider({ children }) {
@@ -19,7 +32,21 @@ export function WorkspaceProvider({ children }) {
   const [pendingRenameId, setPendingRenameId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+  const [expandedIds, setExpandedIds] = useState(loadExpandedIds);
   const creatingDefaultRef = useRef(false);
+
+  // Persist expandedIds to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(EXPANDED_KEY, JSON.stringify(expandedIds));
+    } catch {
+      // ignore quota errors
+    }
+  }, [expandedIds]);
+
+  const toggleExpanded = useCallback((id) => {
+    setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
 
   const fetchWorkspaces = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -69,7 +96,7 @@ export function WorkspaceProvider({ children }) {
 
   useEffect(() => {
     fetchWorkspaces();
-  }, [isAuthenticated]);
+  }, [fetchWorkspaces]);
 
   // Step 1: user clicks "+" → show inline input
   const handleAddNewList = () => {
@@ -148,6 +175,8 @@ export function WorkspaceProvider({ children }) {
         isCreatingWorkspace,
         createWorkspaceWithName,
         cancelCreate,
+        expandedIds,
+        toggleExpanded,
       }}
     >
       {children}

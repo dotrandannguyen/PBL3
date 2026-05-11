@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useIntegrations } from "../hooks/useIntegrations";
 import useInboxSocket from "../hooks/useInboxSocket";
 import useAuth from "../../auth/hooks/useAuth";
 import {
-  getGoogleAuthUrl,
-  getGithubAuthUrl,
-  getSlackAuthUrl,
+  getGoogleLinkUrl,
+  getGithubLinkUrl,
+  getSlackLinkUrl,
 } from "../../auth/api/auth.api";
 import { toast } from "sonner";
 import {
@@ -24,6 +24,24 @@ export function MailReceiverPage() {
   const [filter, setFilter] = useState("all");
   const [selectedItem, setSelectedItem] = useState(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem("integrationLinkToast");
+    if (!raw) return;
+
+    try {
+      const payload = JSON.parse(raw);
+      if (payload?.type === "success") {
+        toast.success(payload.message || "Lien ket thanh cong.");
+      } else if (payload?.type === "error") {
+        toast.error(payload.message || "Lien ket that bai.");
+      }
+    } catch {
+      toast.error("Lien ket that bai.");
+    } finally {
+      sessionStorage.removeItem("integrationLinkToast");
+    }
+  }, []);
 
   /**
    * 👉 Xử lý khi click "Thêm vào Task" thành công
@@ -73,7 +91,7 @@ export function MailReceiverPage() {
 
   const handleConnectGoogle = async () => {
     try {
-      const res = await getGoogleAuthUrl();
+      const res = await getGoogleLinkUrl();
       if (res.data?.data?.url) window.location.href = res.data.data.url;
       else if (res.data?.url) window.location.href = res.data.url;
     } catch (err) {
@@ -83,7 +101,7 @@ export function MailReceiverPage() {
 
   const handleConnectGithub = async () => {
     try {
-      const res = await getGithubAuthUrl();
+      const res = await getGithubLinkUrl();
       if (res.data?.data?.url) window.location.href = res.data.data.url;
       else if (res.data?.url) window.location.href = res.data.url;
     } catch (err) {
@@ -93,7 +111,7 @@ export function MailReceiverPage() {
 
   const handleConnectSlack = async () => {
     try {
-      const res = await getSlackAuthUrl();
+      const res = await getSlackLinkUrl();
       if (res.data?.data?.url) window.location.href = res.data.data.url;
       else if (res.data?.url) window.location.href = res.data.url;
     } catch (err) {

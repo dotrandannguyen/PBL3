@@ -1,10 +1,9 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import GeneralSection from './sections/GeneralSection';
 import IntegrationsSection from './sections/IntegrationsSection';
-import NotificationsSection from './sections/NotificationsSection';
 import LanguageSection from './sections/LanguageSection';
 
-const SECTION_IDS = ['general', 'integrations', 'notifications', 'language'];
+const SECTION_IDS = ['general', 'integrations', 'language'];
 
 /**
  * SettingsContent — scrollable container with scroll-spy + programmatic scroll.
@@ -99,17 +98,8 @@ const SettingsContent = ({ onSectionChange, scrollRef }) => {
                 <SectionDivider />
 
                 <div
-                    id="section-notifications"
-                    ref={(el) => (sectionsRef.current[2] = el)}
-                >
-                    <NotificationsSection />
-                </div>
-
-                <SectionDivider />
-
-                <div
                     id="section-language"
-                    ref={(el) => (sectionsRef.current[3] = el)}
+                    ref={(el) => (sectionsRef.current[2] = el)}
                 >
                     <LanguageSection />
                 </div>
