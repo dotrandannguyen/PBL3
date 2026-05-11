@@ -50,5 +50,15 @@ export const updateTaskSchema = {
 					});
 				}
 			}
+			if (data.dueDate) {
+				const due = new Date(data.dueDate);
+				if (due < new Date()) {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						path: ['dueDate'],
+						message: 'Hạn chót không được ở quá khứ.',
+					});
+				}
+			}
 		}),
 };

@@ -493,6 +493,14 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
       }
     }
 
+    // Validate: dueDate không được ở quá khứ
+    if (resolvedDueAt) {
+      if (new Date(resolvedDueAt) < new Date()) {
+        setNewTaskError("Hạn chót không được ở quá khứ.");
+        return;
+      }
+    }
+
     const createdTask = await addTask(titleValue, {
       description: newTaskDescription.trim() || null,
       dueDate: resolvedDueAt,

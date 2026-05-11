@@ -135,6 +135,10 @@ export const taskService = {
 			throw new OptionalException('Thời gian bắt đầu phải trước ngày hết hạn.');
 		}
 
+		if (dueDate && dueDate.getTime() < Date.now()) {
+			throw new OptionalException('Hạn chót không được ở quá khứ.');
+		}
+
 		const taskData = {
 			title: data.title,
 			description: data.description ?? null,
@@ -203,7 +207,8 @@ export const taskService = {
 			updateData.parentId = data.parentId;
 		}
 		if (data.workspaceId !== undefined) {
-			updateData.workspaceId = data.workspaceId === 'null' ? null : data.workspaceId;
+			updateData.workspaceId =
+				data.workspaceId === 'null' ? null : data.workspaceId;
 		}
 		if (data.dueDate !== undefined) {
 			updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
@@ -221,11 +226,25 @@ export const taskService = {
 		}
 
 		if (data.dueDate !== undefined || data.startAt !== undefined) {
-			const checkDueDate = data.dueDate !== undefined ? parseDateValue(data.dueDate) : existingTask.dueDate;
-			const checkScheduledAt = data.startAt !== undefined ? parseDateValue(data.startAt) : existingTask.scheduledAt;
+			const checkDueDate =
+				data.dueDate !== undefined
+					? parseDateValue(data.dueDate)
+					: existingTask.dueDate;
+			const checkScheduledAt =
+				data.startAt !== undefined
+					? parseDateValue(data.startAt)
+					: existingTask.scheduledAt;
 
-			if (checkScheduledAt && checkDueDate && checkScheduledAt.getTime() >= checkDueDate.getTime()) {
+			if (
+				checkScheduledAt &&
+				checkDueDate &&
+				checkScheduledAt.getTime() >= checkDueDate.getTime()
+			) {
 				throw new OptionalException('Thời gian bắt đầu phải trước ngày hết hạn.');
+			}
+
+			if (checkDueDate && checkDueDate.getTime() < Date.now()) {
+				throw new OptionalException('Hạn chót không được ở quá khứ.');
 			}
 		}
 
@@ -607,8 +626,8 @@ function withCalendarMetadata(sourceMetadata, eventId) {
 	const metadata = normalizeMetadata(sourceMetadata);
 	const baseCalendarMetadata =
 		typeof metadata[CALENDAR_METADATA_KEY] === 'object' &&
-			metadata[CALENDAR_METADATA_KEY] !== null &&
-			!Array.isArray(metadata[CALENDAR_METADATA_KEY])
+		metadata[CALENDAR_METADATA_KEY] !== null &&
+		!Array.isArray(metadata[CALENDAR_METADATA_KEY])
 			? metadata[CALENDAR_METADATA_KEY]
 			: {};
 

@@ -1,4 +1,11 @@
-import React, { createContext, useState, useContext, useCallback, useEffect, useRef } from "react";
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import { FileText, CheckSquare } from "lucide-react";
 import * as workspaceApi from "../api/workspace.api";
 import useAuth from "../../auth/hooks/useAuth";
@@ -21,14 +28,17 @@ export function WorkspaceProvider({ children }) {
       const res = await workspaceApi.getWorkspaces();
       const workspaces = res.data;
       if (workspaces && workspaces.length > 0) {
-        setPages(workspaces.map(w => ({
-          id: w.id,
-          icon: <FileText size={14} />,
-          label: w.name,
-          type: "private"
-        })));
-        setActivePage(prev => {
-          if (!prev || !workspaces.find(w => w.id === prev)) return workspaces[0].id;
+        setPages(
+          workspaces.map((w) => ({
+            id: w.id,
+            icon: <FileText size={14} />,
+            label: w.name,
+            type: "private",
+          })),
+        );
+        setActivePage((prev) => {
+          if (!prev || !workspaces.find((w) => w.id === prev))
+            return workspaces[0].id;
           return prev;
         });
       } else {
@@ -42,7 +52,7 @@ export function WorkspaceProvider({ children }) {
             id: defaultWorkspace.id,
             icon: <CheckSquare size={14} />,
             label: defaultWorkspace.name,
-            type: "private"
+            type: "private",
           };
           setPages([newPage]);
           setActivePage(newPage.id);
@@ -152,4 +162,3 @@ export function useWorkspace() {
   }
   return context;
 }
-
