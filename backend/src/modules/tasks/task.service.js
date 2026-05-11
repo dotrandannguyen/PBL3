@@ -131,6 +131,10 @@ export const taskService = {
 			throw new OptionalException('Thời gian nhắc nhở phải ở tương lai.');
 		}
 
+		if (scheduledAt && dueDate && scheduledAt.getTime() >= dueDate.getTime()) {
+			throw new OptionalException('Thời gian bắt đầu phải trước ngày hết hạn.');
+		}
+
 		const taskData = {
 			title: data.title,
 			description: data.description ?? null,
@@ -214,6 +218,15 @@ export const taskService = {
 				throw new OptionalException('Thời gian nhắc nhở phải ở tương lai.');
 			}
 			updateData.reminderAt = nextReminderAt;
+		}
+
+		if (data.dueDate !== undefined || data.startAt !== undefined) {
+			const checkDueDate = data.dueDate !== undefined ? parseDateValue(data.dueDate) : existingTask.dueDate;
+			const checkScheduledAt = data.startAt !== undefined ? parseDateValue(data.startAt) : existingTask.scheduledAt;
+
+			if (checkScheduledAt && checkDueDate && checkScheduledAt.getTime() >= checkDueDate.getTime()) {
+				throw new OptionalException('Thời gian bắt đầu phải trước ngày hết hạn.');
+			}
 		}
 
 		if (data.status !== undefined) {

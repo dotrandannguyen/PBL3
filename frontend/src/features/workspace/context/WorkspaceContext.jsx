@@ -59,7 +59,7 @@ export function WorkspaceProvider({ children }) {
 
   useEffect(() => {
     fetchWorkspaces();
-  }, [fetchWorkspaces]);
+  }, [isAuthenticated]);
 
   // Step 1: user clicks "+" → show inline input
   const handleAddNewList = () => {

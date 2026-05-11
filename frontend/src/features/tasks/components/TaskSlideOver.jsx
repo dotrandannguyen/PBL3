@@ -47,6 +47,17 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
     }
   };
 
+  const handleDateUpdate = async (startAt, dueDate) => {
+    if (startAt && dueDate) {
+      const startDate = new Date(startAt);
+      const endDate = new Date(dueDate);
+      if (startDate >= endDate) {
+        toast.error(t('task.slideover.toast.invalidSchedule') || 'Thời gian bắt đầu phải trước ngày hết hạn.');
+        return;
+      }
+    }
+  };
+
   const [isRendered, setIsRendered] = useState(false);
   const [isPriorityOpen, setIsPriorityOpen] = useState(false);
   
@@ -243,6 +254,14 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                     onChange={async (e) => {
                       const val = e.target.value;
                       const startAt = val ? new Date(val).toISOString() : null;
+                      if (startAt && task?.dueDate) {
+                        const startDate = new Date(startAt);
+                        const endDate = new Date(task.dueDate);
+                        if (startDate >= endDate) {
+                          toast.error(t('task.slideover.toast.invalidSchedule') || 'Thời gian bắt đầu phải trước ngày hết hạn.');
+                          return;
+                        }
+                      }
                       await onUpdate(task.id, { startAt });
                     }}
                   />
@@ -269,6 +288,14 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                     onChange={async (e) => {
                       const val = e.target.value;
                       const dueDate = val ? new Date(val).toISOString() : null;
+                      if (task?.scheduledAt && dueDate) {
+                        const startDate = new Date(task.scheduledAt);
+                        const endDate = new Date(dueDate);
+                        if (startDate >= endDate) {
+                          toast.error(t('task.slideover.toast.invalidSchedule') || 'Thời gian bắt đầu phải trước ngày hết hạn.');
+                          return;
+                        }
+                      }
                       await onUpdate(task.id, { dueDate });
                     }}
                   />

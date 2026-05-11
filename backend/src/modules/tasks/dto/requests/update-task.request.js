@@ -37,5 +37,18 @@ export const updateTaskSchema = {
 		.strict()
 		.refine((data) => Object.values(data).some((v) => v !== undefined), {
 			message: 'Phải cung cấp ít nhất một trường để update',
+		})
+		.superRefine((data, ctx) => {
+			if (data.startAt && data.dueDate) {
+				const start = new Date(data.startAt);
+				const due = new Date(data.dueDate);
+				if (start >= due) {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						path: ['startAt'],
+						message: 'Thời gian bắt đầu phải trước ngày hết hạn.',
+					});
+				}
+			}
 		}),
 };
