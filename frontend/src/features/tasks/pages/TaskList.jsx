@@ -269,7 +269,7 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
 
     // ─── Due date warnings ───────────────────────────────────
     if (isDueAtInPast) {
-      warnings.push({ id: "due-in-past", text: "Chú ý: Hạn chót đang ở quá khứ.", tone: "info" });
+      warnings.push({ id: "due-in-past", text: "Lỗi: Hạn chót đang ở quá khứ.", tone: "error" });
     }
 
     if (dueAtDateObj) {
@@ -280,22 +280,10 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
         warnings.push({ id: "due-today", text: "Chú ý: Hạn chót là hôm nay — hãy ưu tiên task này.", tone: "info" });
       }
 
-      // Due date on weekend
-      const dueDay = dueAtDateObj.getDay();
-      if (dueDay === 0 || dueDay === 6) {
-        warnings.push({ id: "due-weekend", text: "Chú ý: Hạn chót rơi vào cuối tuần.", tone: "info" });
-      }
-
       // Due date very far (> 90 days)
       const diffDays = Math.ceil((dueAtDateObj - now) / (1000 * 60 * 60 * 24));
       if (diffDays > 90) {
         warnings.push({ id: "due-far", text: `Gợi ý: Hạn chót còn ${diffDays} ngày — cân nhắc chia nhỏ task.`, tone: "tip" });
-      }
-
-      // Late night due (22:00 - 05:59)
-      const dueHour = dueAtDateObj.getHours();
-      if (dueHour >= 22 || dueHour < 6) {
-        warnings.push({ id: "due-late-night", text: "Chú ý: Hạn chót vào ban đêm (sau 22:00).", tone: "info" });
       }
     }
 
@@ -320,25 +308,9 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
         if (durationMin < 5) {
           warnings.push({ id: "too-short", text: "Lỗi: Thời lượng dưới 5 phút — có thể quá ngắn.", tone: "error" });
         }
-        // Duration very long (> 8 hours)
-        if (durationMin > 480) {
-          const hours = Math.round(durationMin / 60);
-          warnings.push({ id: "too-long", text: `Gợi ý: Thời lượng ${hours} giờ — cân nhắc chia thành nhiều phiên.`, tone: "tip" });
-        }
       }
 
-      // Schedule on weekend
-      if (startObj) {
-        const startDay = startObj.getDay();
-        if (startDay === 0 || startDay === 6) {
-          warnings.push({ id: "schedule-weekend", text: "Chú ý: Lịch hẹn rơi vào cuối tuần.", tone: "info" });
-        }
-        // Late night schedule
-        const startHour = startObj.getHours();
-        if (startHour >= 22 || startHour < 6) {
-          warnings.push({ id: "schedule-late-night", text: "Chú ý: Lịch hẹn vào ban đêm (sau 22:00).", tone: "info" });
-        }
-      }
+      // No weekend/late-night checks
 
       // Missing one of start/end
       if (startObj && !endObj) {
@@ -465,7 +437,6 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
   const handleAddBlankTask = async () => {
     const titleValue = newTaskText.trim();
     if (!titleValue) {
-      console.error('[Task Creation Blocked] Title is empty');
       setNewTaskError("Vui lòng nhập tiêu đề công việc.");
       handleOpenCreateTaskComposer();
       return;
@@ -473,7 +444,6 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
 
     // Block if there are error/warn-level warnings
     if (hasBlockingErrors) {
-      console.error('[Task Creation Blocked] Has blocking errors');
       setNewTaskError("Vui lòng sửa các lỗi bên dưới trước khi tạo task.");
       return;
     }
@@ -481,34 +451,16 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
     // Resolve dueDate: nếu đang schedule thì dùng endAt, nếu không thì dùng dueAt
     const resolvedDueAtInput = showSchedule && newTaskEndAt ? newTaskEndAt : (newTaskDueAt || null);
     const resolvedDueAt = normalizeDueAtForApi(resolvedDueAtInput);
-    if (resolvedDueAtInput && !resolvedDueAt) {
-      console.error('[Task Creation Blocked] Invalid due date format', { resolvedDueAtInput });
-      setNewTaskError("Ngày hạn không hợp lệ.");
-      return;
-    }
+    if (resolvedDueAtInput && !resolvedDueAt) { setNewTaskError("Ngày hạn không hợp lệ."); return; }
 
     // Resolve startAt từ schedule
     const resolvedStartAt = showSchedule && newTaskStartAt ? normalizeDueAtForApi(newTaskStartAt) : null;
-    if (showSchedule && newTaskStartAt && !resolvedStartAt) {
-      console.error('[Task Creation Blocked] Invalid start time format', { newTaskStartAt });
-      setNewTaskError("Thời gian bắt đầu không hợp lệ.");
-      return;
-    }
+    if (showSchedule && newTaskStartAt && !resolvedStartAt) { setNewTaskError("Thời gian bắt đầu không hợp lệ."); return; }
 
     // Validate: startAt phải trước endAt
     if (resolvedStartAt && resolvedDueAt) {
       if (new Date(resolvedStartAt) >= new Date(resolvedDueAt)) {
-        console.error('[Task Creation Blocked] Start time >= due time', { resolvedStartAt, resolvedDueAt });
         setNewTaskError("Thời gian bắt đầu phải trước thời gian kết thúc.");
-        return;
-      }
-    }
-
-    // Validate: dueDate không được ở quá khứ
-    if (resolvedDueAt) {
-      if (new Date(resolvedDueAt) < new Date()) {
-        console.error('[Task Creation Blocked] Due date is in the past', { resolvedDueAt, now: new Date() });
-        setNewTaskError("Hạn chót không được ở quá khứ.");
         return;
       }
     }

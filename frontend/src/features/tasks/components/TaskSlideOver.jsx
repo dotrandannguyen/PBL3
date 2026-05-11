@@ -44,11 +44,29 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
       if (dueDate < now) {
         warnings.push('pastDue');
       }
-
-      if (dueDate.getHours() >= 22) {
-        warnings.push('lateNight');
-      }
     }
+    return warnings;
+  };
+
+  const computeScheduleWarnings = () => {
+    const warnings = [];
+    const now = new Date();
+
+    const startObj = task?.scheduledAt ? new Date(task.scheduledAt) : null;
+    const endObj = task?.dueDate ? new Date(task.dueDate) : null;
+
+    if (startObj && startObj < now) {
+      warnings.push({ id: "start-past", text: "Lỗi: Thời gian bắt đầu đã qua.", tone: "error" });
+    }
+
+    if (startObj && endObj && endObj <= startObj) {
+      warnings.push({ id: "end-before-start", text: "Lỗi: Thời gian kết thúc phải sau thời gian bắt đầu.", tone: "error" });
+    }
+
+    if (endObj && endObj < now) {
+      warnings.push({ id: "end-past", text: "Lỗi: Thời gian kết thúc đã qua.", tone: "error" });
+    }
+
     return warnings;
   };
 
@@ -211,7 +229,8 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                   const val = e.target.value;
                   const dueDate = val ? new Date(val).toISOString() : null;
                   if (dueDate && new Date(dueDate) < new Date()) {
-                    console.error('[Task Validation Warning] Due date is in the past', { dueDate, now: new Date() });
+                    toast.error(t('task.slideover.toast.pastDueDate') || 'Hạn chót không được ở quá khứ.');
+                    return;
                   }
                   await onUpdate(task.id, { dueDate });
                 }}
@@ -229,11 +248,6 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                   <p className="text-xs font-medium text-red-400">{t('task.slideover.warning.pastDue') || 'Chú ý: Hạn chót đang ở quá khứ.'}</p>
                   <p className="text-xs text-red-400/70 mt-0.5">{t('task.slideover.warning.cannotCreate') || 'Không thể tạo task.'}</p>
                 </div>
-              </div>
-            )}
-            {checkDueDateWarnings().includes('lateNight') && !checkDueDateWarnings().includes('pastDue') && (
-              <div className="mt-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                <p className="text-xs font-medium text-yellow-400">{t('task.slideover.warning.lateNight') || 'Chú ý: Hạn chót vào ban đêm (sau 22:00).'}</p>
               </div>
             )}
 
@@ -349,18 +363,6 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                     onChange={async (e) => {
                       const val = e.target.value;
                       const startAt = val ? new Date(val).toISOString() : null;
-                      if (startAt && task?.dueDate) {
-                        const startDate = new Date(startAt);
-                        const endDate = new Date(task.dueDate);
-                        if (startDate >= endDate) {
-                          console.error('[Task Schedule Validation Failed] Start time >= due time', { startAt, dueDate: task.dueDate });
-                          toast.error(
-                            t("task.slideover.toast.invalidSchedule") ||
-                              "Thời gian bắt đầu phải trước ngày hết hạn.",
-                          );
-                          return;
-                        }
-                      }
                       await onUpdate(task.id, { startAt });
                     }}
                   />
@@ -393,18 +395,6 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                     onChange={async (e) => {
                       const val = e.target.value;
                       const dueDate = val ? new Date(val).toISOString() : null;
-                      if (task?.scheduledAt && dueDate) {
-                        const startDate = new Date(task.scheduledAt);
-                        const endDate = new Date(dueDate);
-                        if (startDate >= endDate) {
-                          console.error('[Task Schedule Validation Failed] Start time >= due time (dueDate changed)', { scheduledAt: task.scheduledAt, dueDate });
-                          toast.error(
-                            t("task.slideover.toast.invalidSchedule") ||
-                              "Thời gian bắt đầu phải trước ngày hết hạn.",
-                          );
-                          return;
-                        }
-                      }
                       await onUpdate(task.id, { dueDate });
                     }}
                   />
@@ -415,24 +405,46 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
           </div>
         </div>
 
+          {/* Warnings/Errors */}
+          {computeScheduleWarnings().length > 0 && (
+            <div className="border-t border-border-subtle/40 px-6 py-3 space-y-2">
+              {computeScheduleWarnings().map((warning) => (
+                <div
+                  key={warning.id}
+                  className={`text-[12px] flex items-center gap-2 px-3 py-2 rounded-md transition-all duration-200 ${
+                    warning.tone === "error"
+                      ? "bg-red-500/10 text-red-300 border border-red-500/20"
+                      : "bg-white/[0.03] text-text-secondary"
+                  }`}
+                >
+                  <span className="leading-relaxed flex-1">{warning.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
         {/* Footer with Update Button */}
         <div className="p-5 border-t border-border-subtle/50 bg-bg-sidebar mt-auto">
-          <button
-            onClick={async () => {
-              if (task?.dueDate && new Date(task.dueDate) < new Date()) {
-                console.error('[Task Update Blocked] Due date is in the past', { dueDate: task.dueDate, now: new Date() });
-                toast.error(t('task.slideover.toast.pastDueDate') || 'Hạn chót không được ở quá khứ.');
-                return;
-              }
-              await handleTitleBlur();
-              await handleDescBlur();
-              toast.success(t("task.slideover.toast.updated"));
-              onClose();
-            }}
-            className="w-full py-2.5 bg-[#2383E2] hover:bg-[#1D6FC0] text-white font-medium rounded-lg text-[13px] transition-colors cursor-pointer shadow-md"
-          >
-            {t("task.slideover.updateBtn")}
-          </button>
+          {checkDueDateWarnings().includes('pastDue') ? (
+            <button
+              disabled
+              className="w-full py-2.5 bg-red-600 text-white font-medium rounded-lg text-[13px] cursor-not-allowed shadow-md opacity-60"
+            >
+              {t("task.slideover.cannotCreate") || "Không thể tạo"}
+            </button>
+          ) : (
+            <button
+              onClick={async () => {
+                await handleTitleBlur();
+                await handleDescBlur();
+                toast.success(t("task.slideover.toast.updated"));
+                onClose();
+              }}
+              className="w-full py-2.5 bg-[#2383E2] hover:bg-[#1D6FC0] text-white font-medium rounded-lg text-[13px] transition-colors cursor-pointer shadow-md"
+            >
+              {t("task.slideover.updateBtn")}
+            </button>
+          )}
         </div>
       </div>
     </>

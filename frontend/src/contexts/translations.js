@@ -165,11 +165,6 @@ export const translations = {
         'task.slideover.updateBtn': 'Cập nhật công việc',
         'task.slideover.toast.descSaved': 'Đã lưu nháp mô tả',
         'task.slideover.toast.updated': 'Đã cập nhật công việc!',
-        'task.slideover.toast.invalidSchedule': 'Thời gian bắt đầu phải trước ngày hết hạn.',
-        'task.slideover.toast.pastDueDate': 'Hạn chót không được ở quá khứ.',
-        'task.slideover.warning.pastDue': 'Chú ý: Hạn chót đang ở quá khứ.',
-        'task.slideover.warning.cannotCreate': 'Không thể tạo task.',
-        'task.slideover.warning.lateNight': 'Chú ý: Hạn chót vào ban đêm (sau 22:00).',
 
         // ── Tasks – Row ───────────────────────────────────────────
         'task.row.openDetail': 'Mở chi tiết',
@@ -457,11 +452,6 @@ export const translations = {
         'task.slideover.updateBtn': 'タスクを更新',
         'task.slideover.toast.descSaved': '説明を保存しました',
         'task.slideover.toast.updated': 'タスクが更新されました！',
-        'task.slideover.toast.invalidSchedule': '開始時刻は期限より前である必要があります。',
-        'task.slideover.toast.pastDueDate': '期限は過去にすることはできません。',
-        'task.slideover.warning.pastDue': '注意: 期限が過去です。',
-        'task.slideover.warning.cannotCreate': 'タスクを作成できません。',
-        'task.slideover.warning.lateNight': '注意: 期限が夜間です (22:00以降)。',
 
         // ── Tasks – Row ───────────────────────────────────────────
         'task.row.openDetail': '詳細を開く',
@@ -749,11 +739,6 @@ export const translations = {
         'task.slideover.updateBtn': 'Update task',
         'task.slideover.toast.descSaved': 'Description saved',
         'task.slideover.toast.updated': 'Task updated!',
-        'task.slideover.toast.invalidSchedule': 'Start time must be before due date.',
-        'task.slideover.toast.pastDueDate': 'Due date cannot be in the past.',
-        'task.slideover.warning.pastDue': 'Note: Due date is in the past.',
-        'task.slideover.warning.cannotCreate': 'Cannot create task.',
-        'task.slideover.warning.lateNight': 'Note: Due date is late at night (after 22:00).',
 
         // ── Tasks – Row ───────────────────────────────────────────
         'task.row.openDetail': 'Open detail',

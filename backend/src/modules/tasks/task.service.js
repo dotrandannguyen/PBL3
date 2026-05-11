@@ -131,10 +131,6 @@ export const taskService = {
 			throw new OptionalException('Thời gian nhắc nhở phải ở tương lai.');
 		}
 
-		if (scheduledAt && dueDate && scheduledAt.getTime() >= dueDate.getTime()) {
-			throw new OptionalException('Thời gian bắt đầu phải trước ngày hết hạn.');
-		}
-
 		if (dueDate && dueDate.getTime() < Date.now()) {
 			throw new OptionalException('Hạn chót không được ở quá khứ.');
 		}
@@ -230,18 +226,6 @@ export const taskService = {
 				data.dueDate !== undefined
 					? parseDateValue(data.dueDate)
 					: existingTask.dueDate;
-			const checkScheduledAt =
-				data.startAt !== undefined
-					? parseDateValue(data.startAt)
-					: existingTask.scheduledAt;
-
-			if (
-				checkScheduledAt &&
-				checkDueDate &&
-				checkScheduledAt.getTime() >= checkDueDate.getTime()
-			) {
-				throw new OptionalException('Thời gian bắt đầu phải trước ngày hết hạn.');
-			}
 
 			if (checkDueDate && checkDueDate.getTime() < Date.now()) {
 				throw new OptionalException('Hạn chót không được ở quá khứ.');
