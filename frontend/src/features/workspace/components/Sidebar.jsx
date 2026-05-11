@@ -1,5 +1,14 @@
 import React from "react";
-import { Plus, Menu as MenuIcon, X, ChevronLeft, ChevronRight, CheckSquare, ChevronDown, FileText } from "lucide-react";
+import {
+  Plus,
+  Menu as MenuIcon,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  CheckSquare,
+  ChevronDown,
+  FileText,
+} from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   UserAvatar,
@@ -38,7 +47,10 @@ const TodoListParent = ({ onAdd, collapsed, children }) => {
           type="button"
           className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-white/10 cursor-pointer bg-transparent border-0 transition-all flex items-center justify-center"
           title="Thêm workspace"
-          onClick={(e) => { e.stopPropagation(); onAdd(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onAdd();
+          }}
         >
           <Plus size={14} />
         </button>
@@ -112,7 +124,7 @@ const Sidebar = ({
   const [showInbox, setShowInbox] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [collapsed, setCollapsed] = React.useState(
-    () => localStorage.getItem(COLLAPSED_KEY) === "true"
+    () => localStorage.getItem(COLLAPSED_KEY) === "true",
   );
   const navigate = useNavigate();
   const location = useLocation();
@@ -126,7 +138,9 @@ const Sidebar = ({
     if (!mobileOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [mobileOpen]);
 
   const toggleCollapsed = () => {
@@ -140,7 +154,8 @@ const Sidebar = ({
 
   const privatePages = pages.filter((p) => p.type === "private");
   const parentPages = privatePages.filter((p) => !p.parentId);
-  const childrenOf = (parentId) => privatePages.filter((p) => p.parentId === parentId);
+  const childrenOf = (parentId) =>
+    privatePages.filter((p) => p.parentId === parentId);
 
   return (
     <>
@@ -192,7 +207,8 @@ const Sidebar = ({
             let isActive = false;
             if (item.id === "inbox") isActive = showInbox;
             else if (item.id === "home") isActive = currentPath === "/";
-            else if (item.id === "dashboard") isActive = currentPath === "/dashboard";
+            else if (item.id === "dashboard")
+              isActive = currentPath === "/dashboard";
             else if (item.id === "search") isActive = isSearchOpen;
 
             return (
@@ -228,8 +244,13 @@ const Sidebar = ({
                   <React.Fragment key={page.id}>
                     <PageItem
                       page={page}
-                      onClick={(pageId) => { navigate(`/app`); onPageClick(pageId); }}
-                      isActive={currentPath === "/app" && page.id === activePage}
+                      onClick={(pageId) => {
+                        navigate(`/app`);
+                        onPageClick(pageId);
+                      }}
+                      isActive={
+                        currentPath === "/app" && page.id === activePage
+                      }
                       onDelete={onDeletePage}
                       onRename={onRenamePage}
                       collapsed={collapsed}
@@ -240,20 +261,27 @@ const Sidebar = ({
                       onToggleExpand={() => toggleExpanded(page.id)}
                       depth={0}
                     />
-                    {hasChildren && isExpanded && children.map((child) => (
-                      <PageItem
-                        key={child.id}
-                        page={child}
-                        onClick={(pageId) => { navigate(`/app`); onPageClick(pageId); }}
-                        isActive={currentPath === "/app" && child.id === activePage}
-                        onDelete={onDeletePage}
-                        onRename={onRenamePage}
-                        collapsed={collapsed}
-                        autoStartRename={child.id === pendingRenameId}
-                        onAutoRenameStart={onClearPendingRename}
-                        depth={1}
-                      />
-                    ))}
+                    {hasChildren &&
+                      isExpanded &&
+                      children.map((child) => (
+                        <PageItem
+                          key={child.id}
+                          page={child}
+                          onClick={(pageId) => {
+                            navigate(`/app`);
+                            onPageClick(pageId);
+                          }}
+                          isActive={
+                            currentPath === "/app" && child.id === activePage
+                          }
+                          onDelete={onDeletePage}
+                          onRename={onRenamePage}
+                          collapsed={collapsed}
+                          autoStartRename={child.id === pendingRenameId}
+                          onAutoRenameStart={onClearPendingRename}
+                          depth={1}
+                        />
+                      ))}
                   </React.Fragment>
                 );
               })}
@@ -269,17 +297,24 @@ const Sidebar = ({
 
         {/* Shared Section */}
         <section className="py-1 mb-2 pt-2">
-          <SectionHeader title={t('sidebar.shared')} collapsed={collapsed} />
-          {!collapsed && <NavItem icon={Plus} label={t('sidebar.startCollaborating')} collapsed={false} />}
+          <SectionHeader title={t("sidebar.shared")} collapsed={collapsed} />
+          {!collapsed && (
+            <NavItem
+              icon={Plus}
+              label={t("sidebar.startCollaborating")}
+              collapsed={false}
+            />
+          )}
         </section>
 
         {/* Nexus Apps Section */}
         <section className="py-1 mb-2 pt-2">
-          <SectionHeader title={t('sidebar.nexusApps')} collapsed={collapsed} />
+          <SectionHeader title={t("sidebar.nexusApps")} collapsed={collapsed} />
           {NEXUS_APPS.map((item) => {
             let isActive = false;
             if (item.id === "nexus-mail") isActive = currentPath === "/mail";
-            if (item.id === "nexus-calendar") isActive = currentPath === "/calendar";
+            if (item.id === "nexus-calendar")
+              isActive = currentPath === "/calendar";
 
             return (
               <NavItem

@@ -5,17 +5,48 @@ import { useWorkspace } from "../context/WorkspaceContext";
 import { ArrowUpRight, Plus, Sparkles } from "lucide-react";
 
 const ACCENTS = [
-  { from: "from-blue-500/15", ring: "ring-blue-500/20", dot: "bg-blue-500", glow: "shadow-blue-500/10" },
-  { from: "from-emerald-500/15", ring: "ring-emerald-500/20", dot: "bg-emerald-500", glow: "shadow-emerald-500/10" },
-  { from: "from-purple-500/15", ring: "ring-purple-500/20", dot: "bg-purple-500", glow: "shadow-purple-500/10" },
-  { from: "from-amber-500/15", ring: "ring-amber-500/20", dot: "bg-amber-500", glow: "shadow-amber-500/10" },
-  { from: "from-pink-500/15", ring: "ring-pink-500/20", dot: "bg-pink-500", glow: "shadow-pink-500/10" },
-  { from: "from-cyan-500/15", ring: "ring-cyan-500/20", dot: "bg-cyan-500", glow: "shadow-cyan-500/10" },
+  {
+    from: "from-blue-500/15",
+    ring: "ring-blue-500/20",
+    dot: "bg-blue-500",
+    glow: "shadow-blue-500/10",
+  },
+  {
+    from: "from-emerald-500/15",
+    ring: "ring-emerald-500/20",
+    dot: "bg-emerald-500",
+    glow: "shadow-emerald-500/10",
+  },
+  {
+    from: "from-purple-500/15",
+    ring: "ring-purple-500/20",
+    dot: "bg-purple-500",
+    glow: "shadow-purple-500/10",
+  },
+  {
+    from: "from-amber-500/15",
+    ring: "ring-amber-500/20",
+    dot: "bg-amber-500",
+    glow: "shadow-amber-500/10",
+  },
+  {
+    from: "from-pink-500/15",
+    ring: "ring-pink-500/20",
+    dot: "bg-pink-500",
+    glow: "shadow-pink-500/10",
+  },
+  {
+    from: "from-cyan-500/15",
+    ring: "ring-cyan-500/20",
+    dot: "bg-cyan-500",
+    glow: "shadow-cyan-500/10",
+  },
 ];
 
 const accentFor = (id) => {
   let hash = 0;
-  for (let i = 0; i < id.length; i += 1) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  for (let i = 0; i < id.length; i += 1)
+    hash = (hash * 31 + id.charCodeAt(i)) | 0;
   return ACCENTS[Math.abs(hash) % ACCENTS.length];
 };
 
@@ -83,12 +114,18 @@ export function WorkspacePage() {
                   onClick={() => handleOpenChild(child.id)}
                   className={`group relative text-left rounded-2xl border border-border-subtle bg-bg-sidebar/40 overflow-hidden transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-accent-primary/40 hover:shadow-xl hover:${accent.glow} cursor-pointer`}
                 >
-                  <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent ${accent.from} to-transparent opacity-60`} />
-                  <div className={`absolute -top-12 -right-12 w-32 h-32 rounded-full bg-gradient-to-br ${accent.from} to-transparent blur-2xl opacity-50 group-hover:opacity-100 transition-opacity duration-500`} />
+                  <div
+                    className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent ${accent.from} to-transparent opacity-60`}
+                  />
+                  <div
+                    className={`absolute -top-12 -right-12 w-32 h-32 rounded-full bg-gradient-to-br ${accent.from} to-transparent blur-2xl opacity-50 group-hover:opacity-100 transition-opacity duration-500`}
+                  />
 
                   <div className="relative p-5">
                     <div className="flex items-start gap-3 mb-5">
-                      <div className={`w-10 h-10 rounded-xl bg-bg-hover ring-1 ${accent.ring} flex items-center justify-center text-text-primary shrink-0 group-hover:scale-105 transition-transform duration-300`}>
+                      <div
+                        className={`w-10 h-10 rounded-xl bg-bg-hover ring-1 ${accent.ring} flex items-center justify-center text-text-primary shrink-0 group-hover:scale-105 transition-transform duration-300`}
+                      >
                         {child.icon}
                       </div>
                       <div className="flex-1 min-w-0 pt-0.5">
@@ -96,7 +133,9 @@ export function WorkspacePage() {
                           {child.label}
                         </h3>
                         <div className="flex items-center gap-1.5 mt-1">
-                          <span className={`w-1.5 h-1.5 rounded-full ${accent.dot}`} />
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${accent.dot}`}
+                          />
                           <span className="text-[11px] text-text-tertiary uppercase tracking-wide">
                             Danh sách
                           </span>
@@ -125,7 +164,11 @@ export function WorkspacePage() {
           </div>
         </div>
       ) : (
-        <TaskList key={activePageData.id} workspaceId={activePageData.id} title={activePageData.label} />
+        <TaskList
+          key={activePageData.id}
+          workspaceId={activePageData.id}
+          title={activePageData.label}
+        />
       )}
     </>
   );

@@ -42,7 +42,7 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
       const now = new Date();
 
       if (dueDate < now) {
-        warnings.push('pastDue');
+        warnings.push("pastDue");
       }
     }
     return warnings;
@@ -56,15 +56,27 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
     const endObj = task?.dueDate ? new Date(task.dueDate) : null;
 
     if (startObj && startObj < now) {
-      warnings.push({ id: "start-past", text: "Lỗi: Thời gian bắt đầu đã qua.", tone: "error" });
+      warnings.push({
+        id: "start-past",
+        text: "Lỗi: Thời gian bắt đầu đã qua.",
+        tone: "error",
+      });
     }
 
     if (startObj && endObj && endObj <= startObj) {
-      warnings.push({ id: "end-before-start", text: "Lỗi: Thời gian kết thúc phải sau thời gian bắt đầu.", tone: "error" });
+      warnings.push({
+        id: "end-before-start",
+        text: "Lỗi: Thời gian kết thúc phải sau thời gian bắt đầu.",
+        tone: "error",
+      });
     }
 
     if (endObj && endObj < now) {
-      warnings.push({ id: "end-past", text: "Lỗi: Thời gian kết thúc đã qua.", tone: "error" });
+      warnings.push({
+        id: "end-past",
+        text: "Lỗi: Thời gian kết thúc đã qua.",
+        tone: "error",
+      });
     }
 
     return warnings;
@@ -229,7 +241,10 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                   const val = e.target.value;
                   const dueDate = val ? new Date(val).toISOString() : null;
                   if (dueDate && new Date(dueDate) < new Date()) {
-                    toast.error(t('task.slideover.toast.pastDueDate') || 'Hạn chót không được ở quá khứ.');
+                    toast.error(
+                      t("task.slideover.toast.pastDueDate") ||
+                        "Hạn chót không được ở quá khứ.",
+                    );
                     return;
                   }
                   await onUpdate(task.id, { dueDate });
@@ -241,12 +256,21 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
             </div>
 
             {/* Due Date Warnings */}
-            {checkDueDateWarnings().includes('pastDue') && (
+            {checkDueDateWarnings().includes("pastDue") && (
               <div className="mt-2 px-3 py-2 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-2">
-                <AlertCircle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+                <AlertCircle
+                  size={14}
+                  className="text-red-400 flex-shrink-0 mt-0.5"
+                />
                 <div className="flex-1">
-                  <p className="text-xs font-medium text-red-400">{t('task.slideover.warning.pastDue') || 'Chú ý: Hạn chót đang ở quá khứ.'}</p>
-                  <p className="text-xs text-red-400/70 mt-0.5">{t('task.slideover.warning.cannotCreate') || 'Không thể tạo task.'}</p>
+                  <p className="text-xs font-medium text-red-400">
+                    {t("task.slideover.warning.pastDue") ||
+                      "Chú ý: Hạn chót đang ở quá khứ."}
+                  </p>
+                  <p className="text-xs text-red-400/70 mt-0.5">
+                    {t("task.slideover.warning.cannotCreate") ||
+                      "Không thể tạo task."}
+                  </p>
                 </div>
               </div>
             )}
@@ -405,27 +429,27 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
           </div>
         </div>
 
-          {/* Warnings/Errors */}
-          {computeScheduleWarnings().length > 0 && (
-            <div className="border-t border-border-subtle/40 px-6 py-3 space-y-2">
-              {computeScheduleWarnings().map((warning) => (
-                <div
-                  key={warning.id}
-                  className={`text-[12px] flex items-center gap-2 px-3 py-2 rounded-md transition-all duration-200 ${
-                    warning.tone === "error"
-                      ? "bg-red-500/10 text-red-300 border border-red-500/20"
-                      : "bg-white/[0.03] text-text-secondary"
-                  }`}
-                >
-                  <span className="leading-relaxed flex-1">{warning.text}</span>
-                </div>
-              ))}
-            </div>
-          )}
+        {/* Warnings/Errors */}
+        {computeScheduleWarnings().length > 0 && (
+          <div className="border-t border-border-subtle/40 px-6 py-3 space-y-2">
+            {computeScheduleWarnings().map((warning) => (
+              <div
+                key={warning.id}
+                className={`text-[12px] flex items-center gap-2 px-3 py-2 rounded-md transition-all duration-200 ${
+                  warning.tone === "error"
+                    ? "bg-red-500/10 text-red-300 border border-red-500/20"
+                    : "bg-white/[0.03] text-text-secondary"
+                }`}
+              >
+                <span className="leading-relaxed flex-1">{warning.text}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Footer with Update Button */}
         <div className="p-5 border-t border-border-subtle/50 bg-bg-sidebar mt-auto">
-          {checkDueDateWarnings().includes('pastDue') ? (
+          {checkDueDateWarnings().includes("pastDue") ? (
             <button
               disabled
               className="w-full py-2.5 bg-red-600 text-white font-medium rounded-lg text-[13px] cursor-not-allowed shadow-md opacity-60"

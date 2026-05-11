@@ -10,9 +10,32 @@
  *        UI từ HEAD (Notion-style rows, RenderPriorityPill, TaskSlideOver)
  */
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Plus, ChevronDown, Flag, Check, Calendar, Bell, FileText, X, Clock } from "lucide-react";
-import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, useDroppable } from "@dnd-kit/core";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
+import {
+  Plus,
+  ChevronDown,
+  Flag,
+  Check,
+  Calendar,
+  Bell,
+  FileText,
+  X,
+  Clock,
+} from "lucide-react";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  useDroppable,
+} from "@dnd-kit/core";
 import { useSearchParams } from "react-router-dom";
 import { useTasks } from "../hooks/useTasks";
 import { useTaskFilters } from "../hooks/useTaskFilters";
@@ -30,7 +53,8 @@ const PRIORITY_FLAG_STYLES = {
 
 /* ── Utility helpers (logic from incoming) ─────────────────────────────── */
 const isDateOnlyValue = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value);
-const isDatetimeLocalValue = (value) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value);
+const isDatetimeLocalValue = (value) =>
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value);
 
 const normalizeDueAtForApi = (value) => {
   if (!value) return null;
@@ -46,16 +70,30 @@ const normalizeDueAtForApi = (value) => {
 };
 
 const VALID_SORT_OPTIONS = new Set([
-  "none", "date-asc", "date-desc", "priority-high", "title",
+  "none",
+  "date-asc",
+  "date-desc",
+  "priority-high",
+  "title",
 ]);
-const VALID_PRIORITY_FILTERS = new Set(["all", "URGENT", "HIGH", "MEDIUM", "LOW"]);
+const VALID_PRIORITY_FILTERS = new Set([
+  "all",
+  "URGENT",
+  "HIGH",
+  "MEDIUM",
+  "LOW",
+]);
 const VALID_STATUS_FILTERS = new Set(["all", "done", "pending"]);
 
 const TASK_GROUPS = [
   { key: "overdue", label: "Quá hạn", labelClassName: "text-red-300" },
   { key: "today", label: "Hôm nay", labelClassName: "text-yellow-300" },
   { key: "upcoming", label: "Sắp tới", labelClassName: "text-blue-300" },
-  { key: "no-deadline", label: "Không hạn", labelClassName: "text-text-tertiary" },
+  {
+    key: "no-deadline",
+    label: "Không hạn",
+    labelClassName: "text-text-tertiary",
+  },
 ];
 
 const toLocalDayStart = (dateObj) =>
@@ -87,7 +125,12 @@ const readCollapsedGroups = () => {
     const rawValue = window.localStorage.getItem(GROUP_COLLAPSE_STORAGE_KEY);
     if (!rawValue) return {};
     const parsedValue = JSON.parse(rawValue);
-    if (!parsedValue || typeof parsedValue !== "object" || Array.isArray(parsedValue)) return {};
+    if (
+      !parsedValue ||
+      typeof parsedValue !== "object" ||
+      Array.isArray(parsedValue)
+    )
+      return {};
     return parsedValue;
   } catch {
     return {};
@@ -129,7 +172,10 @@ const GroupDropZone = ({ group, children }) => {
   });
 
   return (
-    <div ref={setNodeRef} className={`rounded-xl transition-colors ${isOver ? 'bg-accent-primary/5 ring-1 ring-accent-primary' : ''}`}>
+    <div
+      ref={setNodeRef}
+      className={`rounded-xl transition-colors ${isOver ? "bg-accent-primary/5 ring-1 ring-accent-primary" : ""}`}
+    >
       {children}
     </div>
   );
@@ -149,25 +195,41 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
     return {
       searchQuery: queryValue,
       sortBy: VALID_SORT_OPTIONS.has(sortValue) ? sortValue : "none",
-      priorityFilter: VALID_PRIORITY_FILTERS.has(priorityValue) ? priorityValue : "all",
+      priorityFilter: VALID_PRIORITY_FILTERS.has(priorityValue)
+        ? priorityValue
+        : "all",
       statusFilter: VALID_STATUS_FILTERS.has(statusValue) ? statusValue : "all",
     };
   }, []);
 
   const {
-    tasks, allTasks, loading, error, activeFilter,
-    fetchTasks, addTask, removeTask, toggleTask,
-    updateTaskData, setFilter,
+    tasks,
+    allTasks,
+    loading,
+    error,
+    activeFilter,
+    fetchTasks,
+    addTask,
+    removeTask,
+    toggleTask,
+    updateTaskData,
+    setFilter,
     pagination,
   } = useTasks();
 
   const {
-    searchQuery, setSearchQuery,
-    isSearchOpen, setIsSearchOpen,
-    sortBy, setSortBy,
-    isSortOpen, setIsSortOpen,
-    priorityFilter, setPriorityFilter,
-    isPriorityFilterOpen, setIsPriorityFilterOpen,
+    searchQuery,
+    setSearchQuery,
+    isSearchOpen,
+    setIsSearchOpen,
+    sortBy,
+    setSortBy,
+    isSortOpen,
+    setIsSortOpen,
+    priorityFilter,
+    setPriorityFilter,
+    isPriorityFilterOpen,
+    setIsPriorityFilterOpen,
     filteredTasks,
   } = useTaskFilters(tasks, initialFilterState);
 
@@ -204,7 +266,7 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
       activationConstraint: {
         distance: 5,
       },
-    })
+    }),
   );
 
   const priorityDropdownRef = useRef(null);
@@ -219,13 +281,13 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
     (error.toLowerCase().includes("network") ||
       error.toLowerCase().includes("kết nối backend"));
 
-  const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
+  const selectedTask = tasks.find((t) => t.id === selectedTaskId) || null;
 
   // ── Derived / Memos ────────────────────────────────────
   const taskMap = useMemo(() => {
     const map = new Map();
-    filteredTasks.forEach(t => map.set(t.id, { ...t, children: [] }));
-    filteredTasks.forEach(t => {
+    filteredTasks.forEach((t) => map.set(t.id, { ...t, children: [] }));
+    filteredTasks.forEach((t) => {
       if (t.parentId && map.has(t.parentId)) {
         map.get(t.parentId).children.push(map.get(t.id));
       }
@@ -235,7 +297,7 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
 
   const rootTasks = useMemo(() => {
     const roots = [];
-    taskMap.forEach(t => {
+    taskMap.forEach((t) => {
       if (!t.parentId || !taskMap.has(t.parentId)) {
         roots.push(t);
       }
@@ -255,7 +317,10 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
     (group) => groupedTasks[group.key].length > 0,
   );
 
-  const dueAtDateObj = useMemo(() => parseDueDateForCompare(newTaskDueAt), [newTaskDueAt]);
+  const dueAtDateObj = useMemo(
+    () => parseDueDateForCompare(newTaskDueAt),
+    [newTaskDueAt],
+  );
 
   const isDueAtInPast = useMemo(() => {
     if (!dueAtDateObj) return false;
@@ -269,7 +334,11 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
 
     // ─── Due date warnings ───────────────────────────────────
     if (isDueAtInPast) {
-      warnings.push({ id: "due-in-past", text: "Lỗi: Hạn chót đang ở quá khứ.", tone: "error" });
+      warnings.push({
+        id: "due-in-past",
+        text: "Lỗi: Hạn chót đang ở quá khứ.",
+        tone: "error",
+      });
     }
 
     if (dueAtDateObj) {
@@ -277,13 +346,21 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
       const todayStart = toLocalDayStart(now);
       const dueStart = toLocalDayStart(dueAtDateObj);
       if (dueStart.getTime() === todayStart.getTime()) {
-        warnings.push({ id: "due-today", text: "Chú ý: Hạn chót là hôm nay — hãy ưu tiên task này.", tone: "info" });
+        warnings.push({
+          id: "due-today",
+          text: "Chú ý: Hạn chót là hôm nay — hãy ưu tiên task này.",
+          tone: "info",
+        });
       }
 
       // Due date very far (> 90 days)
       const diffDays = Math.ceil((dueAtDateObj - now) / (1000 * 60 * 60 * 24));
       if (diffDays > 90) {
-        warnings.push({ id: "due-far", text: `Gợi ý: Hạn chót còn ${diffDays} ngày — cân nhắc chia nhỏ task.`, tone: "tip" });
+        warnings.push({
+          id: "due-far",
+          text: `Gợi ý: Hạn chót còn ${diffDays} ngày — cân nhắc chia nhỏ task.`,
+          tone: "tip",
+        });
       }
     }
 
@@ -294,19 +371,31 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
 
       // Start in the past
       if (startObj && startObj < now) {
-        warnings.push({ id: "start-past", text: "Lỗi: Thời gian bắt đầu đã qua.", tone: "error" });
+        warnings.push({
+          id: "start-past",
+          text: "Lỗi: Thời gian bắt đầu đã qua.",
+          tone: "error",
+        });
       }
 
       // End before start
       if (startObj && endObj && endObj <= startObj) {
-        warnings.push({ id: "end-before-start", text: "Lỗi: Thời gian kết thúc phải sau thời gian bắt đầu.", tone: "error" });
+        warnings.push({
+          id: "end-before-start",
+          text: "Lỗi: Thời gian kết thúc phải sau thời gian bắt đầu.",
+          tone: "error",
+        });
       }
 
       // Duration too short (< 5 min)
       if (startObj && endObj && endObj > startObj) {
         const durationMin = (endObj - startObj) / (1000 * 60);
         if (durationMin < 5) {
-          warnings.push({ id: "too-short", text: "Lỗi: Thời lượng dưới 5 phút — có thể quá ngắn.", tone: "error" });
+          warnings.push({
+            id: "too-short",
+            text: "Lỗi: Thời lượng dưới 5 phút — có thể quá ngắn.",
+            tone: "error",
+          });
         }
       }
 
@@ -314,39 +403,63 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
 
       // Missing one of start/end
       if (startObj && !endObj) {
-        warnings.push({ id: "no-end", text: "Chú ý: Chưa chọn thời gian kết thúc.", tone: "info" });
+        warnings.push({
+          id: "no-end",
+          text: "Chú ý: Chưa chọn thời gian kết thúc.",
+          tone: "info",
+        });
       }
       if (!startObj && endObj) {
-        warnings.push({ id: "no-start", text: "Chú ý: Chưa chọn thời gian bắt đầu.", tone: "info" });
+        warnings.push({
+          id: "no-start",
+          text: "Chú ý: Chưa chọn thời gian bắt đầu.",
+          tone: "info",
+        });
       }
 
       // Schedule vs dueDate constraint
       if (dueAtDateObj) {
         if (startObj && startObj > dueAtDateObj) {
-          warnings.push({ id: "start-after-due", text: "Lỗi: Thời gian bắt đầu không được sau hạn chót.", tone: "error" });
+          warnings.push({
+            id: "start-after-due",
+            text: "Lỗi: Thời gian bắt đầu không được sau hạn chót.",
+            tone: "error",
+          });
         }
         if (endObj && endObj > dueAtDateObj) {
-          warnings.push({ id: "end-after-due", text: "Lỗi: Thời gian kết thúc không được sau hạn chót.", tone: "error" });
+          warnings.push({
+            id: "end-after-due",
+            text: "Lỗi: Thời gian kết thúc không được sau hạn chót.",
+            tone: "error",
+          });
         }
       }
     }
 
     // ─── Reminder warnings ───────────────────────────────────
     if (newTaskReminder !== "NONE" && !newTaskDueAt && !showSchedule) {
-      warnings.push({ id: "reminder-no-due", text: "Chú ý: Bật nhắc nhở nhưng chưa đặt hạn chót — nhắc nhở sẽ không hoạt động.", tone: "info" });
+      warnings.push({
+        id: "reminder-no-due",
+        text: "Chú ý: Bật nhắc nhở nhưng chưa đặt hạn chót — nhắc nhở sẽ không hoạt động.",
+        tone: "info",
+      });
     }
 
     // ─── Title warnings ──────────────────────────────────────
     const titleTrimmed = newTaskText.trim();
     if (titleTrimmed.length > 0 && titleTrimmed.length < 3) {
-      warnings.push({ id: "title-short", text: "Gợi ý: Tiêu đề quá ngắn — hãy mô tả rõ hơn.", tone: "tip" });
+      warnings.push({
+        id: "title-short",
+        text: "Gợi ý: Tiêu đề quá ngắn — hãy mô tả rõ hơn.",
+        tone: "tip",
+      });
     }
 
     // Duplicate title check
     if (titleTrimmed.length >= 3) {
       const lowerTitle = titleTrimmed.toLowerCase();
       const duplicate = allTasks.find(
-        (t) => (t.title || t.text || "").toLowerCase() === lowerTitle
+        (t) => (t.title || t.text || "").toLowerCase() === lowerTitle,
       );
       if (duplicate) {
         warnings.push({
@@ -359,9 +472,15 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
 
     return warnings;
   }, [
-    isDueAtInPast, dueAtDateObj, newTaskDueAt,
-    showSchedule, newTaskStartAt, newTaskEndAt,
-    newTaskReminder, newTaskText, allTasks,
+    isDueAtInPast,
+    dueAtDateObj,
+    newTaskDueAt,
+    showSchedule,
+    newTaskStartAt,
+    newTaskEndAt,
+    newTaskReminder,
+    newTaskText,
+    allTasks,
   ]);
 
   // Blocking errors = error | warn → cannot submit
@@ -377,12 +496,16 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
 
   useEffect(() => {
     if (loading) return;
-    if (allTasks.length === 0) { setIsComposerExpanded(true); return; }
+    if (allTasks.length === 0) {
+      setIsComposerExpanded(true);
+      return;
+    }
     if (!hasComposerInteractedRef.current) setIsComposerExpanded(false);
   }, [loading, allTasks.length]);
 
   useEffect(() => {
-    if (initialFilterState.statusFilter !== "all") setFilter(initialFilterState.statusFilter);
+    if (initialFilterState.statusFilter !== "all")
+      setFilter(initialFilterState.statusFilter);
   }, [initialFilterState.statusFilter, setFilter]);
 
   useEffect(() => {
@@ -396,27 +519,45 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
     if (sortBy !== "none") next.set("sort", sortBy);
     if (priorityFilter !== "all") next.set("priority", priorityFilter);
     if (activeFilter !== "all") next.set("status", activeFilter);
-    if (searchParams.toString() !== next.toString()) setSearchParams(next, { replace: true });
-  }, [searchQuery, sortBy, priorityFilter, activeFilter, searchParams, setSearchParams]);
+    if (searchParams.toString() !== next.toString())
+      setSearchParams(next, { replace: true });
+  }, [
+    searchQuery,
+    sortBy,
+    priorityFilter,
+    activeFilter,
+    searchParams,
+    setSearchParams,
+  ]);
 
   useEffect(() => {
     function handleClickOutside(event) {
-      if (priorityDropdownRef.current && !priorityDropdownRef.current.contains(event.target)) {
+      if (
+        priorityDropdownRef.current &&
+        !priorityDropdownRef.current.contains(event.target)
+      ) {
         setShowPriorityDropdown(false);
       }
-      if (reminderDropdownRef.current && !reminderDropdownRef.current.contains(event.target)) {
+      if (
+        reminderDropdownRef.current &&
+        !reminderDropdownRef.current.contains(event.target)
+      ) {
         setShowReminderDropdown(false);
       }
     }
     if (showPriorityDropdown || showReminderDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showPriorityDropdown, showReminderDropdown]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(GROUP_COLLAPSE_STORAGE_KEY, JSON.stringify(collapsedGroups));
+    window.localStorage.setItem(
+      GROUP_COLLAPSE_STORAGE_KEY,
+      JSON.stringify(collapsedGroups),
+    );
   }, [collapsedGroups]);
 
   // ── Handlers ───────────────────────────────────────────
@@ -424,7 +565,10 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
     hasComposerInteractedRef.current = true;
     setIsComposerExpanded(true);
     window.setTimeout(() => {
-      createTaskSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      createTaskSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
       newTaskInputRef.current?.focus();
     }, 0);
   };
@@ -449,13 +593,23 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
     }
 
     // Resolve dueDate: nếu đang schedule thì dùng endAt, nếu không thì dùng dueAt
-    const resolvedDueAtInput = showSchedule && newTaskEndAt ? newTaskEndAt : (newTaskDueAt || null);
+    const resolvedDueAtInput =
+      showSchedule && newTaskEndAt ? newTaskEndAt : newTaskDueAt || null;
     const resolvedDueAt = normalizeDueAtForApi(resolvedDueAtInput);
-    if (resolvedDueAtInput && !resolvedDueAt) { setNewTaskError("Ngày hạn không hợp lệ."); return; }
+    if (resolvedDueAtInput && !resolvedDueAt) {
+      setNewTaskError("Ngày hạn không hợp lệ.");
+      return;
+    }
 
     // Resolve startAt từ schedule
-    const resolvedStartAt = showSchedule && newTaskStartAt ? normalizeDueAtForApi(newTaskStartAt) : null;
-    if (showSchedule && newTaskStartAt && !resolvedStartAt) { setNewTaskError("Thời gian bắt đầu không hợp lệ."); return; }
+    const resolvedStartAt =
+      showSchedule && newTaskStartAt
+        ? normalizeDueAtForApi(newTaskStartAt)
+        : null;
+    if (showSchedule && newTaskStartAt && !resolvedStartAt) {
+      setNewTaskError("Thời gian bắt đầu không hợp lệ.");
+      return;
+    }
 
     // Validate: startAt phải trước endAt
     if (resolvedStartAt && resolvedDueAt) {
@@ -474,10 +628,16 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
       workspaceId,
     });
     if (!createdTask) return;
-    setNewTaskText(""); setNewTaskDescription(""); setNewTaskDueAt("");
-    setNewTaskStartAt(""); setNewTaskEndAt("");
-    setNewTaskPriority("MEDIUM"); setNewTaskReminder("NONE"); setNewTaskError("");
-    setShowDescription(false); setShowSchedule(false);
+    setNewTaskText("");
+    setNewTaskDescription("");
+    setNewTaskDueAt("");
+    setNewTaskStartAt("");
+    setNewTaskEndAt("");
+    setNewTaskPriority("MEDIUM");
+    setNewTaskReminder("NONE");
+    setNewTaskError("");
+    setShowDescription(false);
+    setShowSchedule(false);
     handleCollapseComposer();
   };
 
@@ -522,8 +682,11 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
   };
 
   const handleCancelEdit = () => {
-    setEditingId(null); setEditText(""); setEditDescription("");
-    setEditDate(""); setEditPriority("");
+    setEditingId(null);
+    setEditText("");
+    setEditDescription("");
+    setEditDate("");
+    setEditPriority("");
     setEditReminder(undefined);
   };
 
@@ -539,7 +702,10 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
       description: editDescription.trim() || null,
       priority: editPriority || "MEDIUM",
       dueDate: normalizedEditDueAt,
-      reminderAt: editReminder !== undefined ? computeReminderAt(editReminder, editDate) : undefined,
+      reminderAt:
+        editReminder !== undefined
+          ? computeReminderAt(editReminder, editDate)
+          : undefined,
     });
     if (!didUpdateTask) return;
     handleCancelEdit();
@@ -558,8 +724,10 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
   };
 
   const handleEditKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSaveEdit(); }
-    else if (e.key === "Escape") handleCancelEdit();
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSaveEdit();
+    } else if (e.key === "Escape") handleCancelEdit();
   };
 
   const handleNewTaskKeyDown = (e) => {
@@ -572,7 +740,6 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
       handleAddBlankTask();
     }
   };
-
 
   const handleToggleGroupCollapse = (groupKey) => {
     setCollapsedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
@@ -593,19 +760,19 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     if (!over) return;
-    
+
     const activeId = active.id;
     const overId = over.id;
-    
+
     // Check if dropped on a group to move to root
-    if (['overdue', 'today', 'upcoming', 'no-deadline'].includes(overId)) {
+    if (["overdue", "today", "upcoming", "no-deadline"].includes(overId)) {
       const activeTask = taskMap.get(activeId);
       if (activeTask && activeTask.parentId !== null) {
         await updateTaskData(activeId, { parentId: null });
       }
       return;
     }
-    
+
     // Prevent dragging a task into itself or its own children
     const isDescendant = (childId, parentId) => {
       let current = taskMap.get(childId);
@@ -625,12 +792,12 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
     if (activeTask && activeTask.parentId !== overId) {
       const activeLevel = active.data.current?.level || 0;
       const overLevel = over.data.current?.level || 0;
-      
+
       if (overLevel >= 3) {
         // Enforce max 4 levels (0, 1, 2, 3)
         return;
       }
-      
+
       await updateTaskData(activeId, { parentId: overId });
     }
   };
@@ -652,7 +819,7 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
   const renderTaskRow = (task, level = 0) => {
     const isCollapsed = collapsedTasks.has(task.id);
     const children = task.children || [];
-    
+
     return (
       <div key={task.id}>
         <TaskRow
@@ -676,11 +843,17 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
           onEditKeyDown={handleEditKeyDown}
           onDelete={() => handleDeleteTask(task.id)}
           onDateChange={(value) => {
-            if (editingId === task.id) { setEditDate(value); return; }
+            if (editingId === task.id) {
+              setEditDate(value);
+              return;
+            }
             handleDateChange(task.id, value);
           }}
           onPriorityChange={(priority) => {
-            if (editingId === task.id) { setEditPriority(priority); return; }
+            if (editingId === task.id) {
+              setEditPriority(priority);
+              return;
+            }
             handlePriorityChange(task.id, priority);
           }}
           onReminderChange={(presetValue) => {
@@ -688,7 +861,10 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
               setEditReminder(presetValue);
               return;
             }
-            const reminderAt = computeReminderAt(presetValue, task.dueDate || task.date);
+            const reminderAt = computeReminderAt(
+              presetValue,
+              task.dueDate || task.date,
+            );
             updateTaskData(task.id, { reminderAt });
           }}
           editReminder={editingId === task.id ? editReminder : undefined}
@@ -697,7 +873,7 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
         />
         {!isCollapsed && children.length > 0 && (
           <div className="flex flex-col">
-            {children.map(child => renderTaskRow(child, level + 1))}
+            {children.map((child) => renderTaskRow(child, level + 1))}
           </div>
         )}
       </div>
@@ -750,335 +926,418 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
         />
 
         {/* ── Composer (from incoming, with HEAD-style priority pills) ── */}
-        {isComposerExpanded && (() => {
-          const formattedDueAt = newTaskDueAt
-            ? (() => {
-                const d = new Date(isDateOnlyValue(newTaskDueAt) ? `${newTaskDueAt}T00:00:00` : newTaskDueAt);
-                if (Number.isNaN(d.getTime())) return null;
-                const datePart = d.toLocaleDateString("vi-VN", { day: "2-digit", month: "short" });
-                if (isDatetimeLocalValue(newTaskDueAt)) {
-                  const timePart = d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
-                  return `${datePart} ${timePart}`;
-                }
-                return datePart;
-              })()
-            : null;
-          const reminderLabels = {
-            NONE: null,
-            MINUTES_5: "5 phút trước",
-            MINUTES_15: "15 phút trước",
-            HOUR_1: "1 giờ trước",
-          };
-          const priorityActive = PRIORITY_FLAG_STYLES[newTaskPriority];
-          const hasReminder = newTaskReminder !== "NONE";
+        {isComposerExpanded &&
+          (() => {
+            const formattedDueAt = newTaskDueAt
+              ? (() => {
+                  const d = new Date(
+                    isDateOnlyValue(newTaskDueAt)
+                      ? `${newTaskDueAt}T00:00:00`
+                      : newTaskDueAt,
+                  );
+                  if (Number.isNaN(d.getTime())) return null;
+                  const datePart = d.toLocaleDateString("vi-VN", {
+                    day: "2-digit",
+                    month: "short",
+                  });
+                  if (isDatetimeLocalValue(newTaskDueAt)) {
+                    const timePart = d.toLocaleTimeString("vi-VN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+                    return `${datePart} ${timePart}`;
+                  }
+                  return datePart;
+                })()
+              : null;
+            const reminderLabels = {
+              NONE: null,
+              MINUTES_5: "5 phút trước",
+              MINUTES_15: "15 phút trước",
+              HOUR_1: "1 giờ trước",
+            };
+            const priorityActive = PRIORITY_FLAG_STYLES[newTaskPriority];
+            const hasReminder = newTaskReminder !== "NONE";
 
-          return (
-          <div
-            ref={createTaskSectionRef}
-            className="mb-4 overflow-hidden rounded-xl border border-border-subtle bg-bg-sidebar/40 transition-colors focus-within:border-accent-primary/40"
-          >
-            {/* ── Title row ─────────────────────────────────── */}
-            <div className="flex items-start gap-2.5 px-4 pt-6 pb-3">
-              <div className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-text-tertiary">
-                <Plus size={16} />
-              </div>
-              <input
-                ref={newTaskInputRef}
-                className="flex-1 border-none bg-transparent py-2 text-[15px] font-medium text-text-primary outline-none placeholder-text-tertiary"
-                placeholder="Bạn cần làm gì?"
-                value={newTaskText}
-                onChange={(e) => {
-                  setNewTaskText(e.target.value);
-                  if (newTaskError) setNewTaskError("");
-                }}
-                onKeyDown={handleNewTaskKeyDown}
-                aria-invalid={Boolean(newTaskError)}
-              />
-              {allTasks.length > 0 && (
-                <button
-                  type="button"
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-white/5 hover:text-text-primary border-none bg-transparent cursor-pointer"
-                  onClick={handleCollapseComposer}
-                  title="Thu gọn"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
+            return (
+              <div
+                ref={createTaskSectionRef}
+                className="mb-4 overflow-hidden rounded-xl border border-border-subtle bg-bg-sidebar/40 transition-colors focus-within:border-accent-primary/40"
+              >
+                {/* ── Title row ─────────────────────────────────── */}
+                <div className="flex items-start gap-2.5 px-4 pt-6 pb-3">
+                  <div className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-text-tertiary">
+                    <Plus size={16} />
+                  </div>
+                  <input
+                    ref={newTaskInputRef}
+                    className="flex-1 border-none bg-transparent py-2 text-[15px] font-medium text-text-primary outline-none placeholder-text-tertiary"
+                    placeholder="Bạn cần làm gì?"
+                    value={newTaskText}
+                    onChange={(e) => {
+                      setNewTaskText(e.target.value);
+                      if (newTaskError) setNewTaskError("");
+                    }}
+                    onKeyDown={handleNewTaskKeyDown}
+                    aria-invalid={Boolean(newTaskError)}
+                  />
+                  {allTasks.length > 0 && (
+                    <button
+                      type="button"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-white/5 hover:text-text-primary border-none bg-transparent cursor-pointer"
+                      onClick={handleCollapseComposer}
+                      title="Thu gọn"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
 
-            {/* ── Description (collapsible) ─────────────────── */}
-            {(showDescription || newTaskDescription) && (
-              <div className="px-4 pt-2 pl-[42px]">
-                <textarea
-                  className="w-full resize-none rounded-md border border-transparent bg-transparent p-1 text-[13px] text-text-secondary outline-none placeholder-text-tertiary focus:border-border-subtle focus:bg-white/3"
-                  rows={2}
-                  placeholder="Thêm mô tả..."
-                  value={newTaskDescription}
-                  onChange={(e) => setNewTaskDescription(e.target.value)}
-                  autoFocus={showDescription && !newTaskDescription}
-                />
-              </div>
-            )}
+                {/* ── Description (collapsible) ─────────────────── */}
+                {(showDescription || newTaskDescription) && (
+                  <div className="px-4 pt-2 pl-[42px]">
+                    <textarea
+                      className="w-full resize-none rounded-md border border-transparent bg-transparent p-1 text-[13px] text-text-secondary outline-none placeholder-text-tertiary focus:border-border-subtle focus:bg-white/3"
+                      rows={2}
+                      placeholder="Thêm mô tả..."
+                      value={newTaskDescription}
+                      onChange={(e) => setNewTaskDescription(e.target.value)}
+                      autoFocus={showDescription && !newTaskDescription}
+                    />
+                  </div>
+                )}
 
-            {/* ── Schedule section (collapsible) ────────────── */}
-            {showSchedule && (
-              <div className="mx-4 mt-3 ml-[42px] rounded-lg border border-border-subtle/60 bg-white/[0.02] p-3">
-                <div className="flex items-center gap-2 mb-3">
-                  <Clock size={14} className="text-accent-primary" />
-                  <span className="text-xs font-semibold text-text-primary">Lên lịch</span>
+                {/* ── Schedule section (collapsible) ────────────── */}
+                {showSchedule && (
+                  <div className="mx-4 mt-3 ml-[42px] rounded-lg border border-border-subtle/60 bg-white/[0.02] p-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Clock size={14} className="text-accent-primary" />
+                      <span className="text-xs font-semibold text-text-primary">
+                        Lên lịch
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSchedule(false);
+                          setNewTaskStartAt("");
+                          setNewTaskEndAt("");
+                        }}
+                        className="ml-auto p-0.5 rounded hover:bg-white/10 text-text-tertiary hover:text-text-primary transition-colors border-none bg-transparent cursor-pointer"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="flex-1">
+                        <label className="block text-[11px] text-text-tertiary uppercase tracking-wider mb-1.5 font-medium">
+                          Bắt đầu
+                        </label>
+                        <input
+                          type="datetime-local"
+                          className="w-full rounded-md border border-border-subtle bg-white/5 px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-accent-primary/50 transition-colors"
+                          style={{ colorScheme: "dark" }}
+                          value={newTaskStartAt}
+                          onChange={(e) => {
+                            setNewTaskStartAt(e.target.value);
+                            if (newTaskError) setNewTaskError("");
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-[11px] text-text-tertiary uppercase tracking-wider mb-1.5 font-medium">
+                          Kết thúc
+                        </label>
+                        <input
+                          type="datetime-local"
+                          className="w-full rounded-md border border-border-subtle bg-white/5 px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-accent-primary/50 transition-colors"
+                          style={{ colorScheme: "dark" }}
+                          value={newTaskEndAt}
+                          onChange={(e) => {
+                            setNewTaskEndAt(e.target.value);
+                            if (newTaskError) setNewTaskError("");
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {newTaskError && (
+                  <p className="mt-1 px-4 pl-[42px] text-xs text-red-400">
+                    {newTaskError}
+                  </p>
+                )}
+
+                {/* ── Action chips row ──────────────────────────── */}
+                <div className="flex items-center gap-1.5 border-t border-border-subtle/60 bg-white/[0.015] px-3 py-2 mt-3">
+                  {/* Date chip (datetime-local) */}
                   <button
                     type="button"
-                    onClick={() => { setShowSchedule(false); setNewTaskStartAt(""); setNewTaskEndAt(""); }}
-                    className="ml-auto p-0.5 rounded hover:bg-white/10 text-text-tertiary hover:text-text-primary transition-colors border-none bg-transparent cursor-pointer"
+                    onClick={() => {
+                      if (dateInputRef.current?.showPicker) {
+                        dateInputRef.current.showPicker();
+                      } else {
+                        dateInputRef.current?.click();
+                      }
+                    }}
+                    className={`group inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors border-none cursor-pointer ${
+                      newTaskDueAt
+                        ? isDueAtInPast
+                          ? "bg-amber-500/10 text-amber-300 hover:bg-amber-500/15"
+                          : "bg-accent-primary/10 text-accent-primary hover:bg-accent-primary/15"
+                        : "bg-transparent text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
+                    }`}
+                    title={newTaskDueAt ? "Đổi hạn chót" : "Đặt hạn chót"}
                   >
-                    <X size={12} />
+                    <Calendar size={12} />
+                    <span>{formattedDueAt || "Hạn chót"}</span>
+                    {newTaskDueAt && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setNewTaskDueAt("");
+                        }}
+                        className="ml-0.5 -mr-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-sm opacity-60 hover:bg-black/30 hover:opacity-100"
+                      >
+                        <X size={10} />
+                      </span>
+                    )}
+                  </button>
+                  <input
+                    ref={dateInputRef}
+                    type="datetime-local"
+                    className="sr-only"
+                    style={{ colorScheme: "dark" }}
+                    value={newTaskDueAt}
+                    onChange={(e) => {
+                      setNewTaskDueAt(e.target.value);
+                      if (newTaskError) setNewTaskError("");
+                    }}
+                    tabIndex={-1}
+                  />
+
+                  {/* Schedule chip */}
+                  <button
+                    type="button"
+                    onClick={() => setShowSchedule(!showSchedule)}
+                    className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors border-none cursor-pointer ${
+                      showSchedule
+                        ? "bg-accent-primary/10 text-accent-primary hover:bg-accent-primary/15"
+                        : "bg-transparent text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
+                    }`}
+                    title="Lên lịch (tạo sự kiện trên Calendar)"
+                  >
+                    <Clock size={12} />
+                    <span>Lên lịch</span>
+                  </button>
+
+                  {/* Priority chip */}
+                  <div ref={priorityDropdownRef} className="relative">
+                    <button
+                      type="button"
+                      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors border-none cursor-pointer ${
+                        priorityActive
+                          ? "bg-white/[0.04] hover:bg-white/[0.08]"
+                          : "bg-transparent text-text-tertiary hover:bg-white/5"
+                      }`}
+                      onClick={() =>
+                        setShowPriorityDropdown(!showPriorityDropdown)
+                      }
+                      title={
+                        priorityActive
+                          ? `Mức ưu tiên: ${priorityActive.label}`
+                          : "Mức ưu tiên"
+                      }
+                    >
+                      <Flag
+                        size={12}
+                        strokeWidth={2.25}
+                        className={
+                          priorityActive
+                            ? priorityActive.color
+                            : "text-text-tertiary opacity-70"
+                        }
+                      />
+                      <span
+                        className={priorityActive ? priorityActive.color : ""}
+                      >
+                        {priorityActive ? priorityActive.label : "Ưu tiên"}
+                      </span>
+                    </button>
+                    {showPriorityDropdown && (
+                      <div className="absolute bottom-full left-0 mb-1.5 bg-bg-sidebar border border-border-subtle rounded-xl shadow-2xl p-1 flex flex-col gap-0.5 z-20 min-w-[140px]">
+                        {["HIGH", "MEDIUM", "LOW"].map((p) => {
+                          const s = PRIORITY_FLAG_STYLES[p];
+                          const selected = newTaskPriority === p;
+                          return (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => {
+                                setNewTaskPriority(p);
+                                setShowPriorityDropdown(false);
+                              }}
+                              className={`w-full flex items-center gap-2 px-2.5 py-1.5 hover:bg-white/10 rounded-lg transition-colors border-none bg-transparent cursor-pointer ${selected ? "bg-white/5" : ""}`}
+                            >
+                              <Flag
+                                size={13}
+                                strokeWidth={2.25}
+                                className={s.color}
+                              />
+                              <span
+                                className={`text-xs font-medium ${s.color}`}
+                              >
+                                {s.label}
+                              </span>
+                              {selected && (
+                                <Check
+                                  size={12}
+                                  className="ml-auto text-text-secondary"
+                                />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Reminder chip */}
+                  <div ref={reminderDropdownRef} className="relative">
+                    <button
+                      type="button"
+                      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors border-none cursor-pointer ${
+                        hasReminder
+                          ? "bg-amber-400/10 text-amber-300 hover:bg-amber-400/15"
+                          : "bg-transparent text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
+                      }`}
+                      onClick={() =>
+                        setShowReminderDropdown(!showReminderDropdown)
+                      }
+                      title={
+                        hasReminder
+                          ? `Nhắc: ${reminderLabels[newTaskReminder]}`
+                          : "Nhắc nhở"
+                      }
+                    >
+                      <Bell size={12} />
+                      <span>
+                        {hasReminder
+                          ? reminderLabels[newTaskReminder]
+                          : "Nhắc nhở"}
+                      </span>
+                    </button>
+                    {showReminderDropdown && (
+                      <div className="absolute bottom-full left-0 mb-1.5 bg-bg-sidebar border border-border-subtle rounded-xl shadow-2xl p-1 flex flex-col gap-0.5 z-20 min-w-[160px]">
+                        {[
+                          { value: "NONE", label: "Không nhắc" },
+                          { value: "MINUTES_5", label: "5 phút trước" },
+                          { value: "MINUTES_15", label: "15 phút trước" },
+                          { value: "HOUR_1", label: "1 giờ trước" },
+                        ].map((opt) => {
+                          const selected = newTaskReminder === opt.value;
+                          const isReminder = opt.value !== "NONE";
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => {
+                                setNewTaskReminder(opt.value);
+                                setShowReminderDropdown(false);
+                              }}
+                              className={`w-full flex items-center gap-2 px-2.5 py-1.5 hover:bg-white/10 rounded-lg transition-colors border-none bg-transparent cursor-pointer ${selected ? "bg-white/5" : ""}`}
+                            >
+                              <Bell
+                                size={12}
+                                className={
+                                  isReminder
+                                    ? "text-amber-400"
+                                    : "text-text-tertiary opacity-50"
+                                }
+                              />
+                              <span
+                                className={`text-xs ${isReminder ? "text-amber-300" : "text-text-secondary"}`}
+                              >
+                                {opt.label}
+                              </span>
+                              {selected && (
+                                <Check
+                                  size={12}
+                                  className="ml-auto text-text-secondary"
+                                />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Description toggle chip */}
+                  {!showDescription && !newTaskDescription && (
+                    <button
+                      type="button"
+                      onClick={() => setShowDescription(true)}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-transparent px-2 py-1 text-xs text-text-tertiary transition-colors hover:bg-white/5 hover:text-text-secondary border-none cursor-pointer"
+                      title="Thêm mô tả"
+                    >
+                      <FileText size={12} />
+                      <span>Mô tả</span>
+                    </button>
+                  )}
+
+                  {/* Submit */}
+                  <button
+                    type="button"
+                    disabled={!newTaskText.trim() || hasBlockingErrors}
+                    className={`ml-auto inline-flex items-center gap-1 rounded-md px-3 py-1 text-xs font-semibold text-white transition-all duration-150 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed border-none cursor-pointer ${
+                      hasBlockingErrors
+                        ? "bg-red-500/60 hover:bg-red-500/70"
+                        : "bg-accent-primary hover:bg-accent-hover"
+                    }`}
+                    onClick={handleAddBlankTask}
+                    title={
+                      hasBlockingErrors
+                        ? "Sửa các lỗi bên dưới để tạo task"
+                        : ""
+                    }
+                  >
+                    {hasBlockingErrors ? "Không thể tạo" : "Thêm"}
+                    {!hasBlockingErrors && (
+                      <kbd className="hidden md:inline rounded bg-white/15 px-1 py-px text-[9px] font-mono">
+                        ⏎
+                      </kbd>
+                    )}
                   </button>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="flex-1">
-                    <label className="block text-[11px] text-text-tertiary uppercase tracking-wider mb-1.5 font-medium">Bắt đầu</label>
-                    <input
-                      type="datetime-local"
-                      className="w-full rounded-md border border-border-subtle bg-white/5 px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-accent-primary/50 transition-colors"
-                      style={{ colorScheme: 'dark' }}
-                      value={newTaskStartAt}
-                      onChange={(e) => { setNewTaskStartAt(e.target.value); if (newTaskError) setNewTaskError(""); }}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-[11px] text-text-tertiary uppercase tracking-wider mb-1.5 font-medium">Kết thúc</label>
-                    <input
-                      type="datetime-local"
-                      className="w-full rounded-md border border-border-subtle bg-white/5 px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-accent-primary/50 transition-colors"
-                      style={{ colorScheme: 'dark' }}
-                      value={newTaskEndAt}
-                      onChange={(e) => { setNewTaskEndAt(e.target.value); if (newTaskError) setNewTaskError(""); }}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {newTaskError && (
-              <p className="mt-1 px-4 pl-[42px] text-xs text-red-400">{newTaskError}</p>
-            )}
-
-            {/* ── Action chips row ──────────────────────────── */}
-            <div className="flex items-center gap-1.5 border-t border-border-subtle/60 bg-white/[0.015] px-3 py-2 mt-3">
-              {/* Date chip (datetime-local) */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (dateInputRef.current?.showPicker) {
-                    dateInputRef.current.showPicker();
-                  } else {
-                    dateInputRef.current?.click();
-                  }
-                }}
-                className={`group inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors border-none cursor-pointer ${
-                  newTaskDueAt
-                    ? isDueAtInPast
-                      ? "bg-amber-500/10 text-amber-300 hover:bg-amber-500/15"
-                      : "bg-accent-primary/10 text-accent-primary hover:bg-accent-primary/15"
-                    : "bg-transparent text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
-                }`}
-                title={newTaskDueAt ? "Đổi hạn chót" : "Đặt hạn chót"}
-              >
-                <Calendar size={12} />
-                <span>{formattedDueAt || "Hạn chót"}</span>
-                {newTaskDueAt && (
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setNewTaskDueAt("");
-                    }}
-                    className="ml-0.5 -mr-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-sm opacity-60 hover:bg-black/30 hover:opacity-100"
-                  >
-                    <X size={10} />
-                  </span>
-                )}
-              </button>
-              <input
-                ref={dateInputRef}
-                type="datetime-local"
-                className="sr-only"
-                style={{ colorScheme: 'dark' }}
-                value={newTaskDueAt}
-                onChange={(e) => {
-                  setNewTaskDueAt(e.target.value);
-                  if (newTaskError) setNewTaskError("");
-                }}
-                tabIndex={-1}
-              />
-
-              {/* Schedule chip */}
-              <button
-                type="button"
-                onClick={() => setShowSchedule(!showSchedule)}
-                className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors border-none cursor-pointer ${
-                  showSchedule
-                    ? "bg-accent-primary/10 text-accent-primary hover:bg-accent-primary/15"
-                    : "bg-transparent text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
-                }`}
-                title="Lên lịch (tạo sự kiện trên Calendar)"
-              >
-                <Clock size={12} />
-                <span>Lên lịch</span>
-              </button>
-
-              {/* Priority chip */}
-              <div ref={priorityDropdownRef} className="relative">
-                <button
-                  type="button"
-                  className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors border-none cursor-pointer ${
-                    priorityActive
-                      ? "bg-white/[0.04] hover:bg-white/[0.08]"
-                      : "bg-transparent text-text-tertiary hover:bg-white/5"
-                  }`}
-                  onClick={() => setShowPriorityDropdown(!showPriorityDropdown)}
-                  title={priorityActive ? `Mức ưu tiên: ${priorityActive.label}` : "Mức ưu tiên"}
-                >
-                  <Flag
-                    size={12}
-                    strokeWidth={2.25}
-                    className={priorityActive ? priorityActive.color : "text-text-tertiary opacity-70"}
-                  />
-                  <span className={priorityActive ? priorityActive.color : ""}>
-                    {priorityActive ? priorityActive.label : "Ưu tiên"}
-                  </span>
-                </button>
-                {showPriorityDropdown && (
-                  <div className="absolute bottom-full left-0 mb-1.5 bg-bg-sidebar border border-border-subtle rounded-xl shadow-2xl p-1 flex flex-col gap-0.5 z-20 min-w-[140px]">
-                    {["HIGH", "MEDIUM", "LOW"].map((p) => {
-                      const s = PRIORITY_FLAG_STYLES[p];
-                      const selected = newTaskPriority === p;
-                      return (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => {
-                            setNewTaskPriority(p);
-                            setShowPriorityDropdown(false);
-                          }}
-                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 hover:bg-white/10 rounded-lg transition-colors border-none bg-transparent cursor-pointer ${selected ? "bg-white/5" : ""}`}
-                        >
-                          <Flag size={13} strokeWidth={2.25} className={s.color} />
-                          <span className={`text-xs font-medium ${s.color}`}>{s.label}</span>
-                          {selected && <Check size={12} className="ml-auto text-text-secondary" />}
-                        </button>
-                      );
-                    })}
+                {composerWarnings.length > 0 && (
+                  <div className="border-t border-border-subtle/40 px-4 py-2.5 space-y-1.5">
+                    {composerWarnings.map((warning) => (
+                      <div
+                        key={warning.id}
+                        className={`text-[12px] flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-all duration-200 ${
+                          warning.tone === "error"
+                            ? "bg-red-500/10 text-red-300 border border-red-500/20"
+                            : warning.tone === "warn"
+                              ? "bg-amber-500/8 text-amber-300"
+                              : warning.tone === "tip"
+                                ? "bg-blue-500/8 text-blue-300"
+                                : "bg-white/[0.03] text-text-secondary"
+                        }`}
+                      >
+                        <span className="leading-relaxed flex-1">
+                          {warning.text}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
-
-              {/* Reminder chip */}
-              <div ref={reminderDropdownRef} className="relative">
-                <button
-                  type="button"
-                  className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors border-none cursor-pointer ${
-                    hasReminder
-                      ? "bg-amber-400/10 text-amber-300 hover:bg-amber-400/15"
-                      : "bg-transparent text-text-tertiary hover:bg-white/5 hover:text-text-secondary"
-                  }`}
-                  onClick={() => setShowReminderDropdown(!showReminderDropdown)}
-                  title={hasReminder ? `Nhắc: ${reminderLabels[newTaskReminder]}` : "Nhắc nhở"}
-                >
-                  <Bell size={12} />
-                  <span>{hasReminder ? reminderLabels[newTaskReminder] : "Nhắc nhở"}</span>
-                </button>
-                {showReminderDropdown && (
-                  <div className="absolute bottom-full left-0 mb-1.5 bg-bg-sidebar border border-border-subtle rounded-xl shadow-2xl p-1 flex flex-col gap-0.5 z-20 min-w-[160px]">
-                    {[
-                      { value: "NONE", label: "Không nhắc" },
-                      { value: "MINUTES_5", label: "5 phút trước" },
-                      { value: "MINUTES_15", label: "15 phút trước" },
-                      { value: "HOUR_1", label: "1 giờ trước" },
-                    ].map((opt) => {
-                      const selected = newTaskReminder === opt.value;
-                      const isReminder = opt.value !== "NONE";
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => {
-                            setNewTaskReminder(opt.value);
-                            setShowReminderDropdown(false);
-                          }}
-                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 hover:bg-white/10 rounded-lg transition-colors border-none bg-transparent cursor-pointer ${selected ? "bg-white/5" : ""}`}
-                        >
-                          <Bell
-                            size={12}
-                            className={isReminder ? "text-amber-400" : "text-text-tertiary opacity-50"}
-                          />
-                          <span className={`text-xs ${isReminder ? "text-amber-300" : "text-text-secondary"}`}>
-                            {opt.label}
-                          </span>
-                          {selected && <Check size={12} className="ml-auto text-text-secondary" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Description toggle chip */}
-              {!showDescription && !newTaskDescription && (
-                <button
-                  type="button"
-                  onClick={() => setShowDescription(true)}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-transparent px-2 py-1 text-xs text-text-tertiary transition-colors hover:bg-white/5 hover:text-text-secondary border-none cursor-pointer"
-                  title="Thêm mô tả"
-                >
-                  <FileText size={12} />
-                  <span>Mô tả</span>
-                </button>
-              )}
-
-              {/* Submit */}
-              <button
-                type="button"
-                disabled={!newTaskText.trim() || hasBlockingErrors}
-                className={`ml-auto inline-flex items-center gap-1 rounded-md px-3 py-1 text-xs font-semibold text-white transition-all duration-150 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed border-none cursor-pointer ${
-                  hasBlockingErrors
-                    ? "bg-red-500/60 hover:bg-red-500/70"
-                    : "bg-accent-primary hover:bg-accent-hover"
-                }`}
-                onClick={handleAddBlankTask}
-                title={hasBlockingErrors ? "Sửa các lỗi bên dưới để tạo task" : ""}
-              >
-                {hasBlockingErrors ? "Không thể tạo" : "Thêm"}
-                {!hasBlockingErrors && (
-                  <kbd className="hidden md:inline rounded bg-white/15 px-1 py-px text-[9px] font-mono">⏎</kbd>
-                )}
-              </button>
-            </div>
-
-            {composerWarnings.length > 0 && (
-              <div className="border-t border-border-subtle/40 px-4 py-2.5 space-y-1.5">
-                {composerWarnings.map((warning) => (
-                  <div
-                    key={warning.id}
-                    className={`text-[12px] flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-all duration-200 ${
-                      warning.tone === "error"
-                        ? "bg-red-500/10 text-red-300 border border-red-500/20"
-                        : warning.tone === "warn"
-                        ? "bg-amber-500/8 text-amber-300"
-                        : warning.tone === "tip"
-                        ? "bg-blue-500/8 text-blue-300"
-                        : "bg-white/[0.03] text-text-secondary"
-                    }`}
-                  >
-                    <span className="leading-relaxed flex-1">{warning.text}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          );
-        })()}
+            );
+          })()}
 
         {loading && !tasks.length && (
           <div className="mt-4 rounded-md border border-border-subtle/40 overflow-hidden">
@@ -1088,41 +1347,49 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
 
         {/* ── Task List (grouped from incoming, row UI from HEAD) ── */}
         <div className="bg-transparent">
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          {hasVisibleTasks ? (
-            TASK_GROUPS.map((group) => {
-              const tasksInGroup = groupedTasks[group.key];
-              if (tasksInGroup.length === 0) return null;
-              const isCollapsed = Boolean(collapsedGroups[group.key]);
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            {hasVisibleTasks ? (
+              TASK_GROUPS.map((group) => {
+                const tasksInGroup = groupedTasks[group.key];
+                if (tasksInGroup.length === 0) return null;
+                const isCollapsed = Boolean(collapsedGroups[group.key]);
 
-              return (
-                <GroupDropZone key={group.key} group={group}>
-                  <section className="mb-4">
-                    <button
-                      type="button"
-                      className="mb-1 flex w-full items-center justify-between rounded-md px-2 py-1 transition-colors hover:bg-white/5"
-                      onClick={() => handleToggleGroupCollapse(group.key)}
-                    >
-                      <span className={`text-[11px] font-semibold uppercase tracking-wide ${group.labelClassName}`}>
-                        {group.label} ({tasksInGroup.length})
-                      </span>
-                      <ChevronDown
-                        size={14}
-                        className={`text-text-tertiary transition-transform ${isCollapsed ? "-rotate-90" : "rotate-0"}`}
-                      />
-                    </button>
-                    {!isCollapsed && (
-                      <div className="pl-1 pr-1">{tasksInGroup.map((task) => renderTaskRow(task))}</div>
-                    )}
-                  </section>
-                </GroupDropZone>
-              );
-            })
-          ) : (
-            <div className="text-center py-10">
-              <p className="text-text-tertiary text-sm">No tasks yet</p>
-            </div>
-          )}
+                return (
+                  <GroupDropZone key={group.key} group={group}>
+                    <section className="mb-4">
+                      <button
+                        type="button"
+                        className="mb-1 flex w-full items-center justify-between rounded-md px-2 py-1 transition-colors hover:bg-white/5"
+                        onClick={() => handleToggleGroupCollapse(group.key)}
+                      >
+                        <span
+                          className={`text-[11px] font-semibold uppercase tracking-wide ${group.labelClassName}`}
+                        >
+                          {group.label} ({tasksInGroup.length})
+                        </span>
+                        <ChevronDown
+                          size={14}
+                          className={`text-text-tertiary transition-transform ${isCollapsed ? "-rotate-90" : "rotate-0"}`}
+                        />
+                      </button>
+                      {!isCollapsed && (
+                        <div className="pl-1 pr-1">
+                          {tasksInGroup.map((task) => renderTaskRow(task))}
+                        </div>
+                      )}
+                    </section>
+                  </GroupDropZone>
+                );
+              })
+            ) : (
+              <div className="text-center py-10">
+                <p className="text-text-tertiary text-sm">No tasks yet</p>
+              </div>
+            )}
           </DndContext>
         </div>
 
