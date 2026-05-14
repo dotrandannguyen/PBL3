@@ -618,8 +618,8 @@ function withCalendarMetadata(sourceMetadata, eventId) {
 	const metadata = normalizeMetadata(sourceMetadata);
 	const baseCalendarMetadata =
 		typeof metadata[CALENDAR_METADATA_KEY] === 'object' &&
-		metadata[CALENDAR_METADATA_KEY] !== null &&
-		!Array.isArray(metadata[CALENDAR_METADATA_KEY])
+			metadata[CALENDAR_METADATA_KEY] !== null &&
+			!Array.isArray(metadata[CALENDAR_METADATA_KEY])
 			? metadata[CALENDAR_METADATA_KEY]
 			: {};
 
