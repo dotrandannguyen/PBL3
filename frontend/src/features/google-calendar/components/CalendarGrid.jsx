@@ -36,12 +36,21 @@ const getCalendarDays = (year, month) => {
     return days;
 };
 
-/**
- * Lấy events cho một ngày cụ thể
- */
 const getEventsForDate = (date, events) => {
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    return events.filter(e => e.date === dateStr);
+    return events.filter(e => {
+        const start = e.date;
+        const end = e.endDate || e.date;
+        return dateStr >= start && dateStr <= end;
+    }).map(e => {
+        const start = e.date;
+        const end = e.endDate || e.date;
+        return {
+            ...e,
+            isStart: dateStr === start,
+            isEnd: dateStr === end,
+        };
+    });
 };
 
 const CalendarGrid = ({ currentDate, events, onDateClick, onEventClick, onAddEvent }) => {

@@ -219,8 +219,8 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
 
           {/* Action Row */}
           <div className="flex flex-wrap items-center gap-2.5 mt-4">
-            {/* Due Date (with red outline from screenshot) */}
-            <div className="flex items-center gap-2 px-3 py-1.5 border border-red-500/60 rounded-md bg-transparent text-red-400 text-sm cursor-pointer hover:bg-red-500/10 transition-colors">
+            {/* Due Date */}
+            <div className={`flex items-center gap-2 px-3 py-1.5 border rounded-md bg-transparent text-sm cursor-pointer transition-colors ${checkDueDateWarnings().includes("pastDue") ? "border-red-500/60 text-red-400 hover:bg-red-500/10" : "border-border-subtle text-text-primary hover:bg-white/5"}`}>
               <input
                 type="datetime-local"
                 value={
@@ -365,7 +365,7 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                 <label className="text-xs text-text-tertiary font-medium">
                   {t("task.slideover.startDate")}
                 </label>
-                <div className="flex items-center gap-2 px-2.5 py-1.5 bg-bg-main/50 border border-border-subtle rounded-md group hover:border-text-tertiary transition-colors">
+                <div className={`flex items-center gap-2 px-2.5 py-1.5 bg-bg-main/50 border rounded-md group transition-colors ${computeScheduleWarnings().some(w => w.id === "start-past" || w.id === "end-before-start") ? "border-red-500/50 focus-within:border-red-500 text-red-400" : "border-border-subtle hover:border-text-tertiary"}`}>
                   <input
                     type="datetime-local"
                     className="bg-transparent border-none outline-none text-text-primary text-[13px] flex-1 min-w-0"
@@ -397,7 +397,7 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                 <label className="text-xs text-text-tertiary font-medium">
                   {t("task.slideover.endDate")}
                 </label>
-                <div className="flex items-center gap-2 px-2.5 py-1.5 bg-bg-main/50 border border-red-500/50 rounded-md focus-within:border-red-500 transition-colors">
+                <div className={`flex items-center gap-2 px-2.5 py-1.5 bg-bg-main/50 border rounded-md transition-colors ${computeScheduleWarnings().some(w => w.id === "end-past" || w.id === "end-before-start") ? "border-red-500/50 focus-within:border-red-500 text-red-400" : "border-border-subtle focus-within:border-text-tertiary"}`}>
                   <input
                     type="datetime-local"
                     className="bg-transparent border-none outline-none text-text-primary text-[13px] flex-1 min-w-0"

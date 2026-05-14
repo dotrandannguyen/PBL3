@@ -6,6 +6,7 @@ import {
 	rescheduleEventV2,
 	cancelEventJobsV2,
 } from '../notifications/notification.schedule.js';
+import { taskService } from '../tasks/task.service.js';
 
 const toDateOnly = (dateString) => new Date(`${dateString}T00:00:00.000Z`);
 const DEFAULT_TASK_EVENT_COLOR = '#2383e2';
@@ -209,6 +210,43 @@ export const eventService = {
 
 		// Reschedule event notifications v2 (hàm sẽ remove job cũ trước)
 		await rescheduleEventV2({ ...updatedEvent, userId });
+
+		if (existingEvent.linkedTaskId) {
+			const taskUpdate = {};
+			let shouldUpdateTask = false;
+
+			if (dto.startAt !== undefined || dto.date !== undefined || dto.time !== undefined) {
+				let startAtToSync = updatedEvent.startAt;
+				if (!startAtToSync && updatedEvent.date && updatedEvent.time) {
+					startAtToSync = new Date(`${updatedEvent.date.toISOString().slice(0, 10)}T${updatedEvent.time}:00.000Z`);
+				}
+				taskUpdate.startAt = startAtToSync;
+				shouldUpdateTask = true;
+			}
+
+			if (dto.endAt !== undefined || dto.endDate !== undefined || dto.endTime !== undefined) {
+				let endAtToSync = updatedEvent.endAt;
+				if (!endAtToSync && updatedEvent.endDate && updatedEvent.endTime) {
+					endAtToSync = new Date(`${updatedEvent.endDate.toISOString().slice(0, 10)}T${updatedEvent.endTime}:00.000Z`);
+				}
+				taskUpdate.dueDate = endAtToSync;
+				shouldUpdateTask = true;
+			}
+
+			if (dto.title !== undefined) {
+				taskUpdate.title = dto.title;
+				shouldUpdateTask = true;
+			}
+
+			if (dto.description !== undefined) {
+				taskUpdate.description = dto.description;
+				shouldUpdateTask = true;
+			}
+
+			if (shouldUpdateTask) {
+				await taskService.updateTask(userId, existingEvent.linkedTaskId, taskUpdate);
+			}
+		}
 
 		const endPayload = await getTaskEventEndPayload(userId, updatedEvent.id);
 

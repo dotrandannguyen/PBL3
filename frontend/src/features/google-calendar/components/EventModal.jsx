@@ -450,7 +450,7 @@ const EventModal = ({ isOpen, onClose, onSave, onDelete, event, selectedDate, pr
         const startAt = !isAllDay && time ? new Date(`${date}T${time}:00`) : null;
         const endAt = !isAllDay && endTime ? new Date(`${resolvedEndDate}T${endTime}:00`) : null;
 
-        if (startAt && endAt && !Number.isNaN(startAt.getTime()) && !Number.isNaN(endAt.getTime()) && endAt <= startAt) {
+        if (startAt && endAt && !Number.isNaN(startAt.getTime()) && !Number.isNaN(endAt.getTime()) && endAt < startAt) {
             alert(t('cal.modal.endTimeError'));
             return;
         }

@@ -128,11 +128,11 @@ export const taskService = {
 		const reminderAt = parseDateValue(data.reminderAt);
 
 		if (reminderAt && reminderAt.getTime() <= Date.now()) {
-			throw new OptionalException('Thời gian nhắc nhở phải ở tương lai.');
+			throw new OptionalException(StatusCodes.BAD_REQUEST, 'Thời gian nhắc nhở phải ở tương lai.');
 		}
 
 		if (dueDate && dueDate.getTime() < Date.now()) {
-			throw new OptionalException('Hạn chót không được ở quá khứ.');
+			throw new OptionalException(StatusCodes.BAD_REQUEST, 'Hạn chót không được ở quá khứ.');
 		}
 
 		const taskData = {
@@ -216,7 +216,7 @@ export const taskService = {
 		if (data.reminderAt !== undefined) {
 			const nextReminderAt = parseDateValue(data.reminderAt);
 			if (nextReminderAt && nextReminderAt.getTime() <= Date.now()) {
-				throw new OptionalException('Thời gian nhắc nhở phải ở tương lai.');
+				throw new OptionalException(StatusCodes.BAD_REQUEST, 'Thời gian nhắc nhở phải ở tương lai.');
 			}
 			updateData.reminderAt = nextReminderAt;
 		}
@@ -228,7 +228,7 @@ export const taskService = {
 					: existingTask.dueDate;
 
 			if (checkDueDate && checkDueDate.getTime() < Date.now()) {
-				throw new OptionalException('Hạn chót không được ở quá khứ.');
+				throw new OptionalException(StatusCodes.BAD_REQUEST, 'Hạn chót không được ở quá khứ.');
 			}
 		}
 

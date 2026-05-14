@@ -17,26 +17,32 @@ export const CalendarEventUI = React.forwardRef(
                 e.stopPropagation();
                 if (!isDragging && !isOverlay) onClick?.(event);
             }}
-            className={`block h-full w-full overflow-hidden rounded-[4px] border border-border-subtle bg-white/5 px-2 py-1.5 text-left text-[11px] leading-snug transition-[background-color,border-color,box-shadow,opacity] duration-150 ease-out hover:border-white/20 hover:bg-white/10 ${
+            className={`w-full overflow-hidden border-y py-1.5 text-left leading-tight transition-all duration-200 ease-out hover:brightness-110 hover:-translate-y-[0.5px] ${
                 isOverlay
-                    ? 'shadow-2xl ring-1 ring-white/40 z-50 cursor-grabbing'
+                    ? 'shadow-2xl ring-1 ring-white/40 z-50 cursor-grabbing rounded-[6px] px-2.5'
                     : isDragging
-                    ? 'opacity-30 cursor-grabbing'
-                    : 'cursor-grab active:cursor-grabbing'
+                    ? 'opacity-30 cursor-grabbing rounded-[6px] px-2.5'
+                    : `cursor-grab active:cursor-grabbing ${event.isStart === false ? 'ml-[-6px] pl-[8px] rounded-l-none border-l-transparent' : 'rounded-l-[6px] pl-2.5 border-l'} ${event.isEnd === false ? 'mr-[-6px] pr-[8px] rounded-r-none border-r-transparent' : 'rounded-r-[6px] pr-2.5 border-r'}`
             } ${className || 'mb-1'}`}
             style={{
                 ...style,
-                borderLeft: `3px solid ${event.color || '#2383e2'}`,
+                backgroundColor: event.color ? `${event.color}15` : 'rgba(255,255,255,0.06)',
+                borderTopColor: event.color ? `${event.color}30` : 'rgba(255,255,255,0.1)',
+                borderBottomColor: event.color ? `${event.color}30` : 'rgba(255,255,255,0.1)',
+                borderRightColor: event.color ? `${event.color}30` : 'rgba(255,255,255,0.1)',
+                borderLeftWidth: event.isStart === false ? '0' : '3px',
+                borderLeftStyle: 'solid',
+                borderLeftColor: event.isStart === false ? 'transparent' : (event.color || '#2383e2'),
                 willChange: isDragging || isOverlay ? 'transform, opacity' : 'auto',
             }}
             {...props}
         >
-            <div className="flex flex-col">
-                <span className="truncate font-medium text-text-primary">
-                    {event.title}
+            <div className="flex flex-col gap-0.5">
+                <span className="truncate text-[13px] font-bold text-white tracking-wide">
+                    {event.title || '\u00A0'}
                 </span>
                 {event.time && (
-                    <span className="mt-0.5 truncate text-[10px] text-text-tertiary">
+                    <span className="truncate text-[11px] font-medium text-white/60">
                         {event.time}
                         {event.endTime ? ` – ${event.endTime}` : ''}
                     </span>

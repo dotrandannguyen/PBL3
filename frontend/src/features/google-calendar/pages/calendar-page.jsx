@@ -470,13 +470,16 @@ export function CalendarPage() {
     );
 
     try {
+      const resolvedStartAt = `${newDateStr}T${newTime}:00`;
       const updatePayload = {
         date: newDateStr,
         time: newTime,
+        startAt: toIsoIfValid(resolvedStartAt),
       };
       if (newEndTime) {
         updatePayload.endTime = newEndTime;
         updatePayload.endDate = newDateStr;
+        updatePayload.endAt = toIsoIfValid(`${newDateStr}T${newEndTime}:00`);
       }
       const response = await updateEvent(draggedEvent.id, updatePayload);
       const updatedEvent = extractEvent(response);
