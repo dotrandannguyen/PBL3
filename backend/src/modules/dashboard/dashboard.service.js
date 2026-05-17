@@ -194,7 +194,7 @@ export const dashboardService = {
    * @param {string} userId
    * @param {{ startDate, endDate, mode }} params
    */
-  getOverview: async (userId, { startDate, endDate, mode }) => {
+  getOverview: async (userId, { startDate, endDate, mode, nocache = false }) => {
     // 1. Parse & validate
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -207,12 +207,17 @@ export const dashboardService = {
       throw Object.assign(new Error('startDate must be before endDate'), { status: 400 });
     }
 
-    // 2. Cache check
+    // 2. Cache check (skip when nocache=true — e.g. triggered by page reload / F5)
     const key = cacheKey(userId, start, end, mode);
-    try {
-      const cached = await redisClient.get(key);
-      if (cached) return { ...JSON.parse(cached), cached: true };
-    } catch (_) { }
+    if (!nocache) {
+      try {
+        const cached = await redisClient.get(key);
+        if (cached) return { ...JSON.parse(cached), cached: true };
+      } catch (_) { }
+    } else {
+      // Invalidate stale cache immediately so subsequent normal requests get fresh data
+      try { await redisClient.del(key); } catch (_) { }
+    }
 
     // 3. Previous range
     const { prevStart, prevEnd } = computePreviousRange(start, end);

@@ -15,7 +15,7 @@ export const dashboardController = {
   getOverview: async (req, res, next) => {
     try {
       const userId = req.user.id;
-      const { startDate, endDate, mode = 'week' } = req.query;
+      const { startDate, endDate, mode = 'week', nocache } = req.query;
 
       if (!startDate || !endDate) {
         return res.status(400).json({
@@ -31,7 +31,12 @@ export const dashboardController = {
         });
       }
 
-      const result = await dashboardService.getOverview(userId, { startDate, endDate, mode });
+      const result = await dashboardService.getOverview(userId, {
+        startDate,
+        endDate,
+        mode,
+        nocache: nocache === 'true' || nocache === '1',
+      });
 
       return new HttpResponse(res).success(result);
     } catch (error) {
