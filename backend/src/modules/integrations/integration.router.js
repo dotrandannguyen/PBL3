@@ -19,6 +19,9 @@ integrationRouter.get('/preview/github', integrationController.previewGithub);
 // GET /integrations/preview/slack
 integrationRouter.get('/preview/slack', integrationController.previewSlack);
 
+// GET /integrations/dashboard/slack — 5-category Slack dashboard data
+integrationRouter.get('/dashboard/slack', integrationController.getSlackDashboard);
+
 // GET /integrations/github/repositories
 integrationRouter.get(
 	'/github/repositories',

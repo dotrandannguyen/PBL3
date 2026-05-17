@@ -46,6 +46,19 @@ export const integrationController = {
 		}
 	},
 
+	getSlackDashboard: async (req, res, next) => {
+		try {
+			const userId = req.user.id;
+			const dashboardData = await integrationService.getSlackDashboard(userId);
+			return new HttpResponse(res).success({
+				message: 'Lấy Slack Dashboard thành công',
+				data: dashboardData,
+			});
+		} catch (error) {
+			next(error);
+		}
+	},
+
 	// LấY DANH SÁCH REPOSITORIES
 	getGithubRepositories: async (req, res, next) => {
 		try {

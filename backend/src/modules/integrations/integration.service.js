@@ -264,6 +264,299 @@ export const integrationService = {
 		}
 	},
 
+	/**
+	 * Lấy dữ liệu Slack Dashboard - 5 loại dữ liệu quan trọng:
+	 * 1. Tasks được assign cho mình
+	 * 2. Task có mention/tag mình
+	 * 3. Deadline sắp tới / overdue
+	 * 4. File/link attach trong task
+	 * 5. Notification quan trọng (invite, assign, approve...)
+	 */
+	getSlackDashboard: async (userId) => {
+		const integration = await integrationRepository.getIntegrationByProvider(
+			userId,
+			'SLACK',
+		);
+		if (!integration) {
+			throw new NotFoundException('Bạn chưa kết nối với Slack.');
+		}
+
+		const accessToken = encryptionUtils.decrypt(integration.accessTokenEncrypted);
+		const slackUserId = integration.providerUserId
+			? String(integration.providerUserId)
+			: null;
+
+		const slackClient = axios.create({
+			baseURL: 'https://slack.com/api',
+			headers: { Authorization: `Bearer ${accessToken}` },
+		});
+
+		// ── Helper: lấy tất cả channels user tham gia ────────────────────────
+		const getAllChannels = async () => {
+			try {
+				const [dmRes, chRes] = await Promise.all([
+					slackClient.get('/conversations.list', {
+						params: { types: 'im,mpim', limit: 200 },
+					}),
+					slackClient.get('/conversations.list', {
+						params: { types: 'public_channel,private_channel', limit: 200 },
+					}),
+				]);
+				return [
+					...(dmRes.data?.channels || []),
+					...(chRes.data?.channels || []),
+				];
+			} catch {
+				return [];
+			}
+		};
+
+		// ── Helper: lấy history của 1 channel ────────────────────────────────
+		const getHistory = async (channelId, limit = 50) => {
+			try {
+				const res = await slackClient.get('/conversations.history', {
+					params: { channel: channelId, limit },
+				});
+				return res.data?.messages || [];
+			} catch {
+				return [];
+			}
+		};
+
+		// ── Helper: build link Slack ──────────────────────────────────────────
+		const buildLink = (channelId, ts) =>
+			`https://slack.com/app_redirect?channel=${channelId}&message_ts=${ts}`;
+
+		// ── Helper: extract files/links từ message ────────────────────────────
+		const extractFiles = (msg, channelId, channelName) => {
+			const items = [];
+			// Files đính kèm
+			if (msg.files && msg.files.length > 0) {
+				msg.files.forEach((f) => {
+					items.push({
+						id: `file-${f.id}`,
+						type: 'file',
+						name: f.name || f.title || 'Unnamed file',
+						mimeType: f.mimetype || '',
+						fileType: f.filetype || '',
+						size: f.size || 0,
+						url: f.url_private || f.permalink || '',
+						previewUrl: f.thumb_360 || f.thumb_80 || null,
+						channelId,
+						channelName,
+						ts: msg.ts,
+						link: buildLink(channelId, msg.ts),
+						senderUserId: msg.user || msg.bot_id || null,
+					});
+				});
+			}
+			// Attachments có URL
+			if (msg.attachments && msg.attachments.length > 0) {
+				msg.attachments.forEach((att) => {
+					if (att.original_url || att.title_link) {
+						items.push({
+							id: `att-${msg.ts}-${att.id || Math.random()}`,
+							type: 'link',
+							name: att.title || att.text || att.original_url || 'Link',
+							url: att.original_url || att.title_link || '',
+							previewUrl: att.image_url || att.thumb_url || null,
+							channelId,
+							channelName,
+							ts: msg.ts,
+							link: buildLink(channelId, msg.ts),
+							senderUserId: msg.user || msg.bot_id || null,
+						});
+					}
+				});
+			}
+			return items;
+		};
+
+		// ── Helper: phân loại notification quan trọng ─────────────────────────
+		const NOTIFICATION_KEYWORDS = [
+			'invited you',
+			'added you',
+			'assigned',
+			'approved',
+			'rejected',
+			'approve',
+			'review',
+			'lời mời',
+			'chấp nhận',
+			'phê duyệt',
+			'từ chối',
+			'bàn giao',
+			'giao việc',
+			'merge',
+			'deploy',
+			'release',
+		];
+
+		const ASSIGN_KEYWORDS = [
+			'assign',
+			'giao cho',
+			'giao việc cho',
+			'bạn phụ trách',
+			'bạn cần làm',
+			'phân công',
+			'responsible',
+			'owner',
+			'bàn giao',
+		];
+
+		const DEADLINE_KEYWORDS = [
+			'deadline',
+			'due',
+			'hạn',
+			'hết hạn',
+			'ngày mai',
+			'tomorrow',
+			'today',
+			'hôm nay',
+			'overdue',
+			'quá hạn',
+			'urgent',
+			'gấp',
+			'asap',
+			'sắp hết hạn',
+		];
+
+		const isNotification = (text) => {
+			const lower = (text || '').toLowerCase();
+			return NOTIFICATION_KEYWORDS.some((kw) => lower.includes(kw));
+		};
+
+		const isAssignedToMe = (text, userId) => {
+			if (!userId) return false;
+			const lower = (text || '').toLowerCase();
+			const mentionMe = text.includes(`<@${userId}>`);
+			return mentionMe && ASSIGN_KEYWORDS.some((kw) => lower.includes(kw));
+		};
+
+		const isMentionMe = (text, userId) => {
+			if (!userId) return false;
+			return text.includes(`<@${userId}>`);
+		};
+
+		const hasDeadline = (text) => {
+			const lower = (text || '').toLowerCase();
+			return DEADLINE_KEYWORDS.some((kw) => lower.includes(kw));
+		};
+
+		const hasFileOrLink = (msg) => {
+			return (
+				(msg.files && msg.files.length > 0) ||
+				(msg.attachments && msg.attachments.length > 0)
+			);
+		};
+
+		try {
+			const channels = await getAllChannels();
+			if (channels.length === 0) {
+				return {
+					assignedTasks: [],
+					mentions: [],
+					deadlines: [],
+					filesAndLinks: [],
+					notifications: [],
+					connected: true,
+					channelCount: 0,
+				};
+			}
+
+			// Lấy history song song từ tối đa 10 channels (tránh rate limit)
+			const targetChannels = channels.slice(0, 10);
+			const allMessagesRaw = await Promise.all(
+				targetChannels.map(async (ch) => {
+					const msgs = await getHistory(ch.id, 30);
+					return msgs.map((m) => ({
+						...m,
+						_channelId: ch.id,
+						_channelName: ch.name || ch.id,
+					}));
+				}),
+			);
+			const allMessages = allMessagesRaw.flat();
+
+			// ── Phân loại ─────────────────────────────────────────────────────
+			const assignedTasks = [];
+			const mentions = [];
+			const deadlines = [];
+			const filesAndLinks = [];
+			const notifications = [];
+
+			const seenTs = new Set(); // tránh trùng lặp
+
+			for (const msg of allMessages) {
+				if (!msg.text && !msg.files && !msg.attachments) continue;
+				const text = msg.text || '';
+				const channelId = msg._channelId;
+				const channelName = msg._channelName;
+				const ts = msg.ts;
+				const key = `${channelId}-${ts}`;
+				const baseItem = {
+					id: key,
+					text,
+					ts,
+					channelId,
+					channelName,
+					senderUserId: msg.user || msg.bot_id || null,
+					link: buildLink(channelId, ts),
+				};
+
+				// 1. Assigned to me
+				if (isAssignedToMe(text, slackUserId)) {
+					assignedTasks.push({ ...baseItem, category: 'assigned' });
+				}
+
+				// 2. Mentions (chỉ mention, không phải assigned)
+				if (isMentionMe(text, slackUserId) && !isAssignedToMe(text, slackUserId)) {
+					mentions.push({ ...baseItem, category: 'mention' });
+				}
+
+				// 3. Deadline
+				if (hasDeadline(text)) {
+					deadlines.push({ ...baseItem, category: 'deadline' });
+				}
+
+				// 4. Files & links
+				if (hasFileOrLink(msg)) {
+					const files = extractFiles(msg, channelId, channelName);
+					filesAndLinks.push(...files);
+				}
+
+				// 5. Notifications quan trọng (không phải từ mình)
+				const senderIsMe = slackUserId && (msg.user === slackUserId || msg.bot_id === slackUserId);
+				if (!senderIsMe && isNotification(text)) {
+					notifications.push({ ...baseItem, category: 'notification' });
+				}
+			}
+
+			// Sort theo ts giảm dần (mới nhất trước)
+			const sortByTs = (arr) =>
+				arr.sort((a, b) => parseFloat(b.ts) - parseFloat(a.ts));
+
+			return {
+				assignedTasks: sortByTs(assignedTasks).slice(0, 20),
+				mentions: sortByTs(mentions).slice(0, 20),
+				deadlines: sortByTs(deadlines).slice(0, 20),
+				filesAndLinks: filesAndLinks.slice(0, 20),
+				notifications: sortByTs(notifications).slice(0, 20),
+				connected: true,
+				channelCount: channels.length,
+				slackUserId,
+			};
+		} catch (error) {
+			console.error('Lỗi getSlackDashboard:', {
+				status: error.response?.status,
+				message: error.response?.data?.error || error.message,
+			});
+			throw new UnauthorizedException(
+				'Không thể lấy dữ liệu Slack Dashboard. Vui lòng kiểm tra scope quyền và token hợp lệ.',
+			);
+		}
+	},
+
 	// ========== GMAIL WEBHOOK FUNCTIONS ==========
 
 	/**
