@@ -206,7 +206,6 @@ const Sidebar = ({
           {MAIN_NAV_ITEMS.map((item) => {
             let isActive = false;
             if (item.id === "inbox") isActive = showInbox;
-            else if (item.id === "home") isActive = currentPath === "/";
             else if (item.id === "dashboard")
               isActive = currentPath === "/dashboard";
             else if (item.id === "search") isActive = isSearchOpen;
@@ -221,7 +220,6 @@ const Sidebar = ({
                 collapsed={collapsed}
                 onClick={() => {
                   if (item.id === "inbox") setShowInbox(!showInbox);
-                  else if (item.id === "home") navigate("/");
                   else if (item.id === "dashboard") navigate("/dashboard");
                   else if (item.id === "search") openSearchModal();
                 }}

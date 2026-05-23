@@ -1,6 +1,5 @@
 import {
   Search,
-  Home,
   Users,
   Sparkles,
   Inbox,
@@ -14,7 +13,6 @@ import {
 
 const MAIN_NAV_ITEMS = [
   { icon: Search, id: "search", labelKey: "sidebar.search" },
-  { icon: Home, id: "home", labelKey: "sidebar.home" },
   { icon: LayoutDashboard, id: "dashboard", labelKey: "sidebar.dashboard" },
   { icon: Inbox, id: "inbox", labelKey: "sidebar.inbox" },
 ];

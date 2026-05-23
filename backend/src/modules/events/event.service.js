@@ -396,6 +396,8 @@ async function ensureScheduledTaskEvents(userId) {
 			title: true,
 			description: true,
 			scheduledAt: true,
+			dueDate: true,
+			reminderAt: true,
 			sourceMetadata: true,
 		},
 	});
@@ -453,6 +455,7 @@ async function ensureScheduledTaskEvents(userId) {
 
 function buildTaskEventPayload(task) {
 	const scheduledAtDate = new Date(task.scheduledAt);
+	const dueDateValue = task.dueDate ? new Date(task.dueDate) : null;
 
 	return {
 		title: task.title,
@@ -463,6 +466,10 @@ function buildTaskEventPayload(task) {
 		description: task.description ?? null,
 		repeat: 'NONE',
 		reminder: 'NONE',
+		startAt: scheduledAtDate,
+		endAt: dueDateValue,
+		reminderAt: task.reminderAt ? new Date(task.reminderAt) : null,
+		linkedTaskId: task.id,
 	};
 }
 
