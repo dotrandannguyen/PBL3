@@ -193,52 +193,78 @@ export const integrationService = {
 		});
 
 		try {
-			const listDirect = await slackClient.get('/conversations.list', {
-				params: { types: 'im,mpim', limit: 10 },
-			});
+			const [listDirect, listChannels] = await Promise.all([
+				slackClient.get('/conversations.list', {
+					params: { types: 'im,mpim', limit: 20 },
+				}),
+				slackClient.get('/conversations.list', {
+					params: { types: 'public_channel,private_channel', limit: 20 },
+				}),
+			]);
 
 			const directChannels = listDirect.data?.channels || [];
-			let targetChannel = directChannels[0] || null;
-			let channelName = targetChannel?.name || 'direct-message';
+			const normalChannels = listChannels.data?.channels || [];
+			const channels = [...directChannels, ...normalChannels].slice(0, 10);
 
-			if (!targetChannel) {
-				const listChannels = await slackClient.get('/conversations.list', {
-					params: { types: 'public_channel,private_channel', limit: 10 },
-				});
-
-				const channels = listChannels.data?.channels || [];
-				targetChannel = channels[0] || null;
-				channelName = targetChannel?.name || 'channel';
-			}
-
-			if (!targetChannel) {
+			if (channels.length === 0) {
 				return [];
 			}
 
-			const history = await slackClient.get('/conversations.history', {
-				params: { channel: targetChannel.id, limit: 10 },
-			});
+			const histories = await Promise.all(
+				channels.map(async (channel) => {
+					try {
+						const history = await slackClient.get('/conversations.history', {
+							params: { channel: channel.id, limit: 10 },
+						});
+						const items = history.data?.messages || [];
+						return items.map((message) => ({
+							...message,
+							_channelId: channel.id,
+							_channelName: channel.name || 'channel',
+						}));
+					} catch {
+						return [];
+					}
+				}),
+			);
 
-			const messages = history.data?.messages || [];
-			if (messages.length === 0) return [];
+			const allMessages = histories.flat();
+			const uniqueMessages = new Map();
+			for (const message of allMessages) {
+				const channelId = message._channelId;
+				const ts = message.ts;
+				if (!channelId || !ts) continue;
+				const key = `${channelId}:${ts}`;
+				if (!uniqueMessages.has(key)) {
+					uniqueMessages.set(key, message);
+				}
+			}
 
-			const formattedMessages = messages
+			const formattedMessages = Array.from(uniqueMessages.values())
 				.filter((message) => Boolean(message?.text))
-				.filter((message) => {
-					if (!slackUserId) return true;
-					const senderId = message.user || message.bot_id || null;
-					if (!senderId) return false;
-					return String(senderId) !== slackUserId;
+				.filter((message) => !message.subtype)
+				.map((message) => {
+					const channelId = message._channelId;
+					const ts = message.ts;
+					const compositeId = `${channelId}:${ts}`;
+					return {
+						id: compositeId,
+						text: message.text,
+						userId: message.user || message.bot_id || 'slack',
+						ts,
+						channelId,
+						channelName: message._channelName,
+						isFromMe:
+							slackUserId && message.user
+								? String(message.user) === slackUserId
+								: false,
+						link: `https://slack.com/app_redirect?channel=${channelId}&message_ts=${ts}`,
+					};
 				})
-				.map((message) => ({
-					id: message.ts,
-					text: message.text,
-					userId: message.user || message.bot_id || 'slack',
-					ts: message.ts,
-					channelId: targetChannel.id,
-					channelName,
-					link: `https://slack.com/app_redirect?channel=${targetChannel.id}&message_ts=${message.ts}`,
-				}));
+				.sort((a, b) => parseFloat(b.ts) - parseFloat(a.ts))
+				.slice(0, 20);
+
+			if (formattedMessages.length === 0) return [];
 
 			const tasksBySourceId = await integrationService.saveTasksToInbox(
 				userId,
@@ -302,10 +328,7 @@ export const integrationService = {
 						params: { types: 'public_channel,private_channel', limit: 200 },
 					}),
 				]);
-				return [
-					...(dmRes.data?.channels || []),
-					...(chRes.data?.channels || []),
-				];
+				return [...(dmRes.data?.channels || []), ...(chRes.data?.channels || [])];
 			} catch {
 				return [];
 			}
@@ -510,7 +533,10 @@ export const integrationService = {
 				}
 
 				// 2. Mentions (chỉ mention, không phải assigned)
-				if (isMentionMe(text, slackUserId) && !isAssignedToMe(text, slackUserId)) {
+				if (
+					isMentionMe(text, slackUserId) &&
+					!isAssignedToMe(text, slackUserId)
+				) {
 					mentions.push({ ...baseItem, category: 'mention' });
 				}
 
@@ -526,7 +552,9 @@ export const integrationService = {
 				}
 
 				// 5. Notifications quan trọng (không phải từ mình)
-				const senderIsMe = slackUserId && (msg.user === slackUserId || msg.bot_id === slackUserId);
+				const senderIsMe =
+					slackUserId &&
+					(msg.user === slackUserId || msg.bot_id === slackUserId);
 				if (!senderIsMe && isNotification(text)) {
 					notifications.push({ ...baseItem, category: 'notification' });
 				}
@@ -1056,12 +1084,16 @@ export const integrationService = {
 						description: task.text || 'Không có nội dung chi tiết.',
 						priority: 'MEDIUM',
 						sourceType: 'SLACK',
-						sourceId: String(task.id),
+						sourceId:
+							task.channelId && task.ts
+								? `${task.channelId}:${task.ts}`
+								: String(task.id),
 						sourceLink: task.link,
 						sourceMetadata: {
 							channelId: task.channelId,
 							channelName: task.channelName,
 							userId: task.userId,
+							isFromMe: task.isFromMe || false,
 							ts: task.ts,
 						},
 					};
@@ -1072,7 +1104,7 @@ export const integrationService = {
 					userId,
 					taskData,
 				);
-				console.log(`[SLACK] Task saved:`, {
+				console.log(`[${sourceType}] Task saved:`, {
 					id: savedTask.id,
 					title: savedTask.title,
 					status: savedTask.status,

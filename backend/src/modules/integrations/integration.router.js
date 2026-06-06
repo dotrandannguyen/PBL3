@@ -7,6 +7,7 @@ const integrationRouter = Router();
 
 integrationRouter.post('/webhook/github', webhookController.handleGithub);
 integrationRouter.post('/webhook/gmail', webhookController.handleGmail);
+integrationRouter.post('/webhook/slack', webhookController.handleSlack);
 // Yêu cầu phải đăng nhập (có Token của hệ thống) mới được xem
 integrationRouter.use(authGuard);
 

@@ -7,6 +7,36 @@ import { encryptionUtils } from '../../common/utils/encryption.js';
 import { taskRepository } from '../tasks/task.repository.js';
 import { googleService } from '../auth/google.service.js';
 
+const verifySlackSignature = (req) => {
+	const signature = req.headers['x-slack-signature'];
+	const timestamp = req.headers['x-slack-request-timestamp'];
+	const signingSecret = process.env.SLACK_SIGNING_SECRET;
+
+	if (!signature || !timestamp || !signingSecret || !req.rawBody) {
+		return false;
+	}
+
+	const now = Math.floor(Date.now() / 1000);
+	const reqTs = Number(timestamp);
+	if (Number.isNaN(reqTs) || Math.abs(now - reqTs) > 300) {
+		return false;
+	}
+
+	const baseString = `v0:${timestamp}:${req.rawBody.toString('utf8')}`;
+	const digest =
+		'v0=' +
+		crypto.createHmac('sha256', signingSecret).update(baseString).digest('hex');
+
+	const signatureBuffer = Buffer.from(String(signature));
+	const digestBuffer = Buffer.from(digest);
+
+	if (signatureBuffer.length !== digestBuffer.length) {
+		return false;
+	}
+
+	return crypto.timingSafeEqual(signatureBuffer, digestBuffer);
+};
+
 export const webhookController = {
 	handleGithub: async (req, res) => {
 		// 1. NGAY LẬP TỨC trả về 200 OK để GitHub biết Server bạn còn sống
@@ -125,7 +155,10 @@ export const webhookController = {
 							);
 						}
 					} catch (socketError) {
-						console.error('[SOCKET.IO] Lỗi khi emit event:', socketError.message);
+						console.error(
+							'[SOCKET.IO] Lỗi khi emit event:',
+							socketError.message,
+						);
 					}
 				}
 			}
@@ -248,6 +281,93 @@ export const webhookController = {
 			}
 		} catch (error) {
 			console.error('Lỗi xử lý Webhook Gmail:', error);
+		}
+	},
+	handleSlack: async (req, res) => {
+		const isValidSignature = verifySlackSignature(req);
+		if (!isValidSignature) {
+			return res.status(401).send('Invalid Slack signature');
+		}
+
+		if (req.body?.type === 'url_verification') {
+			return res.status(200).json({ challenge: req.body.challenge });
+		}
+
+		res.status(200).send('OK');
+
+		try {
+			if (req.body?.type !== 'event_callback') {
+				return;
+			}
+
+			const { event, team_id: teamId } = req.body;
+			if (!event || event.type !== 'message' || event.subtype || !event.user) {
+				return;
+			}
+
+			const slackUserId = String(event.user);
+			const text = (event.text || '').trim();
+			if (!text) {
+				return;
+			}
+
+			const channelId = event.channel;
+			const ts = event.ts;
+			const sourceId = `${channelId}:${ts}`;
+
+			const integration = await prisma.integration.findFirst({
+				where: {
+					provider: 'SLACK',
+					providerUserId: slackUserId,
+				},
+			});
+
+			if (!integration) {
+				console.log(
+					`[SLACK WEBHOOK] Bỏ qua: Slack user ${slackUserId} chưa liên kết tài khoản.`,
+				);
+				return;
+			}
+
+			const existingTask = await prisma.task.findFirst({
+				where: {
+					userId: integration.userId,
+					sourceType: 'SLACK',
+					sourceId,
+				},
+			});
+
+			const taskData = {
+				title: `[Slack] ${text.substring(0, 100)}`,
+				description: text,
+				priority: 'MEDIUM',
+				sourceType: 'SLACK',
+				sourceId,
+				sourceLink: `https://slack.com/app_redirect?channel=${channelId}&message_ts=${ts}`,
+				sourceMetadata: {
+					channelId,
+					teamId,
+					slackUserId,
+					ts,
+				},
+			};
+
+			const newTask = await taskRepository.upsertTaskToInbox(
+				integration.userId,
+				taskData,
+			);
+
+			if (!existingTask) {
+				const io = req.app.get('socketio');
+				if (io) {
+					io.to(integration.userId).emit('NEW_INBOX_ITEM', {
+						message: 'Bạn có một tin nhắn Slack mới!',
+						task: newTask,
+					});
+				}
+			}
+		} catch (error) {
+			console.error('Lỗi xử lý Webhook Slack:', error);
 		}
 	},
 };

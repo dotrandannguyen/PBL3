@@ -105,6 +105,9 @@ const handleLoginAccount = async (userProfile, slackUserId, userToken, team) => 
 					user: userProfile,
 					team,
 				},
+				webhookData: {
+					teamId: team?.id || null,
+				},
 			},
 			create: {
 				userId: user.id,
@@ -115,6 +118,9 @@ const handleLoginAccount = async (userProfile, slackUserId, userToken, team) => 
 				profileData: {
 					user: userProfile,
 					team,
+				},
+				webhookData: {
+					teamId: team?.id || null,
 				},
 			},
 		});
@@ -225,6 +231,9 @@ const handleLinkAccount = async (userId, userProfile, slackUserId, userToken, te
 					user: userProfile,
 					team,
 				},
+				webhookData: {
+					teamId: team?.id || null,
+				},
 			},
 			create: {
 				userId: user.id,
@@ -235,6 +244,9 @@ const handleLinkAccount = async (userId, userProfile, slackUserId, userToken, te
 				profileData: {
 					user: userProfile,
 					team,
+				},
+				webhookData: {
+					teamId: team?.id || null,
 				},
 			},
 		});
