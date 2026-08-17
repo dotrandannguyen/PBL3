@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
         const res = await axios.post(
           `${API_BASE_URL}/v1/api/auth/refresh`,
           {},
-          { withCredentials: true },
+          { withCredentials: true }, // Gửi cookie (refresh token) cùng request
         );
 
         const token = res.data?.data?.accessToken;
@@ -160,7 +160,7 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         accessToken,
-        isAuthenticated: !!accessToken,
+        isAuthenticated: !!accessToken, // ép kiểu boolean
         isLoading,
         login,
         loginWithOAuth,

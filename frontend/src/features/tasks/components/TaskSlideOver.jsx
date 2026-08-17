@@ -31,14 +31,16 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
   const { t } = useLanguage();
   const [localTitle, setLocalTitle] = useState("");
   const [localDesc, setLocalDesc] = useState("");
+  const [localStartAt, setLocalStartAt] = useState("");
+  const [localDueAt, setLocalDueAt] = useState("");
 
   const [isRendered, setIsRendered] = useState(false);
   const [isPriorityOpen, setIsPriorityOpen] = useState(false);
 
   const checkDueDateWarnings = () => {
     const warnings = [];
-    if (task?.dueDate) {
-      const dueDate = new Date(task.dueDate);
+    if (localDueAt) {
+      const dueDate = new Date(localDueAt);
       const now = new Date();
 
       if (dueDate < now) {
@@ -52,8 +54,8 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
     const warnings = [];
     const now = new Date();
 
-    const startObj = task?.scheduledAt ? new Date(task.scheduledAt) : null;
-    const endObj = task?.dueDate ? new Date(task.dueDate) : null;
+    const startObj = localStartAt ? new Date(localStartAt) : null;
+    const endObj = localDueAt ? new Date(localDueAt) : null;
 
     if (startObj && startObj < now) {
       warnings.push({
@@ -86,6 +88,10 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
     if (task && isOpen) {
       setLocalTitle(task.title || task.text || "");
       setLocalDesc(task.description || "");
+      setLocalStartAt(
+        task.scheduledAt ? formatDateToISO(task.scheduledAt) : "",
+      );
+      setLocalDueAt(task.dueDate ? formatDateToISO(task.dueDate) : "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task?.id, isOpen]);
@@ -124,6 +130,13 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
         return;
       }
     }
+  };
+
+  const toIsoOrNull = (value) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toISOString();
   };
 
   useEffect(() => {
@@ -220,34 +233,14 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
           {/* Action Row */}
           <div className="flex flex-wrap items-center gap-2.5 mt-4">
             {/* Due Date */}
-            <div className={`flex items-center gap-2 px-3 py-1.5 border rounded-md bg-transparent text-sm cursor-pointer transition-colors ${checkDueDateWarnings().includes("pastDue") ? "border-red-500/60 text-red-400 hover:bg-red-500/10" : "border-border-subtle text-text-primary hover:bg-white/5"}`}>
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 border rounded-md bg-transparent text-sm cursor-pointer transition-colors ${checkDueDateWarnings().includes("pastDue") ? "border-red-500/60 text-red-400 hover:bg-red-500/10" : "border-border-subtle text-text-primary hover:bg-white/5"}`}
+            >
               <input
                 type="datetime-local"
-                value={
-                  task?.dueDate
-                    ? (() => {
-                        const d = new Date(task.dueDate);
-                        if (Number.isNaN(d.getTime())) return "";
-                        const y = d.getFullYear();
-                        const m = String(d.getMonth() + 1).padStart(2, "0");
-                        const dd = String(d.getDate()).padStart(2, "0");
-                        const hh = String(d.getHours()).padStart(2, "0");
-                        const mm = String(d.getMinutes()).padStart(2, "0");
-                        return `${y}-${m}-${dd}T${hh}:${mm}`;
-                      })()
-                    : ""
-                }
-                onChange={async (e) => {
-                  const val = e.target.value;
-                  const dueDate = val ? new Date(val).toISOString() : null;
-                  if (dueDate && new Date(dueDate) < new Date()) {
-                    toast.error(
-                      t("task.slideover.toast.pastDueDate") ||
-                        "Hạn chót không được ở quá khứ.",
-                    );
-                    return;
-                  }
-                  await onUpdate(task.id, { dueDate });
+                value={localDueAt}
+                onChange={(e) => {
+                  setLocalDueAt(e.target.value);
                 }}
                 className="bg-transparent text-inherit border-none outline-none p-0 max-w-[160px] text-sm"
                 style={{ colorScheme: "dark" }}
@@ -365,29 +358,16 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                 <label className="text-xs text-text-tertiary font-medium">
                   {t("task.slideover.startDate")}
                 </label>
-                <div className={`flex items-center gap-2 px-2.5 py-1.5 bg-bg-main/50 border rounded-md group transition-colors ${computeScheduleWarnings().some(w => w.id === "start-past" || w.id === "end-before-start") ? "border-red-500/50 focus-within:border-red-500 text-red-400" : "border-border-subtle hover:border-text-tertiary"}`}>
+                <div
+                  className={`flex items-center gap-2 px-2.5 py-1.5 bg-bg-main/50 border rounded-md group transition-colors ${computeScheduleWarnings().some((w) => w.id === "start-past" || w.id === "end-before-start") ? "border-red-500/50 focus-within:border-red-500 text-red-400" : "border-border-subtle hover:border-text-tertiary"}`}
+                >
                   <input
                     type="datetime-local"
                     className="bg-transparent border-none outline-none text-text-primary text-[13px] flex-1 min-w-0"
                     style={{ colorScheme: "dark" }}
-                    value={
-                      task?.scheduledAt
-                        ? (() => {
-                            const d = new Date(task.scheduledAt);
-                            if (Number.isNaN(d.getTime())) return "";
-                            const y = d.getFullYear();
-                            const m = String(d.getMonth() + 1).padStart(2, "0");
-                            const dd = String(d.getDate()).padStart(2, "0");
-                            const hh = String(d.getHours()).padStart(2, "0");
-                            const mm = String(d.getMinutes()).padStart(2, "0");
-                            return `${y}-${m}-${dd}T${hh}:${mm}`;
-                          })()
-                        : ""
-                    }
-                    onChange={async (e) => {
-                      const val = e.target.value;
-                      const startAt = val ? new Date(val).toISOString() : null;
-                      await onUpdate(task.id, { startAt });
+                    value={localStartAt}
+                    onChange={(e) => {
+                      setLocalStartAt(e.target.value);
                     }}
                   />
                   <Calendar size={14} className="text-text-tertiary" />
@@ -397,29 +377,16 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
                 <label className="text-xs text-text-tertiary font-medium">
                   {t("task.slideover.endDate")}
                 </label>
-                <div className={`flex items-center gap-2 px-2.5 py-1.5 bg-bg-main/50 border rounded-md transition-colors ${computeScheduleWarnings().some(w => w.id === "end-past" || w.id === "end-before-start") ? "border-red-500/50 focus-within:border-red-500 text-red-400" : "border-border-subtle focus-within:border-text-tertiary"}`}>
+                <div
+                  className={`flex items-center gap-2 px-2.5 py-1.5 bg-bg-main/50 border rounded-md transition-colors ${computeScheduleWarnings().some((w) => w.id === "end-past" || w.id === "end-before-start") ? "border-red-500/50 focus-within:border-red-500 text-red-400" : "border-border-subtle focus-within:border-text-tertiary"}`}
+                >
                   <input
                     type="datetime-local"
                     className="bg-transparent border-none outline-none text-text-primary text-[13px] flex-1 min-w-0"
                     style={{ colorScheme: "dark" }}
-                    value={
-                      task?.dueDate
-                        ? (() => {
-                            const d = new Date(task.dueDate);
-                            if (Number.isNaN(d.getTime())) return "";
-                            const y = d.getFullYear();
-                            const m = String(d.getMonth() + 1).padStart(2, "0");
-                            const dd = String(d.getDate()).padStart(2, "0");
-                            const hh = String(d.getHours()).padStart(2, "0");
-                            const mm = String(d.getMinutes()).padStart(2, "0");
-                            return `${y}-${m}-${dd}T${hh}:${mm}`;
-                          })()
-                        : ""
-                    }
-                    onChange={async (e) => {
-                      const val = e.target.value;
-                      const dueDate = val ? new Date(val).toISOString() : null;
-                      await onUpdate(task.id, { dueDate });
+                    value={localDueAt}
+                    onChange={(e) => {
+                      setLocalDueAt(e.target.value);
                     }}
                   />
                   <Calendar size={14} className="text-text-tertiary" />
@@ -459,6 +426,30 @@ export default function TaskSlideOver({ isOpen, onClose, task, onUpdate }) {
           ) : (
             <button
               onClick={async () => {
+                const nextStartAt = toIsoOrNull(localStartAt);
+                const nextDueDate = toIsoOrNull(localDueAt);
+
+                if (nextDueDate && new Date(nextDueDate) < new Date()) {
+                  toast.error(
+                    t("task.slideover.toast.pastDueDate") ||
+                      "Hạn chót không được ở quá khứ.",
+                  );
+                  return;
+                }
+
+                await handleDateUpdate(nextStartAt, nextDueDate);
+
+                const patch = {};
+                if ((task?.scheduledAt || null) !== nextStartAt) {
+                  patch.startAt = nextStartAt;
+                }
+                if ((task?.dueDate || null) !== nextDueDate) {
+                  patch.dueDate = nextDueDate;
+                }
+                if (Object.keys(patch).length > 0) {
+                  await onUpdate(task.id, patch);
+                }
+
                 await handleTitleBlur();
                 await handleDescBlur();
                 toast.success(t("task.slideover.toast.updated"));

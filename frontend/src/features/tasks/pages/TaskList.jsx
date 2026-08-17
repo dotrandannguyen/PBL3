@@ -711,12 +711,21 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
     handleCancelEdit();
   };
 
-  const handleDateChange = async (taskId, newDate) => {
-    if (taskId) {
-      const normalizedDueAt = normalizeDueAtForApi(newDate);
-      if (newDate && !normalizedDueAt) return;
-      await updateTaskData(taskId, { dueDate: normalizedDueAt });
+  const handleDateChange = async (task, newDate) => {
+    if (!task?.id) return;
+
+    const normalizedDueAt = normalizeDueAtForApi(newDate);
+    if (newDate && !normalizedDueAt) return;
+
+    const payload = { dueDate: normalizedDueAt };
+
+    // Quick date-set from row should also create schedule for unscheduled tasks
+    // so the item appears on calendar without requiring extra edits.
+    if (normalizedDueAt && !task.scheduledAt) {
+      payload.startAt = normalizedDueAt;
     }
+
+    await updateTaskData(task.id, payload);
   };
 
   const handlePriorityChange = async (taskId, newPriority) => {
@@ -847,7 +856,7 @@ const TaskList = ({ title = "To Do List", workspaceId }) => {
               setEditDate(value);
               return;
             }
-            handleDateChange(task.id, value);
+            handleDateChange(task, value);
           }}
           onPriorityChange={(priority) => {
             if (editingId === task.id) {

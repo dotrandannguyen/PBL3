@@ -5,6 +5,19 @@ import { toast } from "sonner";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { WorkspacePickerModal } from "./WorkspacePickerModal";
 
+const isUuid = (value) =>
+  typeof value === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+
+const resolveTaskId = (item) => {
+  if (!item) return null;
+  if (isUuid(item.taskId)) return item.taskId;
+  if (isUuid(item.id)) return item.id;
+  return null;
+};
+
 /**
  * @component ItemDetailModal
  * Modal hiển thị chi tiết tin nhắn/issue
@@ -16,6 +29,31 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
   const { t, lang } = useLanguage();
   const [isClosing, setIsClosing] = useState(false);
   const [showWsPicker, setShowWsPicker] = useState(false);
+
+  const sourceLabel =
+    item?.source === "gmail"
+      ? "Gmail"
+      : item?.source === "github"
+        ? "GitHub"
+        : item?.source === "slack"
+          ? "Slack"
+          : "Nexus";
+
+  const sourceTypeLabel =
+    item?.source === "gmail"
+      ? t("inbox.modal.inbox")
+      : item?.source === "slack"
+        ? "Slack"
+        : t("inbox.modal.issue");
+
+  const sourceMeta =
+    item?.source === "gmail"
+      ? "google-mail"
+      : item?.source === "github"
+        ? "github-issue"
+        : item?.source === "slack"
+          ? "slack-message"
+          : "external-item";
 
   // Close on Escape key
   useEffect(() => {
@@ -52,22 +90,30 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
    * Gọi API confirm với workspaceId → update UI → show toast
    */
   const handleConfirmWithWorkspace = async (workspaceId) => {
+    const taskId = resolveTaskId(item);
+    if (!taskId) {
+      toast.error("Không tìm thấy task inbox hợp lệ, vui lòng làm mới.");
+      return;
+    }
+
     try {
-      await confirmInboxTask(item.id, workspaceId);
+      await confirmInboxTask(taskId, workspaceId);
       if (onStatusChange) onStatusChange(item.id, "PENDING");
-      toast.success(t('inbox.toast.addedTask'), {
+      toast.success(t("inbox.toast.addedTask"), {
         position: "bottom-right",
         duration: 3000,
       });
       setTimeout(requestClose, 1500);
     } catch (error) {
-      toast.error(t('inbox.toast.error'));
+      const message = error?.response?.data?.message || t("inbox.toast.error");
+      toast.error(message);
       console.error(error);
     }
   };
 
   // Locale string for date
-  const dateLocale = lang === 'ja' ? 'ja-JP' : lang === 'en' ? 'en-US' : 'vi-VN';
+  const dateLocale =
+    lang === "ja" ? "ja-JP" : lang === "en" ? "en-US" : "vi-VN";
 
   return (
     <>
@@ -93,7 +139,7 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
               <button
                 onClick={requestClose}
                 className="p-1.5 hover:bg-bg-hover rounded-md text-text-tertiary hover:text-text-primary transition-colors active:scale-95"
-                title={t('inbox.modal.close')}
+                title={t("inbox.modal.close")}
               >
                 <X size={20} />
               </button>
@@ -103,7 +149,7 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
                 window.open(item.link, "_blank", "noopener,noreferrer")
               }
               className="p-1.5 hover:bg-bg-hover rounded-md text-text-tertiary hover:text-text-primary transition-colors"
-              title={`${t('inbox.modal.openIn')} ${item.source === "gmail" ? "Gmail" : "GitHub"}`}
+              title={`${t("inbox.modal.openIn")} ${sourceLabel}`}
             >
               <ExternalLink size={18} />
             </button>
@@ -117,21 +163,22 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
                 <h2 className="text-2xl font-normal text-text-primary flex items-center gap-3">
                   {item.subject}
                   <span className="px-2 py-0.5 text-xs bg-bg-hover text-text-tertiary rounded-md">
-                    {item.source === "gmail" ? t('inbox.modal.inbox') : t('inbox.modal.issue')}
+                    {sourceTypeLabel}
                   </span>
                 </h2>
               </div>
               {/* CONFIRM BUTTON OR BADGE */}
               {item.isConverted ? (
                 <div className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-green-500 bg-green-500/10 rounded-md whitespace-nowrap">
-                  <CheckCircle size={16} />{t('inbox.modal.added')}
+                  <CheckCircle size={16} />
+                  {t("inbox.modal.added")}
                 </div>
               ) : (
                 <button
                   onClick={handleAddToTask}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-accent-primary text-white rounded-md hover:bg-opacity-90 transition-colors shadow-sm whitespace-nowrap"
                 >
-                  <Plus size={16} /> {t('inbox.modal.addToTask')}
+                  <Plus size={16} /> {t("inbox.modal.addToTask")}
                 </button>
               )}
             </div>
@@ -148,12 +195,12 @@ export function ItemDetailModal({ item, onClose, onStatusChange }) {
                       {item.sender}
                     </span>
                     <span className="text-text-tertiary ml-2 text-xs">
-                      &lt;
-                      {item.source === "gmail" ? "google-mail" : "github-issue"}
-                      &gt;
+                      &lt;{sourceMeta}&gt;
                     </span>
                   </div>
-                  <div className="text-xs text-text-tertiary mt-1">{t('inbox.modal.to')}</div>
+                  <div className="text-xs text-text-tertiary mt-1">
+                    {t("inbox.modal.to")}
+                  </div>
                 </div>
               </div>
               <div className="text-xs text-text-tertiary mt-1 font-medium">

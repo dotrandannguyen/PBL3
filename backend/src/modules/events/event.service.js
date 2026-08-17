@@ -16,7 +16,9 @@ const DEFAULT_EVENT_SORT = 'date-asc';
 const mapEventToResponse = (event, options = {}) => {
 	// Persisted columns endDate/endTime — backward compat
 	const persistedEndTime = event.endTime ?? null;
-	const persistedEndDate = event.endDate ? event.endDate.toISOString().slice(0, 10) : null;
+	const persistedEndDate = event.endDate
+		? event.endDate.toISOString().slice(0, 10)
+		: null;
 
 	const endTime = persistedEndTime ?? options.endTime ?? null;
 	const endDate = persistedEndDate ?? options.endDate ?? null;
@@ -24,7 +26,8 @@ const mapEventToResponse = (event, options = {}) => {
 	// v2: compute endAt từ endDate+endTime, hoặc từ event.endAt
 	const resolvedEndAtInput = options.endAt ?? event.endAt ?? null;
 	const parsedEndAt = resolvedEndAtInput ? new Date(resolvedEndAtInput) : null;
-	const hasValidEndAt = parsedEndAt instanceof Date && !Number.isNaN(parsedEndAt.getTime());
+	const hasValidEndAt =
+		parsedEndAt instanceof Date && !Number.isNaN(parsedEndAt.getTime());
 	let endAt = hasValidEndAt ? parsedEndAt.toISOString() : null;
 	if (!endAt && endDate && endTime) {
 		endAt = new Date(`${endDate}T${endTime}:00`).toISOString();
@@ -215,19 +218,31 @@ export const eventService = {
 			const taskUpdate = {};
 			let shouldUpdateTask = false;
 
-			if (dto.startAt !== undefined || dto.date !== undefined || dto.time !== undefined) {
+			if (
+				dto.startAt !== undefined ||
+				dto.date !== undefined ||
+				dto.time !== undefined
+			) {
 				let startAtToSync = updatedEvent.startAt;
 				if (!startAtToSync && updatedEvent.date && updatedEvent.time) {
-					startAtToSync = new Date(`${updatedEvent.date.toISOString().slice(0, 10)}T${updatedEvent.time}:00.000Z`);
+					startAtToSync = new Date(
+						`${updatedEvent.date.toISOString().slice(0, 10)}T${updatedEvent.time}:00.000Z`,
+					);
 				}
 				taskUpdate.startAt = startAtToSync;
 				shouldUpdateTask = true;
 			}
 
-			if (dto.endAt !== undefined || dto.endDate !== undefined || dto.endTime !== undefined) {
+			if (
+				dto.endAt !== undefined ||
+				dto.endDate !== undefined ||
+				dto.endTime !== undefined
+			) {
 				let endAtToSync = updatedEvent.endAt;
 				if (!endAtToSync && updatedEvent.endDate && updatedEvent.endTime) {
-					endAtToSync = new Date(`${updatedEvent.endDate.toISOString().slice(0, 10)}T${updatedEvent.endTime}:00.000Z`);
+					endAtToSync = new Date(
+						`${updatedEvent.endDate.toISOString().slice(0, 10)}T${updatedEvent.endTime}:00.000Z`,
+					);
 				}
 				taskUpdate.dueDate = endAtToSync;
 				shouldUpdateTask = true;
@@ -244,7 +259,11 @@ export const eventService = {
 			}
 
 			if (shouldUpdateTask) {
-				await taskService.updateTask(userId, existingEvent.linkedTaskId, taskUpdate);
+				await taskService.updateTask(
+					userId,
+					existingEvent.linkedTaskId,
+					taskUpdate,
+				);
 			}
 		}
 
@@ -406,6 +425,46 @@ async function ensureScheduledTaskEvents(userId) {
 		return;
 	}
 
+	const scheduledTaskIds = scheduledTasks.map((task) => task.id);
+	const existingLinkedTaskEvents = await prisma.event.findMany({
+		where: {
+			userId,
+			linkedTaskId: { in: scheduledTaskIds },
+		},
+		select: {
+			id: true,
+			linkedTaskId: true,
+			updatedAt: true,
+			createdAt: true,
+		},
+		orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+	});
+
+	const canonicalEventByTaskId = new Map();
+	const duplicateLinkedEventIds = [];
+
+	for (const event of existingLinkedTaskEvents) {
+		if (!event.linkedTaskId) {
+			continue;
+		}
+
+		if (!canonicalEventByTaskId.has(event.linkedTaskId)) {
+			canonicalEventByTaskId.set(event.linkedTaskId, event.id);
+			continue;
+		}
+
+		duplicateLinkedEventIds.push(event.id);
+	}
+
+	if (duplicateLinkedEventIds.length > 0) {
+		await prisma.event.deleteMany({
+			where: {
+				userId,
+				id: { in: duplicateLinkedEventIds },
+			},
+		});
+	}
+
 	const linkedEventIds = scheduledTasks
 		.map((task) => getCalendarEventId(task.sourceMetadata))
 		.filter((eventId) => typeof eventId === 'string');
@@ -422,13 +481,34 @@ async function ensureScheduledTaskEvents(userId) {
 			: [];
 
 	const existingEventIdSet = new Set(existingEvents.map((event) => event.id));
+	const canonicalEventIdSet = new Set(canonicalEventByTaskId.values());
 
 	for (const task of scheduledTasks) {
 		const linkedEventId = getCalendarEventId(task.sourceMetadata);
 		const hasLinkedEvent =
-			typeof linkedEventId === 'string' && existingEventIdSet.has(linkedEventId);
+			typeof linkedEventId === 'string' &&
+			(existingEventIdSet.has(linkedEventId) ||
+				canonicalEventIdSet.has(linkedEventId));
+		const canonicalLinkedEventId = canonicalEventByTaskId.get(task.id) ?? null;
 
 		if (hasLinkedEvent) {
+			continue;
+		}
+
+		if (canonicalLinkedEventId) {
+			await prisma.task.updateMany({
+				where: {
+					id: task.id,
+					userId,
+					deletedAt: null,
+				},
+				data: {
+					sourceMetadata: withCalendarMetadata(
+						task.sourceMetadata,
+						canonicalLinkedEventId,
+					),
+				},
+			});
 			continue;
 		}
 

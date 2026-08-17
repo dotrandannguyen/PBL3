@@ -128,11 +128,17 @@ export const taskService = {
 		const reminderAt = parseDateValue(data.reminderAt);
 
 		if (reminderAt && reminderAt.getTime() <= Date.now()) {
-			throw new OptionalException(StatusCodes.BAD_REQUEST, 'Thời gian nhắc nhở phải ở tương lai.');
+			throw new OptionalException(
+				StatusCodes.BAD_REQUEST,
+				'Thời gian nhắc nhở phải ở tương lai.',
+			);
 		}
 
 		if (dueDate && dueDate.getTime() < Date.now()) {
-			throw new OptionalException(StatusCodes.BAD_REQUEST, 'Hạn chót không được ở quá khứ.');
+			throw new OptionalException(
+				StatusCodes.BAD_REQUEST,
+				'Hạn chót không được ở quá khứ.',
+			);
 		}
 
 		const taskData = {
@@ -216,7 +222,10 @@ export const taskService = {
 		if (data.reminderAt !== undefined) {
 			const nextReminderAt = parseDateValue(data.reminderAt);
 			if (nextReminderAt && nextReminderAt.getTime() <= Date.now()) {
-				throw new OptionalException(StatusCodes.BAD_REQUEST, 'Thời gian nhắc nhở phải ở tương lai.');
+				throw new OptionalException(
+					StatusCodes.BAD_REQUEST,
+					'Thời gian nhắc nhở phải ở tương lai.',
+				);
 			}
 			updateData.reminderAt = nextReminderAt;
 		}
@@ -228,7 +237,10 @@ export const taskService = {
 					: existingTask.dueDate;
 
 			if (checkDueDate && checkDueDate.getTime() < Date.now()) {
-				throw new OptionalException(StatusCodes.BAD_REQUEST, 'Hạn chót không được ở quá khứ.');
+				throw new OptionalException(
+					StatusCodes.BAD_REQUEST,
+					'Hạn chót không được ở quá khứ.',
+				);
 			}
 		}
 
@@ -253,7 +265,7 @@ export const taskService = {
 		}
 
 		await taskRepository.update(userId, taskId, updateData);
-		const updatedTask = await taskRepository.findById(userId, taskId);
+		let updatedTask = await taskRepository.findById(userId, taskId);
 
 		// Sync linked Calendar Event nếu task đã có scheduledAt
 		// (title/description thay đổi hoặc startAt/dueDate thay đổi)
@@ -263,11 +275,21 @@ export const taskService = {
 			data.title !== undefined || data.description !== undefined;
 
 		if (updatedTask?.scheduledAt && (scheduleTimingChanged || metadataChanged)) {
-			await upsertScheduledTaskEvent(
+			const calendarEventId = await upsertScheduledTaskEvent(
 				userId,
 				updatedTask,
 				new Date(updatedTask.scheduledAt),
 			);
+
+			if (getCalendarEventId(updatedTask.sourceMetadata) !== calendarEventId) {
+				await taskRepository.update(userId, taskId, {
+					sourceMetadata: withCalendarMetadata(
+						updatedTask.sourceMetadata,
+						calendarEventId,
+					),
+				});
+				updatedTask = await taskRepository.findById(userId, taskId);
+			}
 		}
 
 		const becameDone =
@@ -355,7 +377,8 @@ export const taskService = {
 	/**
 	 * Xóa task:
 	 * - Task MANUAL: soft delete như hiện tại
-	 * - Task từ GMAIL/GITHUB: dismiss khỏi app bằng status=ARCHIVED (không xóa dữ liệu gốc ở nguồn ngoài)
+	 * - Task từ GMAIL/GITHUB/SLACK: dismiss khỏi app bằng status=ARCHIVED
+	 *   (không xóa dữ liệu gốc ở nguồn ngoài)
 	 */
 	deleteTask: async (userId, taskId) => {
 		const task = await taskRepository.findById(userId, taskId);
@@ -373,7 +396,9 @@ export const taskService = {
 		await cancelAllForTarget('TASK', taskId); // legacy
 
 		const isExternalTask =
-			task.sourceType === 'GMAIL' || task.sourceType === 'GITHUB';
+			task.sourceType === 'GMAIL' ||
+			task.sourceType === 'GITHUB' ||
+			task.sourceType === 'SLACK';
 
 		if (isExternalTask) {
 			await taskRepository.update(userId, taskId, {
@@ -452,7 +477,7 @@ export const taskService = {
 
 	/**
 	 * Lấy danh sách INBOX tasks (chờ duyệt từ Webhook/Fetch API)
-	 * QUAN TRỌNG: Fetch TẤT CẢ tasks từ sourceType GMAIL/GITHUB (không filter status)
+	 * QUAN TRỌNG: Fetch TẤT CẢ tasks từ sourceType GMAIL/GITHUB/SLACK (không filter status)
 	 * Để frontend có thể lookup và merge isConverted flag cho tất cả tasks (kể cả PENDING/DONE)
 	 *
 	 * @param {String} userId - ID của user
@@ -466,7 +491,7 @@ export const taskService = {
 		const limit = parseInt(query.limit, 10) || 20;
 		const skip = (page - 1) * limit;
 
-		// Fetch TẤT CẢ tasks từ sourceType GMAIL/GITHUB (bất kể status)
+		// Fetch TẤT CẢ tasks từ sourceType GMAIL/GITHUB/SLACK (bất kể status)
 		// FIX BUG-15: Dùng repository methods thay vì duplicate prisma query trực tiếp
 		const [tasks, totalItems] = await Promise.all([
 			taskRepository.findInbox(userId, { skip, limit }),
@@ -618,8 +643,8 @@ function withCalendarMetadata(sourceMetadata, eventId) {
 	const metadata = normalizeMetadata(sourceMetadata);
 	const baseCalendarMetadata =
 		typeof metadata[CALENDAR_METADATA_KEY] === 'object' &&
-			metadata[CALENDAR_METADATA_KEY] !== null &&
-			!Array.isArray(metadata[CALENDAR_METADATA_KEY])
+		metadata[CALENDAR_METADATA_KEY] !== null &&
+		!Array.isArray(metadata[CALENDAR_METADATA_KEY])
 			? metadata[CALENDAR_METADATA_KEY]
 			: {};
 
