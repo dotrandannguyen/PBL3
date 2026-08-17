@@ -25,7 +25,6 @@ import { MailReceiverPage } from "@/features/notification-receiver";
 import { SettingsPage } from "@/features/setting";
 import { TrashPage } from "@/features/trash";
 import { LandingPage } from "@/features/landing";
-import { DashboardPage } from "@/features/dashboard";
 
 // TODO: Import routes của các tính năng khi được xây dựng
 // import { GithubRoutes } from '@/features/github';
@@ -56,7 +55,7 @@ const router = createBrowserRouter([
             element: <DashboardLayout />,
             children: [
               { path: "/app", element: <WorkspacePage /> },
-              { path: "/dashboard", element: <DashboardPage /> },
+              { path: "/dashboard", element: <Navigate to="/app" replace /> },
               { path: "/calendar", element: <CalendarPage /> },
               { path: "/mail", element: <MailReceiverPage /> },
               { path: "/settings", element: <SettingsPage /> },

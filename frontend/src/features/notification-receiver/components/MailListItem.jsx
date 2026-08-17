@@ -32,7 +32,7 @@ export function MailListItem({ item, onClick, onStatusChange }) {
   const [showWsPicker, setShowWsPicker] = useState(false);
 
   /**
-   * 👉 Mở popup chọn workspace khi click "Thêm"
+   * Mở popup chọn workspace khi click "Thêm"
    */
   const handleAddClick = (e) => {
     e.stopPropagation();
@@ -40,7 +40,7 @@ export function MailListItem({ item, onClick, onStatusChange }) {
   };
 
   /**
-   * 👉 Xử lý confirm sau khi chọn workspace
+   *  Xử lý confirm sau khi chọn workspace
    */
   const handleConfirmWithWorkspace = async (workspaceId) => {
     try {

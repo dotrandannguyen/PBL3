@@ -8,12 +8,10 @@ import {
   Trash2,
   Calendar,
   Mail,
-  LayoutDashboard,
 } from "lucide-react";
 
 const MAIN_NAV_ITEMS = [
   { icon: Search, id: "search", labelKey: "sidebar.search" },
-  { icon: LayoutDashboard, id: "dashboard", labelKey: "sidebar.dashboard" },
   { icon: Inbox, id: "inbox", labelKey: "sidebar.inbox" },
 ];
 

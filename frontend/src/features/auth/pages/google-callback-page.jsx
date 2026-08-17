@@ -3,15 +3,16 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import useAuth from "@/features/auth/hooks/useAuth";
 
 export function GoogleCallbackPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams] = useSearchParams(); // hook để đọc query params từ URL (accessToken, user, mode, error)
   const { loginWithOAuth, refreshSession } = useAuth();
   const navigate = useNavigate();
-  const handled = useRef(false);
+  const handled = useRef(false); // ref để đảm bảo logic trong useEffect chỉ chạy 1 lần (tránh double-invoke của React strict mode)
 
   useEffect(() => {
     // Guard against React strict-mode double-invoke
+    //Nếu không có cờ handled.current, luồng điều hướng và các hàm bên dưới sẽ bị gọi 2 lần, gây ra lỗi chớp màn hình hoặc gọi API dư thừa. Đoạn code này đảm bảo logic bên dưới chỉ chạy đúng 1 lần duy nhất.
     if (handled.current) return;
-    handled.current = true;
+    handled.current = true; 
 
     const accessToken = searchParams.get("accessToken");
     const userRaw = searchParams.get("user");

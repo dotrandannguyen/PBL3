@@ -49,7 +49,7 @@ export const webhookController = {
 			const secret = process.env.GITHUB_WEBHOOK_SECRET;
 
 			if (!signature || !secret) {
-				console.error('🚨 [WEBHOOK] Thiếu chữ ký hoặc Secret Key.');
+				console.error('[WEBHOOK] Thiếu chữ ký hoặc Secret Key.');
 				return;
 			}
 			// fix lỗi crash khi GitHub gửi payload rỗng (ping test) hoặc không có body

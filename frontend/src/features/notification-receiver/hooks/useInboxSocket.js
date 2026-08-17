@@ -17,7 +17,7 @@ import socketService from "../../../shared/api/socket.service";
  *                               Nhận parameter: { message, task }
  */
 export const useInboxSocket = (userId, onNewItem) => {
-  const onNewItemRef = useRef(onNewItem);
+  const onNewItemRef = useRef(onNewItem); // Dùng ref để luôn có callback mới nhất trong listener
 
   useEffect(() => {
     onNewItemRef.current = onNewItem;

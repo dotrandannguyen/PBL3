@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Trash2, Loader, Calendar, Bell, Flag, Check, GripVertical, ChevronRight, ChevronDown, Plus } from "lucide-react";
+import {
+  Trash2,
+  Loader,
+  Calendar,
+  Bell,
+  Flag,
+  Check,
+  GripVertical,
+  ChevronRight,
+  ChevronDown,
+  Plus,
+} from "lucide-react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import TaskCheckbox from "./TaskCheckbox";
 import TaskTooltip from "./TaskTooltip";
@@ -61,6 +72,7 @@ const TaskRow = ({
   const { user } = useAuth();
   const { t } = useLanguage();
   const [isDateOpen, setIsDateOpen] = useState(false);
+  const [draftDueDate, setDraftDueDate] = useState("");
   const [isPriorityOpen, setIsPriorityOpen] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const tooltipTimeoutRef = useRef(null);
@@ -70,7 +82,12 @@ const TaskRow = ({
   const priorityRef = useRef(null);
   const reminderRef = useRef(null);
 
-  const { attributes, listeners, setNodeRef: setDraggableRef, isDragging } = useDraggable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDraggableRef,
+    isDragging,
+  } = useDraggable({
     id: task.id,
     data: { task, level },
   });
@@ -118,14 +135,24 @@ const TaskRow = ({
   };
 
   const dueDateLabelSource = isEditing ? editDate : task.dueDate || task.date;
-  const dueDateValue = dueDateLabelSource ? toDatetimeLocal(dueDateLabelSource) : "";
+  const dueDateValue = dueDateLabelSource
+    ? toDatetimeLocal(dueDateLabelSource)
+    : "";
+
+  useEffect(() => {
+    if (isDateOpen) {
+      setDraftDueDate(dueDateValue);
+    }
+  }, [isDateOpen, dueDateValue]);
 
   const currentPriority = isEditing
     ? editPriority || task.priority
     : task.priority;
 
   const currentReminder = isEditing
-    ? (editReminder !== undefined ? editReminder : task.reminderAt)
+    ? editReminder !== undefined
+      ? editReminder
+      : task.reminderAt
     : task.reminderAt;
 
   const getReminderLabel = (reminderAt) => {
@@ -144,15 +171,17 @@ const TaskRow = ({
     <div
       ref={setDroppableRef}
       className={`group flex items-center gap-1.5 py-2 px-0 border-b border-border-subtle transition-colors relative ${
-        isDeleting ? "overflow-hidden animate-row-fade-out pointer-events-none" : ""
+        isDeleting
+          ? "overflow-hidden animate-row-fade-out pointer-events-none"
+          : ""
       } ${isOver ? "bg-accent-primary/20 ring-1 ring-accent-primary rounded-md" : "hover:bg-white/2"} ${
         isDragging ? "opacity-50 scale-[0.98] z-50 bg-bg-sidebar shadow-xl" : ""
       }`}
       style={{ paddingLeft: `${level * 24}px` }}
     >
-      <div 
-        ref={setDraggableRef} 
-        {...listeners} 
+      <div
+        ref={setDraggableRef}
+        {...listeners}
         {...attributes}
         className="cursor-grab opacity-0 group-hover:opacity-100 transition-opacity text-text-tertiary hover:text-text-secondary active:cursor-grabbing px-1"
       >
@@ -166,7 +195,11 @@ const TaskRow = ({
             className="flex items-center justify-center p-0.5 rounded hover:bg-white/10 text-text-tertiary transition-colors border-none bg-transparent cursor-pointer"
             onClick={onToggleExpand}
           >
-            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            {isExpanded ? (
+              <ChevronDown size={14} />
+            ) : (
+              <ChevronRight size={14} />
+            )}
           </button>
         ) : (
           <div className="w-4 h-4" />
@@ -179,7 +212,10 @@ const TaskRow = ({
         <button
           type="button"
           className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 flex-shrink-0 text-text-tertiary hover:text-text-primary hover:bg-white/10 rounded transition-colors cursor-pointer border-none bg-transparent"
-          onClick={(e) => { e.stopPropagation(); onAddSubtask(task.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onAddSubtask(task.id);
+          }}
           title="Thêm mục con"
         >
           <Plus size={14} />
@@ -200,7 +236,10 @@ const TaskRow = ({
           className="flex-1 min-w-0 flex items-center gap-1 relative"
           onMouseEnter={() => {
             clearTimeout(tooltipTimeoutRef.current);
-            tooltipTimeoutRef.current = setTimeout(() => setShowTooltip(true), 400);
+            tooltipTimeoutRef.current = setTimeout(
+              () => setShowTooltip(true),
+              400,
+            );
           }}
           onMouseLeave={() => {
             clearTimeout(tooltipTimeoutRef.current);
@@ -211,7 +250,9 @@ const TaskRow = ({
           <button
             type="button"
             className={`min-w-0 bg-transparent border-none px-0 py-1 text-sm text-left cursor-text transition-colors truncate ${
-              task.completed === true ? "text-text-tertiary" : "text-text-primary"
+              task.completed === true
+                ? "text-text-tertiary"
+                : "text-text-primary"
             }`}
             onClick={onEdit}
           >
@@ -221,9 +262,18 @@ const TaskRow = ({
             type="button"
             onClick={() => onOpenDashboard && onOpenDashboard(task)}
             className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 flex items-center justify-center rounded-md hover:bg-white/10 text-text-tertiary hover:text-text-primary transition-all cursor-pointer border-none bg-transparent"
-            title={t('task.row.openDetail')}
+            title={t("task.row.openDetail")}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
             </svg>
           </button>
@@ -250,8 +300,7 @@ const TaskRow = ({
             {["HIGH", "MEDIUM", "LOW"].map((p) => {
               const s = PRIORITY_FLAG_STYLES[p];
               const selected =
-                currentPriority &&
-                String(currentPriority).toUpperCase() === p;
+                currentPriority && String(currentPriority).toUpperCase() === p;
               return (
                 <button
                   key={p}
@@ -267,10 +316,7 @@ const TaskRow = ({
                     {s.label}
                   </span>
                   {selected && (
-                    <Check
-                      size={12}
-                      className="ml-auto text-text-secondary"
-                    />
+                    <Check size={12} className="ml-auto text-text-secondary" />
                   )}
                 </button>
               );
@@ -284,16 +330,22 @@ const TaskRow = ({
         {(() => {
           const hasDueDate = Boolean(task.dueDate || task.date);
           const fallbackDateSource = task.createdAt || task.created_at;
-          const rawDate = hasDueDate ? (task.dueDate || task.date) : fallbackDateSource;
+          const rawDate = hasDueDate
+            ? task.dueDate || task.date
+            : fallbackDateSource;
           let displayDate;
           if (rawDate) {
             const d = new Date(rawDate);
             if (!Number.isNaN(d.getTime())) {
               const datePart = formatDate(rawDate);
               // Show time if it has non-midnight time
-              const hasTime = hasDueDate && (d.getHours() !== 0 || d.getMinutes() !== 0);
+              const hasTime =
+                hasDueDate && (d.getHours() !== 0 || d.getMinutes() !== 0);
               if (hasTime) {
-                const timePart = d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+                const timePart = d.toLocaleTimeString("vi-VN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
                 displayDate = `${datePart} ${timePart}`;
               } else {
                 displayDate = datePart;
@@ -326,15 +378,41 @@ const TaskRow = ({
             <input
               type="datetime-local"
               className="px-2 py-1 rounded bg-white/10 border border-border-subtle text-text-primary text-xs"
-              style={{ colorScheme: 'dark' }}
-              value={dueDateValue}
-              onChange={(e) => { onDateChange(e.target.value); setIsDateOpen(false); }}
+              style={{ colorScheme: "dark" }}
+              value={draftDueDate}
+              onChange={(e) => setDraftDueDate(e.target.value)}
             />
-            {(task.dueDate || task.date || dueDateValue) && (
+            <div className="mt-2 flex items-center gap-1.5">
+              <button
+                type="button"
+                className="flex-1 rounded border border-border-subtle px-2 py-1 text-xs text-text-secondary hover:bg-white/5"
+                onClick={() => {
+                  onDateChange(draftDueDate);
+                  setIsDateOpen(false);
+                }}
+              >
+                Lưu
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded border border-border-subtle px-2 py-1 text-xs text-text-tertiary hover:bg-white/5"
+                onClick={() => {
+                  setDraftDueDate(dueDateValue);
+                  setIsDateOpen(false);
+                }}
+              >
+                Hủy
+              </button>
+            </div>
+            {(task.dueDate || task.date || draftDueDate) && (
               <button
                 type="button"
                 className="mt-2 block w-full rounded border border-border-subtle px-2 py-1 text-xs text-text-secondary hover:bg-white/5"
-                onClick={() => { onDateChange(""); setIsDateOpen(false); }}
+                onClick={() => {
+                  setDraftDueDate("");
+                  onDateChange("");
+                  setIsDateOpen(false);
+                }}
               >
                 Bỏ ngày hạn
               </button>
@@ -349,23 +427,34 @@ const TaskRow = ({
           type="button"
           className={`flex items-center gap-1 px-1.5 py-1 rounded-md text-xs transition-colors whitespace-nowrap border-none bg-transparent cursor-pointer ${currentReminder ? "text-amber-400 hover:bg-amber-500/10" : "text-text-tertiary hover:bg-white/5"}`}
           onClick={() => setIsReminderOpen(!isReminderOpen)}
-          title={currentReminder ? `Nhắc: ${getReminderLabel(currentReminder)}` : "Nhắc nhở"}
+          title={
+            currentReminder
+              ? `Nhắc: ${getReminderLabel(currentReminder)}`
+              : "Nhắc nhở"
+          }
         >
           <Bell size={12} />
           {currentReminder && <span>{getReminderLabel(currentReminder)}</span>}
         </button>
         {isReminderOpen && (
           <div className="absolute top-full right-0 mt-1 z-50 w-48 bg-bg-sidebar border border-border-subtle rounded shadow-lg p-2 space-y-1">
-            <p className="text-[10px] text-text-tertiary px-2 mb-1 uppercase tracking-wider">Nhắc trước Due At</p>
+            <p className="text-[10px] text-text-tertiary px-2 mb-1 uppercase tracking-wider">
+              Nhắc trước Due At
+            </p>
             {[
               { label: "Không nhắc", value: "NONE" },
               { label: "5 phút trước", value: "MINUTES_5" },
               { label: "15 phút trước", value: "MINUTES_15" },
               { label: "1 giờ trước", value: "HOUR_1" },
             ].map((opt) => (
-              <button key={opt.value} type="button"
+              <button
+                key={opt.value}
+                type="button"
                 className={`block w-full text-left px-3 py-1.5 rounded text-xs hover:bg-white/5 ${opt.value === "NONE" && !currentReminder ? "bg-white/10 text-text-primary" : opt.value !== "NONE" && currentReminder ? "bg-white/10 text-amber-400" : ""}`}
-                onClick={() => { onReminderChange(opt.value); setIsReminderOpen(false); }}
+                onClick={() => {
+                  onReminderChange(opt.value);
+                  setIsReminderOpen(false);
+                }}
               >
                 {opt.label}
               </button>
@@ -380,7 +469,11 @@ const TaskRow = ({
         onClick={onDelete}
         disabled={isDeleting}
       >
-        {isDeleting ? <Loader size={14} className="animate-spin" /> : <Trash2 size={14} />}
+        {isDeleting ? (
+          <Loader size={14} className="animate-spin" />
+        ) : (
+          <Trash2 size={14} />
+        )}
       </button>
     </div>
   );

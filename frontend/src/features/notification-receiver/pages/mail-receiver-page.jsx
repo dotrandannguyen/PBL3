@@ -17,6 +17,17 @@ import {
 } from "../components";
 import SettingsPanel from "@/features/workspace/panels/settings";
 
+const buildInboxToastId = (payload) => {
+  const taskId = payload?.task?.id || payload?.task?.taskId || null;
+  const sourceKey =
+    payload?.task?.sourceId ||
+    payload?.task?.sourceLink ||
+    payload?.task?.title ||
+    payload?.message ||
+    "unknown";
+  return `inbox-new-item:${taskId || sourceKey}`;
+};
+
 export function MailReceiverPage() {
   const { user } = useAuth();
   const { data, setData, loading, error, connected, refetch } =
@@ -44,7 +55,7 @@ export function MailReceiverPage() {
   }, []);
 
   /**
-   * 👉 Xử lý khi click "Thêm vào Task" thành công
+   * Xử lý khi click "Thêm vào Task" thành công
    * Cập nhật UI ngay lập tức:
    * 1. Update danh sách data ở ngoài (set isConverted = true)
    * 2. Update data trong Modal (nếu modal đang mở) để modal sync
@@ -71,15 +82,17 @@ export function MailReceiverPage() {
     }
   };
 
-  // ✅ Setup real-time socket listener: Khi có inbox item mới -> refetch tự động
+  // Setup real-time socket listener: Khi có inbox item mới -> refetch tự động
   useInboxSocket(user?.id, (newItemData) => {
-    console.log("📥 Có tin nhắn mới! Đang refetch inbox...", newItemData);
+    console.log("Có tin nhắn mới! Đang refetch inbox...", newItemData);
 
     // Gọi refetch để cập nhật danh sách inbox
     refetch();
 
     // Hiển thị toast notification (non-intrusive)
-    toast.success(newItemData.message || "Bạn có tin nhắn mới! 📬", {
+    const toastId = buildInboxToastId(newItemData);
+    toast.success(newItemData.message || "Bạn có tin nhắn mới! ", {
+      id: toastId,
       position: "bottom-right",
       duration: 4000,
       description: newItemData.task?.title || "Inbox updated with new item",

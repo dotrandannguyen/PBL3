@@ -86,10 +86,12 @@ export const authController = {
 			next(error);
 		}
 	},
+	// Luồng 1: Dành cho Đăng nhập
 	getGoogleUrl: async (req, res) => {
 		const url = googleService.getAuthUrl({ action: 'login' });
 		new HttpResponse(res).success({ url });
 	},
+	// Luồng 2: Dành cho Liên kết (Yêu cầu phải có authGuard)
 	getGoogleLinkUrl: async (req, res) => {
 		const url = googleService.getAuthUrl({
 			action: 'link',

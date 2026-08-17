@@ -26,6 +26,7 @@ export const useIntegrations = () => {
     try {
       // Fetch preview từ API (Gmail + GitHub emails)
       const [gmailResult, githubResult, slackResult] = await Promise.allSettled(
+        // thằng nào sống thì lấy data, thằng nào chết thì xem như chưa kết nối
         [
           integrationAPI.getGmailPreview(),
           integrationAPI.getGithubPreview(),
@@ -76,6 +77,7 @@ export const useIntegrations = () => {
 
             return {
               id: mail.taskId || `gmail-${mail.id}`,
+              taskId: mail.taskId || null,
               source: "gmail",
               sender: mail.from,
               subject: mail.subject,
@@ -116,6 +118,7 @@ export const useIntegrations = () => {
 
             return {
               id: issue.taskId || `github-${issue.id}`,
+              taskId: issue.taskId || null,
               source: "github",
               sender: issue.creator || issue.repository,
               subject: issue.title,
@@ -156,6 +159,7 @@ export const useIntegrations = () => {
 
             return {
               id: message.taskId || `slack-${message.id}`,
+              taskId: message.taskId || null,
               source: "slack",
               sender: message.userId || "Slack",
               subject: message.channelName

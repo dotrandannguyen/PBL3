@@ -2,7 +2,7 @@ import { io } from "socket.io-client";
 
 // Khởi tạo Socket.io connection tới backend
 const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-const joinedRooms = new Set();
+const joinedRooms = new Set(); // bộ nhớ các room đã join để tự động re-join khi reconnect
 
 const socket = io(SOCKET_URL, {
   reconnection: true,

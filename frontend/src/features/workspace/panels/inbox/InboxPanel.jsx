@@ -5,6 +5,7 @@ import {
   Check,
   CheckCircle,
   Clock3,
+  CloudRain,
   ExternalLink,
   Eye,
   Github,
@@ -17,11 +18,36 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useIntegrations } from "../../../notification-receiver/hooks/useIntegrations";
 import { ItemDetailModal } from "../../../notification-receiver/components";
+import { WorkspacePickerModal } from "../../../notification-receiver/components/WorkspacePickerModal";
 import useInboxSocket from "../../../notification-receiver/hooks/useInboxSocket";
 import useAuth from "../../../auth/hooks/useAuth";
 import { confirmInboxTask } from "../../../tasks/api/task.api";
 import { useNotificationCenter } from "../../../../shared/api/hooks";
 import { toast } from "sonner";
+
+const isUuid = (value) =>
+  typeof value === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+
+const resolveTaskId = (item) => {
+  if (!item) return null;
+  if (isUuid(item.taskId)) return item.taskId;
+  if (isUuid(item.id)) return item.id;
+  return null;
+};
+
+const buildInboxToastId = (payload) => {
+  const taskId = payload?.task?.id || payload?.task?.taskId || null;
+  const sourceKey =
+    payload?.task?.sourceId ||
+    payload?.task?.sourceLink ||
+    payload?.task?.title ||
+    payload?.message ||
+    "unknown";
+  return `inbox-new-item:${taskId || sourceKey}`;
+};
 
 const formatTimeAgo = (dateStr) => {
   if (!dateStr) {
@@ -227,6 +253,8 @@ const InboxPanel = ({ isOpen, onClose, sidebarCollapsed = false }) => {
   const [notificationFilter, setNotificationFilter] = useState("all");
   const [integrationFilter, setIntegrationFilter] = useState("all");
   const [selectedItem, setSelectedItem] = useState(null);
+  const [pendingAddItem, setPendingAddItem] = useState(null);
+  const [showWsPicker, setShowWsPicker] = useState(false);
 
   const {
     notifications,
@@ -311,21 +339,44 @@ const InboxPanel = ({ isOpen, onClose, sidebarCollapsed = false }) => {
     [selectedItem, setData],
   );
 
-  const handleConfirm = async (event, item) => {
+  const openWorkspacePicker = useCallback((event, item) => {
     event.stopPropagation();
+    setPendingAddItem(item);
+    setShowWsPicker(true);
+  }, []);
 
-    try {
-      await confirmInboxTask(item.id);
-      handleStatusChange(item.id, "PENDING");
-      toast.success("✓ Đã đưa vào danh sách công việc!", {
-        position: "bottom-right",
-        duration: 3000,
-      });
-    } catch (error) {
-      toast.error("Lỗi khi chuyển thành Task");
-      console.error(error);
-    }
-  };
+  const handleConfirmWithWorkspace = useCallback(
+    async (workspaceId) => {
+      const targetItem = pendingAddItem;
+      const taskId = resolveTaskId(targetItem);
+
+      if (!targetItem || !taskId) {
+        toast.error("Không tìm thấy task inbox hợp lệ, vui lòng làm mới.");
+        setShowWsPicker(false);
+        setPendingAddItem(null);
+        refetch();
+        return;
+      }
+
+      try {
+        await confirmInboxTask(taskId, workspaceId);
+        handleStatusChange(targetItem.id, "PENDING");
+        toast.success("✓ Đã đưa vào danh sách công việc!", {
+          position: "bottom-right",
+          duration: 3000,
+        });
+      } catch (error) {
+        const message =
+          error?.response?.data?.message || "Lỗi khi chuyển thành Task";
+        toast.error(message);
+        console.error(error);
+      } finally {
+        setShowWsPicker(false);
+        setPendingAddItem(null);
+      }
+    },
+    [handleStatusChange, pendingAddItem, refetch],
+  );
 
   const markAsReadQuiet = useCallback(
     async (notificationId) => {
@@ -400,7 +451,9 @@ const InboxPanel = ({ isOpen, onClose, sidebarCollapsed = false }) => {
   const handleNewInboxItem = useCallback(
     (newItemData) => {
       refetch();
+      const toastId = buildInboxToastId(newItemData);
       toast.success(newItemData.message || "Bạn có tin nhắn mới! 📬", {
+        id: toastId,
         position: "bottom-right",
         duration: 4000,
         description: newItemData.task?.title || "Inbox updated with new item",
@@ -641,6 +694,7 @@ const InboxPanel = ({ isOpen, onClose, sidebarCollapsed = false }) => {
                 { id: "all", label: "Tất cả" },
                 { id: "gmail", label: "Gmail", icon: Mail },
                 { id: "github", label: "GitHub", icon: Github },
+                { id: "slack", label: "Slack", icon: CloudRain },
               ].map((item) => (
                 <div
                   key={item.id}
@@ -665,11 +719,11 @@ const InboxPanel = ({ isOpen, onClose, sidebarCollapsed = false }) => {
                     className="animate-spin text-text-tertiary"
                   />
                 </div>
-              ) : !connected.gmail && !connected.github ? (
+              ) : !connected.gmail && !connected.github && !connected.slack ? (
                 <div className="flex flex-col items-center justify-center py-10 text-text-tertiary opacity-70">
                   <Inbox size={32} className="mb-2" />
                   <p className="text-sm">
-                    Hãy kết nối Gmail hoặc GitHub để xem tin nhắn
+                    Hãy kết nối Gmail, GitHub hoặc Slack để xem tin nhắn
                   </p>
                 </div>
               ) : filteredData.length === 0 ? (
@@ -726,7 +780,9 @@ const InboxPanel = ({ isOpen, onClose, sidebarCollapsed = false }) => {
                               </div>
                             ) : (
                               <button
-                                onClick={(event) => handleConfirm(event, item)}
+                                onClick={(event) =>
+                                  openWorkspacePicker(event, item)
+                                }
                                 className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium bg-accent-primary text-white hover:bg-opacity-90 transition-colors"
                                 title="Thêm vào Task"
                               >
@@ -749,6 +805,16 @@ const InboxPanel = ({ isOpen, onClose, sidebarCollapsed = false }) => {
         item={selectedItem}
         onClose={() => setSelectedItem(null)}
         onStatusChange={handleStatusChange}
+      />
+
+      <WorkspacePickerModal
+        isOpen={showWsPicker}
+        onClose={() => {
+          setShowWsPicker(false);
+          setPendingAddItem(null);
+        }}
+        onConfirm={handleConfirmWithWorkspace}
+        itemSubject={pendingAddItem?.subject}
       />
     </>
   );

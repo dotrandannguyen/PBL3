@@ -15,7 +15,7 @@ export const getInMemoryToken = () => inMemoryAccessToken;
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 10000, // 1000 là thời gian chờ tối đa cho mỗi request (10 giây)
   withCredentials: true, // Gửi cookie (refresh token) cùng request
   headers: {
     "Content-Type": "application/json",
@@ -69,8 +69,8 @@ apiClient.interceptors.response.use(
     console.error(`[API Error Message] ${errorMessage}`);
     console.error(`[Full Error Response]`, error.response?.data || error);
 
-    if (status === 401) {
-      const requestUrl = error.config?.url || "";
+    if (status === 401) { // Unauthorized - Thường do access token hết hạn hoặc không hợp lệ
+      const requestUrl = error.config?.url || ""; // Một số endpoint như /auth/refresh hoặc /auth/login không nên tự động redirect nếu gặp 401, vì có thể do lỗi khác (ví dụ: /auth/refresh gặp 401 thì không nên tiếp tục gọi refresh nữa)
       const EXCLUDED_URLS = [
         "/auth/login",
         "/auth/register",
@@ -82,13 +82,13 @@ apiClient.interceptors.response.use(
       ];
       const isExcluded = EXCLUDED_URLS.some((path) =>
         requestUrl.includes(path),
-      );
+      ); // Một số endpoint không nên tự động refresh token nếu gặp 401, vì có thể do lỗi khác (ví dụ: /auth/refresh gặp 401 thì không nên tiếp tục gọi refresh nữa)
       const hadToken = !!inMemoryAccessToken;
       console.warn(
         `[401 Unauthorized] ${method} ${url} - Had Token: ${hadToken}`,
       );
 
-      if (hadToken && !isExcluded && !originalRequest?._retry) {
+      if (hadToken && !isExcluded && !originalRequest?._retry) { // Chỉ tự động refresh nếu có token (đã login) và không phải là các endpoint nhạy cảm như /auth/refresh hoặc /auth/login
         if (isRefreshing) {
           return new Promise((resolve, reject) => {
             failedQueue.push({ resolve, reject });
@@ -144,18 +144,18 @@ apiClient.interceptors.response.use(
           isRefreshing = false;
         }
       }
-    } else if (status === 403) {
+    } else if (status === 403) { // Forbidden - Thường do user không có quyền truy cập resource nào đó
       console.warn(`[403 Forbidden] ${method} ${url}`);
       toast.error(`Bạn không có quyền truy cập: ${errorMessage}`);
-    } else if (status === 500) {
+    } else if (status === 500) { // Internal Server Error - Lỗi từ backend, có thể do bug hoặc do điều kiện dữ liệu không hợp lệ
       console.error(`[500 Server Error] ${method} ${url}`);
       toast.error(`Lỗi server: ${errorMessage}`);
-    } else if (error.code === "ECONNABORTED") {
+    } else if (error.code === "ECONNABORTED") { // Timeout - Khi server không phản hồi trong thời gian chờ đã định
       console.error(`[Timeout] ${method} ${url}`);
       toast.error("Kết nối bị timeout, vui lòng thử lại");
     } else if (
-      error.message === "Network Error" ||
-      error.message === NETWORK_ERROR_MESSAGE
+      error.message === "Network Error" || // Lỗi mạng chung chung, thường do server không reachable hoặc CORS
+      error.message === NETWORK_ERROR_MESSAGE // Lỗi mạng đã được chúng ta custom message ở trên
     ) {
       console.error(`[Network Error] ${method} ${url}`);
       toast.error(error.message);

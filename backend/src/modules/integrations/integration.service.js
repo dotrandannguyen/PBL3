@@ -1111,10 +1111,10 @@ export const integrationService = {
 					sourceId: savedTask.sourceId,
 					isConverted: savedTask.isConverted,
 				});
-				// ✅ Use sourceId as key to avoid index mismatch
+				// Use sourceId as key to avoid index mismatch
 				tasksBySourceId[taskData.sourceId] = savedTask;
 			} catch (error) {
-				console.error(`❌ [SYNC] Lỗi lưu task từ ${sourceType}:`, error.message);
+				console.error(`[SYNC] Lỗi lưu task từ ${sourceType}:`, error.message);
 			}
 		}
 
